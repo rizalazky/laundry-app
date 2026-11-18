@@ -38,21 +38,26 @@ class UserResource extends Resource
     {
         $user = Auth::user();
 
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->where('tenant_id', $user?->tenant_id)
-            ->where('role', '!=', 'super_admin')
-            ->when(
-                $user?->role === 'branch_manager',
-                fn (Builder $query) => $query
-                    ->whereIn('role', ['cashier', 'operator'])
-                    ->whereHas(
-                        'branches',
-                        fn (Builder $branches) => $branches->whereIn(
-                            'branches.id',
-                            $user->branches()->select('branches.id')
-                        )
-                    )
-            );
+            ->where('role', '!=', 'super_admin');
+
+        if ($user?->role === 'branch_manager') {
+            $managedBranchIds = $user->branches()->pluck('branches.id');
+
+            $query
+                ->whereIn('role', ['cashier', 'operator'])
+                ->whereHas(
+                    'branches',
+                    fn (Builder $branches) => $branches->whereIn('branches.id', $managedBranchIds)
+                )
+                ->whereDoesntHave(
+                    'branches',
+                    fn (Builder $branches) => $branches->whereNotIn('branches.id', $managedBranchIds)
+                );
+        }
+
+        return $query;
     }
 
     public static function form(Schema $schema): Schema
