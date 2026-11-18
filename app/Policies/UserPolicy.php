@@ -3,63 +3,78 @@
 namespace App\Policies;
 
 use App\Models\User;
-use Illuminate\Auth\Access\Response;
 
 class UserPolicy
 {
-    /**
-     * Determine whether the user can view any models.
-     */
     public function viewAny(User $user): bool
     {
-        return false;
+        return $user->is_active
+            && in_array($user->role, ['tenant_owner', 'branch_manager'], true)
+            && $user->tenant_id !== null;
     }
 
-    /**
-     * Determine whether the user can view the model.
-     */
     public function view(User $user, User $model): bool
     {
-        return false;
+        return $this->isInSameTenant($user, $model)
+            && $model->role !== 'super_admin';
     }
 
-    /**
-     * Determine whether the user can create models.
-     */
     public function create(User $user): bool
     {
-        return false;
+        return $this->viewAny($user);
     }
 
-    /**
-     * Determine whether the user can update the model.
-     */
     public function update(User $user, User $model): bool
     {
-        return false;
+        if (! $this->isInSameTenant($user, $model) || ! $this->canManageRole($user, $model)) {
+            return false;
+        }
+
+        // A tenant owner account must not be transferred or modified from staff management.
+        return $model->role !== 'tenant_owner'
+            && $model->getKey() !== $user->getKey();
     }
 
-    /**
-     * Determine whether the user can delete the model.
-     */
     public function delete(User $user, User $model): bool
     {
-        return false;
+        if (! $this->isInSameTenant($user, $model) || ! $this->canManageRole($user, $model)) {
+            return false;
+        }
+
+        return ! in_array($model->role, ['tenant_owner', 'super_admin'], true)
+            && $model->getKey() !== $user->getKey();
     }
 
-    /**
-     * Determine whether the user can restore the model.
-     */
     public function restore(User $user, User $model): bool
     {
         return false;
     }
 
-    /**
-     * Determine whether the user can permanently delete the model.
-     */
     public function forceDelete(User $user, User $model): bool
     {
         return false;
+    }
+
+    private function isInSameTenant(User $user, User $model): bool
+    {
+        return $user->tenant_id !== null
+            && (int) $user->tenant_id === (int) $model->tenant_id
+            && $model->role !== 'super_admin';
+    }
+
+    private function canManageRole(User $user, User $model): bool
+    {
+        if ($user->role === 'tenant_owner') {
+            return true;
+        }
+
+        if ($user->role !== 'branch_manager' || ! in_array($model->role, ['cashier', 'operator'], true)) {
+            return false;
+        }
+
+        $managedBranchIds = $user->branches()->pluck('branches.id');
+
+        return $managedBranchIds->isNotEmpty()
+            && $model->branches()->whereIn('branches.id', $managedBranchIds)->exists();
     }
 }
