@@ -15,8 +15,11 @@ class UserPolicy
 
     public function view(User $user, User $model): bool
     {
-        return $this->isInSameTenant($user, $model)
-            && $model->role !== 'super_admin';
+        if (! $this->isInSameTenant($user, $model)) {
+            return false;
+        }
+
+        return $user->role === 'tenant_owner' || $this->canManageRole($user, $model);
     }
 
     public function create(User $user): bool
@@ -30,7 +33,6 @@ class UserPolicy
             return false;
         }
 
-        // A tenant owner account must not be transferred or modified from staff management.
         return $model->role !== 'tenant_owner'
             && $model->getKey() !== $user->getKey();
     }
