@@ -43,13 +43,15 @@ class UserResource extends Resource
             ->where('role', '!=', 'super_admin')
             ->when(
                 $user?->role === 'branch_manager',
-                fn (Builder $query) => $query->whereHas(
-                    'branches',
-                    fn (Builder $branches) => $branches->whereIn(
-                        'branches.id',
-                        $user->branches()->select('branches.id')
+                fn (Builder $query) => $query
+                    ->whereIn('role', ['cashier', 'operator'])
+                    ->whereHas(
+                        'branches',
+                        fn (Builder $branches) => $branches->whereIn(
+                            'branches.id',
+                            $user->branches()->select('branches.id')
+                        )
                     )
-                )
             );
     }
 
