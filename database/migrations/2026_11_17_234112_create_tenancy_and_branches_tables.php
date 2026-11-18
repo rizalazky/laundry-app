@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->string('slug')->unique();
-            $table->string('owner_email');
+            $table->string('owner_email')->unique('users','email');
             $table->string('phone', 25)->nullable();
             $table->enum('plan', ['starter', 'pro', 'enterprise'])->default('starter');
             $table->unsignedInteger('max_branches')->default(1);
@@ -40,7 +40,6 @@ return new class extends Migration {
         Schema::table('users', function (Blueprint $table) {
             $table->foreignId('tenant_id')->nullable()->after('id')->constrained()->nullOnDelete();
             $table->enum('role', ['super_admin', 'tenant_owner', 'branch_manager', 'cashier', 'operator'])
-                ->default('super_admin')
                 ->after('password');
             $table->boolean('is_active')->default(true)->after('role');
         });
