@@ -43,7 +43,10 @@ class UserResource extends Resource
             ->where('role', '!=', 'super_admin');
 
         if ($user?->role === 'branch_manager') {
-            $managedBranchIds = $user->branches()->pluck('branches.id');
+            $managedBranchIds = $user->branches()
+                ->where('branches.tenant_id', $user->tenant_id)
+                ->where('branches.is_active', true)
+                ->pluck('branches.id');
 
             $query
                 ->whereIn('role', ['cashier', 'operator'])
