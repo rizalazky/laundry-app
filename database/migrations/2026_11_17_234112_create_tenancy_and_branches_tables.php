@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->string('slug')->unique();
-            $table->string('owner_email')->unique('users','email');
+            $table->string('owner_email')->unique();
             $table->string('phone', 25)->nullable();
             $table->enum('plan', ['starter', 'pro', 'enterprise'])->default('starter');
             $table->unsignedInteger('max_branches')->default(1);
@@ -24,7 +24,7 @@ return new class extends Migration {
         Schema::create('branches', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->string('code', 20); // Contoh: PUSAT, DGO, RIU
+            $table->string('code', 20);
             $table->string('name');
             $table->string('phone', 25)->nullable();
             $table->text('address')->nullable();
