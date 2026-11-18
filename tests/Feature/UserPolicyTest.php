@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\UserPolicy;
@@ -31,7 +30,7 @@ class UserPolicyTest extends TestCase
         $this->assertFalse($policy->update($owner, $anotherOwner));
     }
 
-    public function test_branch_manager_can_manage_only_cashiers_and_operators_in_assigned_branches(): void
+    public function test_branch_manager_can_manage_only_staff_fully_within_assigned_branches(): void
     {
         $tenant = $this->createTenant('laundry-branch-test');
         $branchA = $tenant->branches()->create([
@@ -48,11 +47,13 @@ class UserPolicyTest extends TestCase
         $manager = $this->createUser($tenant, 'branch_manager');
         $cashierA = $this->createUser($tenant, 'cashier');
         $operatorB = $this->createUser($tenant, 'operator');
+        $sharedStaff = $this->createUser($tenant, 'cashier');
         $otherManager = $this->createUser($tenant, 'branch_manager');
 
         $manager->branches()->attach($branchA);
         $cashierA->branches()->attach($branchA);
         $operatorB->branches()->attach($branchB);
+        $sharedStaff->branches()->attach([$branchA->id, $branchB->id]);
         $otherManager->branches()->attach($branchA);
 
         $policy = new UserPolicy();
@@ -62,6 +63,8 @@ class UserPolicyTest extends TestCase
         $this->assertTrue($policy->update($manager, $cashierA));
         $this->assertFalse($policy->view($manager, $operatorB));
         $this->assertFalse($policy->update($manager, $operatorB));
+        $this->assertFalse($policy->view($manager, $sharedStaff));
+        $this->assertFalse($policy->update($manager, $sharedStaff));
         $this->assertFalse($policy->update($manager, $otherManager));
         $this->assertFalse($policy->delete($manager, $manager));
     }
