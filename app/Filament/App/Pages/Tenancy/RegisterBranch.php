@@ -10,6 +10,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Tenancy\RegisterTenant;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class RegisterBranch extends RegisterTenant
@@ -70,25 +71,28 @@ class RegisterBranch extends RegisterTenant
     {
         $user = Auth::user();
 
-        if ($user->tenant->branches()->count() >= $user->tenant->max_branches) {
-            Notification::make()
-                ->title('Kuota Cabang Penuh')
-                ->body('Paket Anda maksimal ' . $user->tenant->max_branches . ' cabang.')
-                ->danger()
-                ->send();
+        return DB::transaction(function () use ($user, $data): Branch {
+            $tenant = $user->tenant()->lockForUpdate()->firstOrFail();
 
-            $this->halt();
-        }
+            if ($tenant->branches()->count() >= $tenant->max_branches) {
+                Notification::make()
+                    ->title('Kuota Cabang Penuh')
+                    ->body('Paket Anda maksimal ' . $tenant->max_branches . ' cabang.')
+                    ->danger()
+                    ->send();
 
-        $branch = Branch::create([
-            ...$data,
-            'tenant_id' => $user->tenant_id,
-            'code' => strtoupper($data['code']),
-            'is_active' => true,
-        ]);
+                $this->halt();
+            }
 
-        $branch->users()->attach($user->id);
+            $branch = $tenant->branches()->create([
+                ...$data,
+                'code' => strtoupper($data['code']),
+                'is_active' => true,
+            ]);
 
-        return $branch;
+            $branch->users()->attach($user->id);
+
+            return $branch;
+        });
     }
 }
