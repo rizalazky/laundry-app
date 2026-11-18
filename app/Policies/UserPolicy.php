@@ -75,14 +75,16 @@ class UserPolicy
             return false;
         }
 
-        $managedBranchIds = $user->branches()->pluck('branches.id');
+        $managedBranchIds = $user->branches()
+            ->where('branches.tenant_id', $user->tenant_id)
+            ->where('branches.is_active', true)
+            ->pluck('branches.id');
 
         if ($managedBranchIds->isEmpty()) {
             return false;
         }
 
-        // Do not let a branch manager edit a staff account that also has access
-        // to branches outside the manager's own assignment.
+        // A manager must not edit staff who also have access to other branches.
         return $model->branches()->whereIn('branches.id', $managedBranchIds)->exists()
             && ! $model->branches()->whereNotIn('branches.id', $managedBranchIds)->exists();
     }
