@@ -59,7 +59,8 @@ class UserPolicy
 
     private function isInSameTenant(User $user, User $model): bool
     {
-        return $user->tenant_id !== null
+        return $user->is_active
+            && $user->tenant_id !== null
             && (int) $user->tenant_id === (int) $model->tenant_id
             && $model->role !== 'super_admin';
     }
@@ -76,7 +77,13 @@ class UserPolicy
 
         $managedBranchIds = $user->branches()->pluck('branches.id');
 
-        return $managedBranchIds->isNotEmpty()
-            && $model->branches()->whereIn('branches.id', $managedBranchIds)->exists();
+        if ($managedBranchIds->isEmpty()) {
+            return false;
+        }
+
+        // Do not let a branch manager edit a staff account that also has access
+        // to branches outside the manager's own assignment.
+        return $model->branches()->whereIn('branches.id', $managedBranchIds)->exists()
+            && ! $model->branches()->whereNotIn('branches.id', $managedBranchIds)->exists();
     }
 }
