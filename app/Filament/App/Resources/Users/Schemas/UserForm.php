@@ -53,8 +53,8 @@ class UserForm
                                     'cashier' => 'Kasir (POS & Pembayaran)',
                                     'operator' => 'Operator Produksi (Cuci & Setrika)',
                                 ])
-                            ->rules([
-                                Rule::in(fn () => Auth::user()?->role === 'tenant_owner'
+                            ->rules(fn (): array => [
+                                Rule::in(Auth::user()?->role === 'tenant_owner'
                                     ? ['branch_manager', 'cashier', 'operator']
                                     : ['cashier', 'operator']),
                             ])
