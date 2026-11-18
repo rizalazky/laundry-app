@@ -55,7 +55,7 @@ class User extends Authenticatable implements FilamentUser, HasTenants, HasDefau
 
         return match ($panel->getId()) {
             'admin' => $this->role === 'super_admin',
-            'app'   => in_array($this->role, ['tenant_owner', 'branch_manager', 'cashier', 'operator'])
+            'app' => in_array($this->role, ['tenant_owner', 'branch_manager', 'cashier', 'operator'], true)
                 && $this->tenant_id !== null,
             default => false,
         };
@@ -64,21 +64,33 @@ class User extends Authenticatable implements FilamentUser, HasTenants, HasDefau
     public function getTenants(Panel $panel): array|Collection
     {
         if ($this->role === 'tenant_owner') {
-            return Branch::where('tenant_id', $this->tenant_id)
+            return Branch::query()
+                ->where('tenant_id', $this->tenant_id)
                 ->where('is_active', true)
                 ->get();
         }
 
-        return $this->branches()->where('is_active', true)->get();
+        return $this->branches()
+            ->where('branches.tenant_id', $this->tenant_id)
+            ->where('branches.is_active', true)
+            ->get();
     }
 
     public function canAccessTenant(Model $tenant): bool
     {
-        if ($this->role === 'tenant_owner') {
-            return (int) $tenant->tenant_id === (int) $this->tenant_id;
+        if ((int) $tenant->tenant_id !== (int) $this->tenant_id || $this->tenant_id === null) {
+            return false;
         }
 
-        return $this->branches()->whereKey($tenant->getKey())->exists();
+        if ($this->role === 'tenant_owner') {
+            return (bool) $tenant->is_active;
+        }
+
+        return $this->branches()
+            ->whereKey($tenant->getKey())
+            ->where('branches.tenant_id', $this->tenant_id)
+            ->where('branches.is_active', true)
+            ->exists();
     }
 
     public function getDefaultTenant(Panel $panel): ?Model

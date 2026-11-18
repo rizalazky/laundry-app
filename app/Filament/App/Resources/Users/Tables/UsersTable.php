@@ -2,8 +2,6 @@
 
 namespace App\Filament\App\Resources\Users\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -27,11 +25,11 @@ class UsersTable
                     ->label('Role')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'tenant_owner'   => 'primary',
+                        'tenant_owner' => 'primary',
                         'branch_manager' => 'warning',
-                        'cashier'        => 'success',
-                        'operator'       => 'info',
-                        default          => 'gray',
+                        'cashier' => 'success',
+                        'operator' => 'info',
+                        default => 'gray',
                     }),
 
                 TextColumn::make('branches.name')
@@ -43,16 +41,9 @@ class UsersTable
                     ->label('Aktif')
                     ->boolean(),
             ])
-            ->filters([
-                //
-            ])
+            ->filters([])
             ->recordActions([
                 EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
             ]);
     }
 }

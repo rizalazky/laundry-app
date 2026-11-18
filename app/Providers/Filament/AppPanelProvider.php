@@ -30,7 +30,7 @@ class AppPanelProvider extends PanelProvider
         return $panel
             ->id('app')
             ->path('app')
-            ->tenant(Branch::class, slugAttribute: 'code', ownershipRelationship: 'branch')
+            ->tenant(Branch::class, slugAttribute: 'code', ownershipRelationship: 'branches')
             ->tenantRegistration(RegisterBranch::class)
             ->tenantProfile(EditBranchProfile::class)
             ->tenantMiddleware([
