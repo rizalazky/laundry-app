@@ -33,6 +33,7 @@ class UserPolicyTest extends TestCase
     public function test_branch_manager_can_manage_only_staff_fully_within_assigned_branches(): void
     {
         $tenant = $this->createTenant('laundry-branch-test');
+        $otherTenant = $this->createTenant('laundry-branch-foreign');
         $branchA = $tenant->branches()->create([
             'code' => 'A',
             'name' => 'Branch A',
@@ -43,17 +44,24 @@ class UserPolicyTest extends TestCase
             'name' => 'Branch B',
             'is_active' => true,
         ]);
+        $foreignBranch = $otherTenant->branches()->create([
+            'code' => 'EXT',
+            'name' => 'Foreign Branch',
+            'is_active' => true,
+        ]);
 
         $manager = $this->createUser($tenant, 'branch_manager');
         $cashierA = $this->createUser($tenant, 'cashier');
         $operatorB = $this->createUser($tenant, 'operator');
         $sharedStaff = $this->createUser($tenant, 'cashier');
+        $foreignAssignedStaff = $this->createUser($tenant, 'cashier');
         $otherManager = $this->createUser($tenant, 'branch_manager');
 
-        $manager->branches()->attach($branchA);
+        $manager->branches()->attach([$branchA->id, $foreignBranch->id]);
         $cashierA->branches()->attach($branchA);
         $operatorB->branches()->attach($branchB);
         $sharedStaff->branches()->attach([$branchA->id, $branchB->id]);
+        $foreignAssignedStaff->branches()->attach($foreignBranch);
         $otherManager->branches()->attach($branchA);
 
         $policy = new UserPolicy();
@@ -65,6 +73,8 @@ class UserPolicyTest extends TestCase
         $this->assertFalse($policy->update($manager, $operatorB));
         $this->assertFalse($policy->view($manager, $sharedStaff));
         $this->assertFalse($policy->update($manager, $sharedStaff));
+        $this->assertFalse($policy->view($manager, $foreignAssignedStaff));
+        $this->assertFalse($policy->update($manager, $foreignAssignedStaff));
         $this->assertFalse($policy->update($manager, $otherManager));
         $this->assertFalse($policy->delete($manager, $manager));
     }
