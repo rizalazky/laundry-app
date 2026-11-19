@@ -86,6 +86,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Seeded Super Admin
+    |--------------------------------------------------------------------------
+    |
+    | Credentials used by DatabaseSeeder to create the first super admin.
+    | The password has no default outside the local environment.
+    |
+    */
+
+    'seed_super_admin' => [
+        'email' => env('SEED_SUPER_ADMIN_EMAIL', 'admin@example.com'),
+        'password' => env('SEED_SUPER_ADMIN_PASSWORD'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------
     |

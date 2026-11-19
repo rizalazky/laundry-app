@@ -3,23 +3,36 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
+     *
+     * The first super admin is created from SEED_SUPER_ADMIN_EMAIL and
+     * SEED_SUPER_ADMIN_PASSWORD. A weak default password is only allowed locally.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $email = config('app.seed_super_admin.email');
+        $password = config('app.seed_super_admin.password') ?: (app()->isLocal() ? 'password' : null);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        if (blank($password)) {
+            $this->command?->warn('Super admin not seeded: set SEED_SUPER_ADMIN_PASSWORD.');
+
+            return;
+        }
+
+        User::query()->firstOrCreate(
+            ['email' => $email],
+            [
+                'name' => 'Super Admin',
+                'password' => $password,
+                'role' => 'super_admin',
+                'tenant_id' => null,
+                'is_active' => true,
+            ],
+        );
     }
 }
