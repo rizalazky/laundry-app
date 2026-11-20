@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Orders\ChangeOrderStatus;
 use App\Actions\Orders\CreateOrder as CreateOrderAction;
 use App\Actions\Orders\RecordPayment;
 use App\Enums\OrderStatus;
@@ -15,6 +16,7 @@ use App\Models\Order;
 use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
+use DomainException;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -312,8 +314,9 @@ class OrderModuleTest extends TestCase
         $page->assertActionHidden('recordPayment');
         $page->callAction('changeStatus', ['status' => 'washing'])->assertNotified('Status diperbarui');
         $this->assertSame(OrderStatus::Washing, $order->fresh()->status);
-        $this->assertNull($order->statusLogs()->sole()->worker_id);
-        $this->assertNull($order->statusLogs()->sole()->machine_code);
+        $washingLog = $order->statusLogs()->where('to_status', 'washing')->sole();
+        $this->assertNull($washingLog->worker_id);
+        $this->assertNull($washingLog->machine_code);
     }
 
     public function test_staff_assigned_to_another_branch_cannot_view_the_order(): void
@@ -344,9 +347,26 @@ class OrderModuleTest extends TestCase
                 'worker_id' => $foreignOperator->id,
                 'machine_code' => 'WASH-02',
             ])
-            ->assertNotified('Gagal');
+            ->assertHasActionErrors(['worker_id']);
 
         $this->assertSame(OrderStatus::Received, $order->fresh()->status);
-        $this->assertSame(0, $order->statusLogs()->count());
+        $this->assertSame(0, $order->statusLogs()->where('to_status', 'washing')->count());
+    }
+
+    public function test_status_action_rejects_a_worker_from_another_branch_when_called_directly(): void
+    {
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+        $cashier = $this->staff('cashier');
+        $foreignOperator = $this->staff('operator', $otherBranch);
+        $order = $this->makeOrder();
+
+        $this->expectException(DomainException::class);
+
+        app(ChangeOrderStatus::class)->handle(
+            order: $order,
+            to: OrderStatus::Washing,
+            user: $cashier,
+            workerId: $foreignOperator->id,
+        );
     }
 }
