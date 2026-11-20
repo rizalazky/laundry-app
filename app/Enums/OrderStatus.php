@@ -8,6 +8,7 @@ enum OrderStatus: string
     case Washing = 'washing';
     case Drying = 'drying';
     case Ironing = 'ironing';
+    case Packing = 'packing';
     case Ready = 'ready';
     case Completed = 'completed';
     case Cancelled = 'cancelled';
@@ -19,6 +20,7 @@ enum OrderStatus: string
             self::Washing => 'Dicuci',
             self::Drying => 'Dikeringkan',
             self::Ironing => 'Disetrika',
+            self::Packing => 'Dikemas',
             self::Ready => 'Siap Diambil',
             self::Completed => 'Selesai',
             self::Cancelled => 'Dibatalkan',
@@ -29,7 +31,7 @@ enum OrderStatus: string
     {
         return match ($this) {
             self::Received => 'gray',
-            self::Washing, self::Drying, self::Ironing => 'info',
+            self::Washing, self::Drying, self::Ironing, self::Packing => 'info',
             self::Ready => 'warning',
             self::Completed => 'success',
             self::Cancelled => 'danger',
@@ -92,9 +94,10 @@ enum OrderStatus: string
             self::Washing => 1,
             self::Drying => 2,
             self::Ironing => 3,
-            self::Ready => 4,
-            self::Completed => 5,
-            self::Cancelled => 6,
+            self::Packing => 4,
+            self::Ready => 5,
+            self::Completed => 6,
+            self::Cancelled => 7,
         };
     }
 }
