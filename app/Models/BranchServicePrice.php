@@ -23,6 +23,15 @@ class BranchServicePrice extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (BranchServicePrice $branchServicePrice): void {
+            $branchServicePrice->tenant_id ??= Service::query()
+                ->whereKey($branchServicePrice->service_id)
+                ->value('tenant_id');
+        });
+    }
+
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);

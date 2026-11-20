@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\ServicePolicy;
 use Filament\Facades\Filament;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -121,8 +122,10 @@ class ServiceModuleTest extends TestCase
             ->assertHasNoFormErrors();
 
         $service = Service::query()->where('name', 'Cuci Karpet')->firstOrFail();
+        $branchPrice = $service->branchPrices()->firstOrFail();
 
         $this->assertSame($tenant->id, $service->tenant_id);
+        $this->assertSame($tenant->id, $branchPrice->tenant_id);
         $this->assertSame(ServiceUnit::SquareMeter, $service->unit);
         $this->assertSame('17500.00', $service->priceForBranch($branch));
     }
@@ -190,6 +193,55 @@ class ServiceModuleTest extends TestCase
 
         $this->assertSame('9500.00', $service->priceForBranch($withOverride));
         $this->assertSame('8000.00', $service->fresh()->priceForBranch($withoutOverride));
+    }
+
+    public function test_database_rejects_a_branch_price_for_a_branch_in_another_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($otherTenant)->create();
+        $service = Service::factory()->for($tenant)->create();
+
+        try {
+            BranchServicePrice::factory()->create([
+                'branch_id' => $branch->id,
+                'service_id' => $service->id,
+                'price' => 12000,
+            ]);
+
+            $this->fail('A branch price must not connect records from different tenants.');
+        } catch (QueryException) {
+            $this->assertDatabaseMissing('branch_service_prices', [
+                'branch_id' => $branch->id,
+                'service_id' => $service->id,
+            ]);
+        }
+    }
+
+    public function test_database_rejects_changing_a_branch_price_to_another_tenant_branch(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $foreignBranch = Branch::factory()->for($otherTenant)->create();
+        $service = Service::factory()->for($tenant)->create();
+        $branchPrice = BranchServicePrice::factory()->create([
+            'branch_id' => $branch->id,
+            'service_id' => $service->id,
+            'price' => 12000,
+        ]);
+
+        try {
+            $branchPrice->update(['branch_id' => $foreignBranch->id]);
+
+            $this->fail('A branch price must remain within its service tenant.');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('branch_service_prices', [
+                'id' => $branchPrice->id,
+                'branch_id' => $branch->id,
+                'service_id' => $service->id,
+            ]);
+        }
     }
 
     public function test_owner_can_update_a_service_price(): void
