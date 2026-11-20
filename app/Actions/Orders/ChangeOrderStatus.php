@@ -18,7 +18,7 @@ class ChangeOrderStatus
     /**
      * @throws DomainException
      */
-    public function handle(Order $order, OrderStatus $to, User $user, ?string $note = null): Order
+    public function handle(Order $order, OrderStatus $to, User $user, ?string $note = null, ?int $workerId = null, ?string $machineCode = null): Order
     {
         $actor = User::query()->find($user->getKey());
 
@@ -36,12 +36,33 @@ class ChangeOrderStatus
             throw new DomainException('Peran Anda tidak diizinkan mengubah status ke "'.$to->label().'".');
         }
 
-        return DB::transaction(function () use ($order, $to, $actor, $note): Order {
+        return DB::transaction(function () use ($order, $to, $actor, $note, $workerId, $machineCode): Order {
             $locked = Order::query()
                 ->withoutGlobalScope('tenant')
                 ->whereKey($order->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($workerId !== null) {
+                $workerIsAssignedToBranch = User::query()
+                    ->whereKey($workerId)
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->where('role', 'operator')
+                    ->where('is_active', true)
+                    ->whereHas('branches', fn ($query) => $query->whereKey($locked->branch_id))
+                    ->exists();
+
+                if (! $workerIsAssignedToBranch) {
+                    throw new DomainException('Petugas produksi tidak valid atau tidak ditugaskan ke cabang order ini.');
+                }
+            }
+
+            $machineCode = $machineCode !== null ? trim($machineCode) : null;
+            $machineCode = $machineCode === '' ? null : $machineCode;
+
+            if ($machineCode !== null && mb_strlen($machineCode) > 50) {
+                throw new DomainException('Kode mesin maksimal 50 karakter.');
+            }
 
             if (! $locked->status->canMoveTo($to)) {
                 throw new DomainException('Status tidak bisa diubah dari "'.$locked->status->label().'" ke "'.$to->label().'".');
@@ -62,6 +83,8 @@ class ChangeOrderStatus
             OrderStatusLog::query()->create([
                 'order_id' => $locked->getKey(),
                 'user_id' => $actor->getKey(),
+                'worker_id' => $workerId,
+                'machine_code' => $machineCode,
                 'from_status' => $from,
                 'to_status' => $to,
                 'note' => $note,

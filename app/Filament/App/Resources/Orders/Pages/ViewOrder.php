@@ -9,6 +9,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
 use App\Filament\App\Resources\Orders\OrderResource;
 use App\Models\Order;
+use App\Models\User;
 use Brick\Math\BigDecimal;
 use DomainException;
 use Filament\Actions\Action;
@@ -156,6 +157,24 @@ class ViewOrder extends ViewRecord
                         ->all())
                     ->native(false)
                     ->required(),
+                Select::make('worker_id')
+                    ->label('Petugas Produksi')
+                    ->helperText('Opsional. Pilih jika petugas yang mengerjakan diketahui.')
+                    ->options(fn (Order $record): array => User::query()
+                        ->where('tenant_id', $record->tenant_id)
+                        ->where('role', 'operator')
+                        ->where('is_active', true)
+                        ->whereHas('branches', fn ($query) => $query->whereKey($record->branch_id))
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->preload()
+                    ->native(false),
+                TextInput::make('machine_code')
+                    ->label('Kode Mesin')
+                    ->placeholder('Contoh: WASH-02')
+                    ->maxLength(50),
                 Textarea::make('note')->label('Catatan')->rows(2)->maxLength(500),
             ])
             ->action(function (array $data, Order $record): void {
@@ -164,6 +183,8 @@ class ViewOrder extends ViewRecord
                     to: OrderStatus::from($data['status']),
                     user: Auth::user(),
                     note: $data['note'] ?? null,
+                    workerId: isset($data['worker_id']) ? (int) $data['worker_id'] : null,
+                    machineCode: $data['machine_code'] ?? null,
                 ), 'Status diperbarui');
             });
     }

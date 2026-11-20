@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Orders\ChangeOrderStatus;
 use App\Actions\Orders\CreateOrder as CreateOrderAction;
 use App\Actions\Orders\RecordPayment;
 use App\Enums\OrderStatus;
@@ -15,6 +16,7 @@ use App\Models\Order;
 use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
+use DomainException;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -274,14 +276,25 @@ class OrderModuleTest extends TestCase
 
     public function test_status_can_be_changed_from_the_order_page_and_unpaid_completion_is_refused(): void
     {
-        $this->actAsInPanel($this->staff('cashier'));
+        $cashier = $this->staff('cashier');
+        $operator = $this->staff('operator');
+        $this->actAsInPanel($cashier);
         $order = $this->makeOrder();
 
         $page = Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()]);
 
-        $page->callAction('changeStatus', ['status' => 'washing', 'note' => 'Mesin 2'])
-            ->assertNotified('Status diperbarui');
+        $page->callAction('changeStatus', [
+            'status' => 'washing',
+            'note' => 'Mulai proses cuci',
+            'worker_id' => $operator->id,
+            'machine_code' => 'WASH-02',
+        ])->assertNotified('Status diperbarui');
         $this->assertSame(OrderStatus::Washing, $order->fresh()->status);
+
+        $washingLog = $order->statusLogs()->where('to_status', 'washing')->sole();
+        $this->assertSame($cashier->id, $washingLog->user_id);
+        $this->assertSame($operator->id, $washingLog->worker_id);
+        $this->assertSame('WASH-02', $washingLog->machine_code);
 
         $page->callAction('changeStatus', ['status' => 'ready']);
         $this->assertSame(OrderStatus::Ready, $order->fresh()->status);
@@ -301,6 +314,9 @@ class OrderModuleTest extends TestCase
         $page->assertActionHidden('recordPayment');
         $page->callAction('changeStatus', ['status' => 'washing'])->assertNotified('Status diperbarui');
         $this->assertSame(OrderStatus::Washing, $order->fresh()->status);
+        $washingLog = $order->statusLogs()->where('to_status', 'washing')->sole();
+        $this->assertNull($washingLog->worker_id);
+        $this->assertNull($washingLog->machine_code);
     }
 
     public function test_staff_assigned_to_another_branch_cannot_view_the_order(): void
@@ -315,5 +331,42 @@ class OrderModuleTest extends TestCase
         $this->assertTrue($insider->can('view', $order));
         $this->assertFalse($insider->can('update', $order));
         $this->assertFalse($insider->can('delete', $order));
+    }
+
+    public function test_status_change_rejects_a_production_worker_assigned_to_another_branch(): void
+    {
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+        $cashier = $this->staff('cashier');
+        $foreignOperator = $this->staff('operator', $otherBranch);
+        $this->actAsInPanel($cashier);
+        $order = $this->makeOrder();
+
+        Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
+            ->callAction('changeStatus', [
+                'status' => 'washing',
+                'worker_id' => $foreignOperator->id,
+                'machine_code' => 'WASH-02',
+            ])
+            ->assertHasActionErrors(['worker_id']);
+
+        $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+        $this->assertSame(0, $order->statusLogs()->where('to_status', 'washing')->count());
+    }
+
+    public function test_status_action_rejects_a_worker_from_another_branch_when_called_directly(): void
+    {
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+        $cashier = $this->staff('cashier');
+        $foreignOperator = $this->staff('operator', $otherBranch);
+        $order = $this->makeOrder();
+
+        $this->expectException(DomainException::class);
+
+        app(ChangeOrderStatus::class)->handle(
+            order: $order,
+            to: OrderStatus::Washing,
+            user: $cashier,
+            workerId: $foreignOperator->id,
+        );
     }
 }
