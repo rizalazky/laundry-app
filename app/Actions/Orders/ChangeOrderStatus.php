@@ -1,24 +1,32 @@
 <?php
 
-namespace App\Actions\Orders;
+namespace App\\Actions\\Orders;
 
-use App\Enums\OrderStatus;
-use App\Enums\PaymentStatus;
-use App\Models\Order;
-use App\Models\OrderStatusLog;
-use App\Models\User;
-use Brick\Math\BigDecimal;
+use App\\Enums\\OrderStatus;
+use App\\Enums\\PaymentStatus;
+use App\\Models\\Order;
+use App\\Models\\OrderStatusLog;
+use App\\Models\\User;
+use Brick\\Math\\BigDecimal;
 use DomainException;
-use Illuminate\Support\Facades\DB;
+use Illuminate\\Support\\Facades\\DB;
 
 class ChangeOrderStatus
 {
+    public function __construct(private OrderActionAuthorization $authorization) {}
+
     /**
      * @throws DomainException
      */
-    public function handle(Order $order, OrderStatus $to, ?User $user = null, ?string $note = null): Order
+    public function handle(Order $order, OrderStatus $to, User $user, ?string $note = null): Order
     {
-        if ($user !== null && ! $to->canBeSetByRole($user->role)) {
+        $this->authorization->authorizeOrder(
+            $user,
+            $order,
+            ['tenant_owner', 'branch_manager', 'cashier', 'operator'],
+        );
+
+        if (! $to->canBeSetByRole($user->role)) {
             throw new DomainException('Peran Anda tidak diizinkan mengubah status ke "'.$to->label().'".');
         }
 
@@ -47,7 +55,7 @@ class ChangeOrderStatus
 
             OrderStatusLog::query()->create([
                 'order_id' => $locked->getKey(),
-                'user_id' => $user?->getKey(),
+                'user_id' => $user->getKey(),
                 'from_status' => $from,
                 'to_status' => $to,
                 'note' => $note,
