@@ -18,8 +18,8 @@ class OrderFactory extends Factory
     public function definition(): array
     {
         return [
-            'tenant_id' => fn (array $attributes) => Branch::query()->withoutGlobalScopes()->find($attributes['branch_id'])->tenant_id,
             'branch_id' => Branch::factory(),
+            'tenant_id' => fn (array $attributes) => Branch::query()->withoutGlobalScopes()->find($attributes['branch_id'])->tenant_id,
             'customer_id' => fn (array $attributes) => Customer::factory()->create([
                 'tenant_id' => Branch::query()->withoutGlobalScopes()->find($attributes['branch_id'])->tenant_id,
             ])->getKey(),

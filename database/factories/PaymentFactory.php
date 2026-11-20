@@ -19,9 +19,9 @@ class PaymentFactory extends Factory
     public function definition(): array
     {
         return [
+            'order_id' => Order::factory(),
             'tenant_id' => fn (array $attributes) => Order::query()->withoutGlobalScopes()->find($attributes['order_id'])->tenant_id,
             'branch_id' => fn (array $attributes) => Order::query()->withoutGlobalScopes()->find($attributes['order_id'])->branch_id,
-            'order_id' => Order::factory(),
             'type' => PaymentType::Payment,
             'method' => PaymentMethod::Cash,
             'amount' => 10000,

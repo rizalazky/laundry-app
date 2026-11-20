@@ -68,7 +68,7 @@ class ServiceForm
                     ->description('Kosongkan jika semua cabang memakai harga standar.')
                     ->schema([
                         Repeater::make('branchPrices')
-                            ->label('')
+                            ->hiddenLabel()
                             ->relationship('branchPrices')
                             ->defaultItems(0)
                             ->addActionLabel('Tambah harga cabang')
