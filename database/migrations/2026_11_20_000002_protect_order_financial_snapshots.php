@@ -22,6 +22,24 @@ return new class extends Migration
                 END;
             SQL);
 
+            // SQLite REPLACE may silently delete a conflicting row without firing
+            // DELETE triggers when recursive_triggers is disabled. Reject conflicts
+            // on the primary key and the tenant-scoped invoice number before insert.
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_replace
+                BEFORE INSERT ON orders
+                WHEN EXISTS (
+                    SELECT 1 FROM orders WHERE id = NEW.id
+                ) OR EXISTS (
+                    SELECT 1 FROM orders
+                    WHERE tenant_id = NEW.tenant_id
+                      AND invoice_no = NEW.invoice_no
+                )
+                BEGIN
+                    SELECT RAISE(ABORT, 'Order financial snapshots cannot be replaced.');
+                END;
+            SQL);
+
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER branches_prevent_delete_with_orders
                 BEFORE DELETE ON branches
@@ -143,6 +161,9 @@ return new class extends Migration
         $driver = DB::connection()->getDriverName();
 
         if ($driver === 'sqlite' || $driver === 'mysql' || $driver === 'mariadb') {
+            if ($driver === 'sqlite') {
+                DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_replace');
+            }
             DB::unprepared('DROP TRIGGER IF EXISTS branches_prevent_delete_with_orders');
             DB::unprepared('DROP TRIGGER IF EXISTS tenants_prevent_delete_with_orders');
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_financial_snapshot_update');
