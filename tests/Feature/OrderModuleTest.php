@@ -101,7 +101,7 @@ class OrderModuleTest extends TestCase
         $owner = User::factory()->for($this->tenant)->withRole('tenant_owner')->create();
 
         $mine = $this->makeOrder();
-        $elsewhere = $this->makeOrder($otherBranch);
+        $elsewhere = $this->makeOrder($otherBranch, $owner);
         $foreign = Order::factory()->create();
 
         $this->actingAs($owner)
@@ -116,7 +116,7 @@ class OrderModuleTest extends TestCase
     {
         $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
         $owner = User::factory()->for($this->tenant)->withRole('tenant_owner')->create();
-        $elsewhere = $this->makeOrder($otherBranch);
+        $elsewhere = $this->makeOrder($otherBranch, $owner);
         $foreign = Order::factory()->create();
 
         $this->actingAs($owner)->get('/app/PUSAT/orders/'.$elsewhere->id)->assertNotFound();
@@ -255,8 +255,9 @@ class OrderModuleTest extends TestCase
 
     public function test_only_owner_and_manager_can_refund(): void
     {
-        $order = $this->makeOrder();
-        app(RecordPayment::class)->handle($order, 30000, PaymentMethod::Cash);
+        $cashier = $this->staff('cashier');
+        $order = $this->makeOrder(by: $cashier);
+        app(RecordPayment::class)->handle($order, 30000, PaymentMethod::Cash, $cashier);
 
         $this->actAsInPanel($this->staff('cashier'));
         Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])

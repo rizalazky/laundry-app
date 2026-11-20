@@ -17,10 +17,11 @@ use Illuminate\Support\Facades\DB;
 
 class RecordPayment
 {
+    public function __construct(private OrderActionAuthorization $authorization) {}
+
     /**
      * Append a payment or refund to the order ledger and refresh the order's
-     * cached paid amount. Any number of partial payments (DP, installments,
-     * final settlement) can be recorded until the balance reaches zero.
+     * cached paid amount. Any number of partial payments can be recorded.
      *
      * @throws DomainException
      */
@@ -28,13 +29,19 @@ class RecordPayment
         Order $order,
         string|int|float $amount,
         PaymentMethod $method,
-        ?User $user = null,
+        User $user,
         PaymentType $type = PaymentType::Payment,
         ?CarbonInterface $paidAt = null,
         ?string $reference = null,
         ?string $notes = null,
         ?string $idempotencyKey = null,
     ): Payment {
+        $roles = $type === PaymentType::Refund
+            ? ['tenant_owner', 'branch_manager']
+            : ['tenant_owner', 'branch_manager', 'cashier'];
+
+        $this->authorization->authorizeOrder($user, $order, $roles, requireActiveBusiness: $type !== PaymentType::Refund);
+
         try {
             $amount = BigDecimal::of((string) $amount)->toScale(2);
         } catch (RoundingNecessaryException|NumberFormatException) {
@@ -80,7 +87,7 @@ class RecordPayment
                 'tenant_id' => $locked->tenant_id,
                 'branch_id' => $locked->branch_id,
                 'order_id' => $locked->getKey(),
-                'received_by' => $user?->getKey(),
+                'received_by' => $user->getKey(),
                 'type' => $type,
                 'method' => $method,
                 'amount' => (string) $amount,

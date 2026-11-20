@@ -13,16 +13,30 @@ use Illuminate\Support\Facades\DB;
 
 class ChangeOrderStatus
 {
+    public function __construct(private OrderActionAuthorization $authorization) {}
+
     /**
      * @throws DomainException
      */
-    public function handle(Order $order, OrderStatus $to, ?User $user = null, ?string $note = null): Order
+    public function handle(Order $order, OrderStatus $to, User $user, ?string $note = null): Order
     {
-        if ($user !== null && ! $to->canBeSetByRole($user->role)) {
+        $actor = User::query()->find($user->getKey());
+
+        if ($actor === null) {
+            throw new DomainException('Akun pengguna tidak ditemukan.');
+        }
+
+        $this->authorization->authorizeOrder(
+            $actor,
+            $order,
+            ['tenant_owner', 'branch_manager', 'cashier', 'operator'],
+        );
+
+        if (! $to->canBeSetByRole($actor->role)) {
             throw new DomainException('Peran Anda tidak diizinkan mengubah status ke "'.$to->label().'".');
         }
 
-        return DB::transaction(function () use ($order, $to, $user, $note): Order {
+        return DB::transaction(function () use ($order, $to, $actor, $note): Order {
             $locked = Order::query()
                 ->withoutGlobalScope('tenant')
                 ->whereKey($order->getKey())
@@ -47,7 +61,7 @@ class ChangeOrderStatus
 
             OrderStatusLog::query()->create([
                 'order_id' => $locked->getKey(),
-                'user_id' => $user?->getKey(),
+                'user_id' => $actor->getKey(),
                 'from_status' => $from,
                 'to_status' => $to,
                 'note' => $note,
