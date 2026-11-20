@@ -40,7 +40,7 @@ class RecordPayment
             ? ['tenant_owner', 'branch_manager']
             : ['tenant_owner', 'branch_manager', 'cashier'];
 
-        $this->authorization->authorizeOrder($user, $order, $roles);
+        $this->authorization->authorizeOrder($user, $order, $roles, requireActiveBusiness: $type !== PaymentType::Refund);
 
         try {
             $amount = BigDecimal::of((string) $amount)->toScale(2);
