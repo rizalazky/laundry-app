@@ -79,7 +79,7 @@ class OrderForm
                                 TextInput::make('quantity')
                                     ->label('Berat / Jumlah')
                                     ->numeric()
-                                    ->minValue(0.01)
+                                    ->minValue(fn (Get $get): int|float => self::isPieceService($get('service_id'), $tenantId) ? 1 : 0.01)
                                     ->maxValue(99999)
                                     ->step(fn (Get $get): int|float => self::isPieceService($get('service_id'), $tenantId) ? 1 : 0.01)
                                     ->rules(fn (Get $get): array => self::isPieceService($get('service_id'), $tenantId) ? ['integer'] : [])

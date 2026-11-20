@@ -87,7 +87,10 @@ class CreateOrder
                     throw new DomainException('Jumlah/berat harus lebih dari 0.');
                 }
 
-                if ($service->unit === ServiceUnit::Piece && $quantity->stripTrailingZeros()->getScale() > 0) {
+                if (
+                    $service->unit === ServiceUnit::Piece
+                    && ! $quantity->isEqualTo($quantity->toScale(0, RoundingMode::Down))
+                ) {
                     throw new DomainException('Layanan dengan satuan PCS harus menggunakan jumlah bulat.');
                 }
 
