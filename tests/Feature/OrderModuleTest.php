@@ -101,7 +101,7 @@ class OrderModuleTest extends TestCase
         $owner = User::factory()->for($this->tenant)->withRole('tenant_owner')->create();
 
         $mine = $this->makeOrder();
-        $elsewhere = $this->makeOrder($otherBranch);
+        $elsewhere = $this->makeOrder($otherBranch, $owner);
         $foreign = Order::factory()->create();
 
         $this->actingAs($owner)
