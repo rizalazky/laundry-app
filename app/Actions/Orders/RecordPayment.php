@@ -1,19 +1,19 @@
 <?php
 
-namespace App\\Actions\\Orders;
+namespace App\Actions\Orders;
 
-use App\\Enums\\OrderStatus;
-use App\\Enums\\PaymentMethod;
-use App\\Enums\\PaymentType;
-use App\\Models\\Order;
-use App\\Models\\Payment;
-use App\\Models\\User;
-use Brick\\Math\\BigDecimal;
-use Brick\\Math\\Exception\\NumberFormatException;
-use Brick\\Math\\Exception\\RoundingNecessaryException;
-use Carbon\\CarbonInterface;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentType;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Models\User;
+use Brick\Math\BigDecimal;
+use Brick\Math\Exception\NumberFormatException;
+use Brick\Math\Exception\RoundingNecessaryException;
+use Carbon\CarbonInterface;
 use DomainException;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Support\Facades\DB;
 
 class RecordPayment
 {
