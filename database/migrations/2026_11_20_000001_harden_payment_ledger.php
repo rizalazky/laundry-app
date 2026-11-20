@@ -34,6 +34,28 @@ return new class extends Migration
                 END;
             SQL);
 
+            // SQLite's REPLACE conflict algorithm may delete a conflicting row
+            // without firing DELETE triggers when recursive_triggers is disabled.
+            // Reject INSERT attempts that would conflict with any payments unique key.
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER payments_prevent_replace
+                BEFORE INSERT ON payments
+                WHEN EXISTS (
+                    SELECT 1 FROM payments WHERE id = NEW.id
+                ) OR (
+                    NEW.idempotency_key IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM payments
+                        WHERE order_id = NEW.order_id
+                          AND idempotency_key = NEW.idempotency_key
+                    )
+                )
+                BEGIN
+                    SELECT RAISE(ABORT, 'Payment ledger entries cannot be replaced.');
+                END;
+            SQL);
+
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER payments_prevent_delete
                 BEFORE DELETE ON payments
@@ -75,6 +97,10 @@ return new class extends Migration
         if ($driver === 'sqlite' || $driver === 'mysql' || $driver === 'mariadb') {
             DB::unprepared('DROP TRIGGER IF EXISTS payments_prevent_update');
             DB::unprepared('DROP TRIGGER IF EXISTS payments_prevent_delete');
+
+            if ($driver === 'sqlite') {
+                DB::unprepared('DROP TRIGGER IF EXISTS payments_prevent_replace');
+            }
         }
 
         Schema::table('payments', function (Blueprint $table) {
