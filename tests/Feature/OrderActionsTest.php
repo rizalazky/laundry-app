@@ -478,4 +478,30 @@ class OrderActionsTest extends TestCase
         app(RecordPayment::class)->handle($order, 1000, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
     }
 
+
+    public function test_workshop_order_can_progress_through_washing_drying_ironing_and_packing(): void
+    {
+        $order = $this->createOrder();
+        $change = app(ChangeOrderStatus::class);
+
+        foreach ([
+            OrderStatus::Washing,
+            OrderStatus::Drying,
+            OrderStatus::Ironing,
+            OrderStatus::Packing,
+        ] as $stage) {
+            $change->handle($order, $stage, $this->cashier);
+            $this->assertSame($stage, $order->fresh()->status);
+        }
+
+        $packingLog = $order->statusLogs()->where('to_status', OrderStatus::Packing->value)->sole();
+
+        $this->assertSame('Dikemas', OrderStatus::Packing->label());
+        $this->assertSame('info', OrderStatus::Packing->color());
+        $this->assertSame($this->cashier->id, $packingLog->user_id);
+        $this->assertSame(5, $order->statusLogs()->count());
+        $this->assertTrue(OrderStatus::Packing->canMoveTo(OrderStatus::Ready));
+        $this->assertFalse(OrderStatus::Packing->canMoveTo(OrderStatus::Ironing));
+    }
+
 }
