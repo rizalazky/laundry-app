@@ -1,0 +1,350 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Actions\Orders\ChangeOrderStatus;
+use App\Actions\Orders\CreateOrder;
+use App\Actions\Orders\RecordPayment;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Enums\PaymentType;
+use App\Models\Branch;
+use App\Models\BranchServicePrice;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Models\Service;
+use App\Models\Tenant;
+use App\Models\User;
+use DomainException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use LogicException;
+use Tests\TestCase;
+
+class OrderActionsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Tenant $tenant;
+
+    private Branch $branch;
+
+    private User $cashier;
+
+    private Customer $customer;
+
+    private Service $service;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->tenant = Tenant::factory()->create();
+        $this->branch = Branch::factory()->for($this->tenant)->create(['code' => 'pusat']);
+        $this->cashier = User::factory()->for($this->tenant)->withRole('cashier')->create();
+        $this->customer = Customer::factory()->for($this->tenant)->create();
+        $this->service = Service::factory()->for($this->tenant)->create([
+            'name' => 'Cuci Kiloan',
+            'price' => 7000,
+            'estimated_hours' => 48,
+        ]);
+    }
+
+    private function createOrder(?array $items = null, mixed $discount = 0, ?array $initialPayment = null, ?Branch $branch = null): Order
+    {
+        return app(CreateOrder::class)->handle(
+            branch: $branch ?? $this->branch,
+            user: $this->cashier,
+            customerId: $this->customer->getKey(),
+            items: $items ?? [['service_id' => $this->service->getKey(), 'quantity' => 10]],
+            discount: $discount,
+            initialPayment: $initialPayment,
+        );
+    }
+
+    public function test_order_is_created_with_snapshot_prices_totals_log_and_due_date(): void
+    {
+        $order = $this->createOrder(
+            items: [
+                ['service_id' => $this->service->getKey(), 'quantity' => '2.5'],
+            ],
+            discount: 1000,
+        );
+
+        $item = $order->items->sole();
+
+        $this->assertSame('17500.00', $order->subtotal);
+        $this->assertSame('16500.00', $order->total);
+        $this->assertSame('0.00', $order->paid_amount);
+        $this->assertSame(OrderStatus::Received, $order->status);
+        $this->assertSame(PaymentStatus::Unpaid, $order->payment_status);
+        $this->assertSame('Cuci Kiloan', $item->service_name);
+        $this->assertSame('7000.00', $item->unit_price);
+        $this->assertSame('17500.00', $item->subtotal);
+        $this->assertTrue($order->due_at->equalTo($order->order_date->copy()->addHours(48)));
+        $this->assertSame(1, $order->statusLogs()->count());
+        $this->assertSame($this->tenant->id, $order->tenant_id);
+    }
+
+    public function test_branch_price_override_is_used_and_later_price_changes_do_not_alter_the_order(): void
+    {
+        BranchServicePrice::factory()->create([
+            'branch_id' => $this->branch->id,
+            'service_id' => $this->service->id,
+            'price' => 9000,
+        ]);
+
+        $order = $this->createOrder();
+        $this->assertSame('90000.00', $order->total);
+
+        $this->service->update(['price' => 20000]);
+        BranchServicePrice::query()->update(['price' => 30000]);
+
+        $this->assertSame('90000.00', $order->fresh()->total);
+        $this->assertSame('9000.00', $order->items()->sole()->unit_price);
+    }
+
+    public function test_invoice_numbers_are_sequential_per_branch_and_reset_each_day(): void
+    {
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+
+        $this->travelTo(now()->setDate(2026, 11, 19)->setTime(10, 0));
+
+        $first = $this->createOrder();
+        $second = $this->createOrder();
+        $other = $this->createOrder(branch: $otherBranch);
+
+        $this->assertSame('PUSAT-261119-0001', $first->invoice_no);
+        $this->assertSame('PUSAT-261119-0002', $second->invoice_no);
+        $this->assertSame('DGO-261119-0001', $other->invoice_no);
+
+        $this->travelTo(now()->addDay());
+
+        $this->assertSame('PUSAT-261120-0001', $this->createOrder()->invoice_no);
+    }
+
+    public function test_down_payment_at_creation_marks_the_order_partial(): void
+    {
+        $order = $this->createOrder(initialPayment: ['amount' => 20000, 'method' => PaymentMethod::Qris]);
+
+        $this->assertSame('20000.00', $order->paid_amount);
+        $this->assertSame('50000.00', $order->balanceDue());
+        $this->assertSame(PaymentStatus::Partial, $order->payment_status);
+        $this->assertSame(1, $order->payments()->count());
+    }
+
+    public function test_installments_move_the_order_from_unpaid_to_partial_to_paid(): void
+    {
+        $order = $this->createOrder();
+        $record = app(RecordPayment::class);
+
+        $this->assertSame(PaymentStatus::Unpaid, $order->payment_status);
+
+        $record->handle($order, 30000, PaymentMethod::Cash, $this->cashier);
+        $this->assertSame(PaymentStatus::Partial, $order->payment_status);
+
+        $record->handle($order, 25000, PaymentMethod::Transfer, $this->cashier, reference: 'TRX-1');
+        $this->assertSame(PaymentStatus::Partial, $order->payment_status);
+        $this->assertSame('15000.00', $order->balanceDue());
+
+        $record->handle($order, 15000, PaymentMethod::Cash, $this->cashier);
+        $this->assertSame(PaymentStatus::Paid, $order->payment_status);
+        $this->assertSame('70000.00', $order->paid_amount);
+        $this->assertSame('0.00', $order->balanceDue());
+        $this->assertSame(3, $order->payments()->count());
+    }
+
+    public function test_ledger_sum_always_matches_the_cached_paid_amount(): void
+    {
+        $order = $this->createOrder();
+        $record = app(RecordPayment::class);
+
+        $record->handle($order, 10000.50, PaymentMethod::Cash, $this->cashier);
+        $record->handle($order, 20000, PaymentMethod::Qris, $this->cashier);
+        $record->handle($order, 5000.25, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
+
+        $ledger = $order->payments()->get()->sum(
+            fn (Payment $payment) => $payment->type === PaymentType::Refund ? -$payment->amount : $payment->amount
+        );
+
+        $this->assertEqualsWithDelta($ledger, (float) $order->fresh()->paid_amount, 0.001);
+        $this->assertSame('25000.25', $order->fresh()->paid_amount);
+    }
+
+    public function test_overpayment_and_invalid_amounts_are_rejected_without_writing_to_the_ledger(): void
+    {
+        $order = $this->createOrder();
+        $record = app(RecordPayment::class);
+
+        foreach ([70000.01, 0, -5, '12.345', 'abc'] as $amount) {
+            try {
+                $record->handle($order, $amount, PaymentMethod::Cash, $this->cashier);
+                $this->fail('Expected DomainException for amount '.$amount);
+            } catch (DomainException) {
+                $this->assertTrue(true);
+            }
+        }
+
+        $this->assertSame(0, Payment::query()->count());
+        $this->assertSame('0.00', $order->fresh()->paid_amount);
+    }
+
+    public function test_refund_reduces_paid_amount_and_cannot_exceed_it(): void
+    {
+        $order = $this->createOrder(initialPayment: ['amount' => 70000, 'method' => PaymentMethod::Cash]);
+        $record = app(RecordPayment::class);
+
+        $this->assertSame(PaymentStatus::Paid, $order->payment_status);
+
+        $record->handle($order, 20000, PaymentMethod::Cash, $this->cashier, PaymentType::Refund, notes: 'Salah hitung');
+        $this->assertSame('50000.00', $order->paid_amount);
+        $this->assertSame(PaymentStatus::Partial, $order->payment_status);
+
+        $this->expectException(DomainException::class);
+        $record->handle($order, 50000.01, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
+    }
+
+    public function test_full_refund_returns_the_order_to_unpaid(): void
+    {
+        $order = $this->createOrder(initialPayment: ['amount' => 10000, 'method' => PaymentMethod::Cash]);
+
+        app(RecordPayment::class)->handle($order, 10000, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
+
+        $this->assertSame('0.00', $order->paid_amount);
+        $this->assertSame(PaymentStatus::Unpaid, $order->payment_status);
+    }
+
+    public function test_repeating_a_payment_with_the_same_idempotency_key_does_not_double_charge(): void
+    {
+        $order = $this->createOrder();
+        $record = app(RecordPayment::class);
+
+        $first = $record->handle($order, 10000, PaymentMethod::Cash, $this->cashier, idempotencyKey: 'abc-123');
+        $second = $record->handle($order, 10000, PaymentMethod::Cash, $this->cashier, idempotencyKey: 'abc-123');
+
+        $this->assertTrue($first->is($second));
+        $this->assertSame(1, $order->payments()->count());
+        $this->assertSame('10000.00', $order->fresh()->paid_amount);
+    }
+
+    public function test_payment_ledger_entries_are_immutable(): void
+    {
+        $order = $this->createOrder(initialPayment: ['amount' => 10000, 'method' => PaymentMethod::Cash]);
+        $payment = $order->payments()->sole();
+
+        try {
+            $payment->update(['amount' => 1]);
+            $this->fail('Updating a ledger entry must be blocked.');
+        } catch (LogicException) {
+            $this->assertSame('10000.00', $payment->fresh()->amount);
+        }
+
+        $this->expectException(LogicException::class);
+        $payment->delete();
+    }
+
+    public function test_status_moves_forward_only_and_completion_requires_full_payment(): void
+    {
+        $order = $this->createOrder();
+        $change = app(ChangeOrderStatus::class);
+
+        $change->handle($order, OrderStatus::Washing, $this->cashier);
+        $change->handle($order, OrderStatus::Ironing, $this->cashier);
+        $this->assertSame(OrderStatus::Ironing, $order->status);
+
+        try {
+            $change->handle($order, OrderStatus::Washing, $this->cashier);
+            $this->fail('Moving backwards must be rejected.');
+        } catch (DomainException) {
+            $this->assertSame(OrderStatus::Ironing, $order->fresh()->status);
+        }
+
+        $change->handle($order, OrderStatus::Ready, $this->cashier);
+
+        try {
+            $change->handle($order, OrderStatus::Completed, $this->cashier);
+            $this->fail('Unpaid order must not be completed.');
+        } catch (DomainException) {
+            $this->assertSame(OrderStatus::Ready, $order->fresh()->status);
+        }
+
+        app(RecordPayment::class)->handle($order, 70000, PaymentMethod::Cash, $this->cashier);
+        $change->handle($order, OrderStatus::Completed, $this->cashier);
+
+        $this->assertSame(OrderStatus::Completed, $order->status);
+        $this->assertSame(5, $order->statusLogs()->count());
+    }
+
+    public function test_cancellation_is_blocked_while_money_is_held_and_cancelled_orders_reject_payments(): void
+    {
+        $paid = $this->createOrder(initialPayment: ['amount' => 5000, 'method' => PaymentMethod::Cash]);
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $change = app(ChangeOrderStatus::class);
+
+        try {
+            $change->handle($paid, OrderStatus::Cancelled, $manager);
+            $this->fail('Order with a payment must be refunded before cancelling.');
+        } catch (DomainException) {
+            $this->assertSame(OrderStatus::Received, $paid->fresh()->status);
+        }
+
+        app(RecordPayment::class)->handle($paid, 5000, PaymentMethod::Cash, $manager, PaymentType::Refund);
+        $change->handle($paid, OrderStatus::Cancelled, $manager);
+        $this->assertSame(OrderStatus::Cancelled, $paid->status);
+
+        $this->expectException(DomainException::class);
+        app(RecordPayment::class)->handle($paid, 1000, PaymentMethod::Cash, $manager);
+    }
+
+    public function test_roles_are_limited_in_which_statuses_they_can_set(): void
+    {
+        $order = $this->createOrder();
+        $operator = User::factory()->for($this->tenant)->withRole('operator')->create();
+        $change = app(ChangeOrderStatus::class);
+
+        $change->handle($order, OrderStatus::Washing, $operator);
+
+        foreach ([OrderStatus::Cancelled, OrderStatus::Completed] as $status) {
+            try {
+                $change->handle($order, $status, $operator);
+                $this->fail('Operator must not set '.$status->value);
+            } catch (DomainException) {
+                $this->assertSame(OrderStatus::Washing, $order->fresh()->status);
+            }
+        }
+
+        $this->expectException(DomainException::class);
+        $change->handle($order, OrderStatus::Cancelled, $this->cashier);
+    }
+
+    public function test_order_rejects_foreign_customers_foreign_and_inactive_services_and_bad_discounts(): void
+    {
+        $foreignCustomer = Customer::factory()->create();
+        $foreignService = Service::factory()->create();
+        $inactiveService = Service::factory()->for($this->tenant)->inactive()->create();
+
+        $attempts = [
+            fn () => app(CreateOrder::class)->handle($this->branch, $this->cashier, $foreignCustomer->id, [['service_id' => $this->service->id, 'quantity' => 1]]),
+            fn () => $this->createOrder([['service_id' => $foreignService->id, 'quantity' => 1]]),
+            fn () => $this->createOrder([['service_id' => $inactiveService->id, 'quantity' => 1]]),
+            fn () => $this->createOrder([['service_id' => $this->service->id, 'quantity' => 0]]),
+            fn () => $this->createOrder(discount: 70001),
+            fn () => $this->createOrder(discount: -1),
+            fn () => $this->createOrder(items: []),
+            fn () => $this->createOrder(initialPayment: ['amount' => 70001, 'method' => PaymentMethod::Cash]),
+        ];
+
+        foreach ($attempts as $attempt) {
+            try {
+                $attempt();
+                $this->fail('Expected the order to be rejected.');
+            } catch (DomainException) {
+                $this->assertTrue(true);
+            }
+        }
+
+        $this->assertSame(0, Order::query()->count());
+        $this->assertSame(0, Payment::query()->count());
+    }
+}
