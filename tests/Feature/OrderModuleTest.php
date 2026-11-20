@@ -112,7 +112,7 @@ class OrderModuleTest extends TestCase
         }
     }
 
-    public function test_piece_quantity_must_be_an_integer_in_the_order_form(): void
+    public function test_fractional_piece_quantity_is_rejected_before_order_creation(): void
     {
         $pieceService = Service::factory()->for($this->tenant)->create(['unit' => ServiceUnit::Piece]);
         $this->actAsInPanel($this->staff('cashier'));
@@ -123,7 +123,7 @@ class OrderModuleTest extends TestCase
                 'items' => [['service_id' => $pieceService->id, 'quantity' => '1.5']],
             ])
             ->call('create')
-            ->assertHasFormErrors(['items.0.quantity']);
+            ->assertNotified('Order gagal dibuat');
 
         $this->assertSame(0, Order::query()->count());
 
