@@ -8,7 +8,6 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
@@ -77,7 +76,12 @@ class ServiceForm
                             ->schema([
                                 Select::make('branch_id')
                                     ->label('Cabang')
-                                    ->options(fn (Get $get): array => self::branchOptions($tenantId, $get('branch_id')))
+                                    ->options(fn (): array => Branch::query()
+                                        ->where('tenant_id', $tenantId)
+                                        ->where('is_active', true)
+                                        ->orderBy('name')
+                                        ->pluck('name', 'id')
+                                        ->all())
                                     ->required()
                                     ->native(false)
                                     ->distinct()
@@ -94,27 +98,4 @@ class ServiceForm
                     ]),
             ]);
     }
-    public static function branchOptions(?int $tenantId, mixed $selectedBranchId): array
-    {
-        if ($tenantId === null) {
-            return [];
-        }
-
-        return Branch::query()
-            ->where('tenant_id', $tenantId)
-            ->where(function ($query) use ($selectedBranchId): void {
-                $query->where('is_active', true);
-
-                if (filled($selectedBranchId)) {
-                    $query->orWhereKey($selectedBranchId);
-                }
-            })
-            ->orderBy('name')
-            ->get(['id', 'name', 'is_active'])
-            ->mapWithKeys(fn (Branch $branch): array => [
-                $branch->getKey() => $branch->name . ($branch->is_active ? '' : ' (Inactive)'),
-            ])
-            ->all();
-    }
-
 }
