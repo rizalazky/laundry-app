@@ -260,13 +260,13 @@ class OrderActionsTest extends TestCase
         foreach ([
             fn () => Payment::query()->whereKey($payment->id)->update(['amount' => 1]),
             fn () => Payment::query()->whereKey($payment->id)->delete(),
-            fn () => \\Illuminate\\Support\\Facades\\DB::table('payments')->where('id', $payment->id)->update(['amount' => 1]),
-            fn () => \\Illuminate\\Support\\Facades\\DB::table('payments')->where('id', $payment->id)->delete(),
+            fn () => \Illuminate\Support\Facades\DB::table('payments')->where('id', $payment->id)->update(['amount' => 1]),
+            fn () => \Illuminate\Support\Facades\DB::table('payments')->where('id', $payment->id)->delete(),
         ] as $attempt) {
             try {
                 $attempt();
                 $this->fail('Database-level ledger guards must reject direct updates and deletes.');
-            } catch (\\Illuminate\\Database\\QueryException) {
+            } catch (\Illuminate\Database\QueryException) {
                 $this->assertDatabaseHas('payments', [
                     'id' => $payment->id,
                     'amount' => '10000.00',
@@ -277,7 +277,7 @@ class OrderActionsTest extends TestCase
         try {
             $order->delete();
             $this->fail('An order with ledger entries must not be physically deleted.');
-        } catch (\\Illuminate\\Database\\QueryException) {
+        } catch (\Illuminate\Database\QueryException) {
             $this->assertDatabaseHas('payments', ['id' => $payment->id]);
         }
     }
