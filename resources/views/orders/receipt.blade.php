@@ -63,10 +63,8 @@
 
         <div class="row"><span>No. Nota</span><span class="strong">{{ $order->invoice_no }}</span></div>
         <div class="row"><span>Tanggal</span><span>{{ $order->order_date->format('d/m/Y H:i') }}</span></div>
-        <div class="row"><span>Pelanggan</span><span>{{ $order->customer->name }}</span></div>
-        @if (filled($order->customer->phone))
-            <div class="row"><span>Telepon</span><span>{{ $order->customer->phone }}</span></div>
-        @endif
+        <div class="row"><span>Pelanggan</span><span>{{ $order->customer?->name ?? 'Pelanggan Dihapus' }}</span></div>
+        <div class="row"><span>No. HP</span><span>{{ $order->customer?->phone ?? '-' }}</span></div>
         @if ($order->creator)
             <div class="row"><span>Kasir</span><span>{{ $order->creator->name }}</span></div>
         @endif
