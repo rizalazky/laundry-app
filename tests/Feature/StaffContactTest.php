@@ -1,15 +1,15 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Filament\\App\\Resources\\Users\\Pages\\CreateUser;
-use App\\Models\\Branch;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Filament\\Facades\\Filament;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Livewire\\Livewire;
-use Tests\\TestCase;
+use App\Filament\App\Resources\Users\Pages\CreateUser;
+use App\Models\Branch;
+use App\Models\Tenant;
+use App\Models\User;
+use Filament\Facades\Filament;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
 
 class StaffContactTest extends TestCase
 {
