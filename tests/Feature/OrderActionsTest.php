@@ -379,7 +379,7 @@ class OrderActionsTest extends TestCase
             $this->assertSame(0, Order::query()->count());
         }
 
-        $inactiveBranch = Branch::factory()->for($this->tenant)->inactive()->create();
+        $inactiveBranch = Branch::factory()->for($this->tenant)->create(['is_active' => false]);
 
         try {
             $this->createOrder(branch: $inactiveBranch);
