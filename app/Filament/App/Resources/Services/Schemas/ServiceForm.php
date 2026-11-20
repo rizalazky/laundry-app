@@ -8,6 +8,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
@@ -76,11 +77,20 @@ class ServiceForm
                             ->schema([
                                 Select::make('branch_id')
                                     ->label('Cabang')
-                                    ->options(fn (): array => Branch::query()
+                                    ->options(fn (Get $get): array => Branch::query()
                                         ->where('tenant_id', $tenantId)
-                                        ->where('is_active', true)
+                                        ->where(function ($query) use ($get): void {
+                                            $query->where('is_active', true);
+
+                                            if (filled($selectedBranchId = $get('branch_id'))) {
+                                                $query->orWhereKey($selectedBranchId);
+                                            }
+                                        })
                                         ->orderBy('name')
-                                        ->pluck('name', 'id')
+                                        ->get(['id', 'name', 'is_active'])
+                                        ->mapWithKeys(fn (Branch $branch): array => [
+                                            $branch->getKey() => $branch->name . ($branch->is_active ? '' : ' (Inactive)'),
+                                        ])
                                         ->all())
                                     ->required()
                                     ->native(false)
