@@ -23,6 +23,14 @@ return new class extends Migration
             SQL);
 
             DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_delete
+                BEFORE DELETE ON orders
+                BEGIN
+                    SELECT RAISE(ABORT, 'Orders with historical snapshots cannot be deleted.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
                 CREATE TRIGGER order_items_prevent_update
                 BEFORE UPDATE ON order_items
                 BEGIN
@@ -59,6 +67,14 @@ return new class extends Migration
             SQL);
 
             DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_delete
+                BEFORE DELETE ON orders
+                FOR EACH ROW
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'Orders with historical snapshots cannot be deleted.'
+            SQL);
+
+            DB::unprepared(<<<'SQL'
                 CREATE TRIGGER order_items_prevent_update
                 BEFORE UPDATE ON order_items
                 FOR EACH ROW
@@ -86,6 +102,7 @@ return new class extends Migration
 
         if ($driver === 'sqlite' || $driver === 'mysql' || $driver === 'mariadb') {
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_financial_snapshot_update');
+            DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_delete');
             DB::unprepared('DROP TRIGGER IF EXISTS order_items_prevent_update');
             DB::unprepared('DROP TRIGGER IF EXISTS order_items_prevent_delete');
         }
