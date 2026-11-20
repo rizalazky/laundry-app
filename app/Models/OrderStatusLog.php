@@ -13,6 +13,8 @@ class OrderStatusLog extends Model
     protected $fillable = [
         'order_id',
         'user_id',
+        'worker_id',
+        'machine_code',
         'from_status',
         'to_status',
         'note',
@@ -34,5 +36,10 @@ class OrderStatusLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function worker(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'worker_id');
     }
 }

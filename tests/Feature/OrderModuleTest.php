@@ -274,14 +274,25 @@ class OrderModuleTest extends TestCase
 
     public function test_status_can_be_changed_from_the_order_page_and_unpaid_completion_is_refused(): void
     {
-        $this->actAsInPanel($this->staff('cashier'));
+        $cashier = $this->staff('cashier');
+        $operator = $this->staff('operator');
+        $this->actAsInPanel($cashier);
         $order = $this->makeOrder();
 
         $page = Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()]);
 
-        $page->callAction('changeStatus', ['status' => 'washing', 'note' => 'Mesin 2'])
-            ->assertNotified('Status diperbarui');
+        $page->callAction('changeStatus', [
+            'status' => 'washing',
+            'note' => 'Mulai proses cuci',
+            'worker_id' => $operator->id,
+            'machine_code' => 'WASH-02',
+        ])->assertNotified('Status diperbarui');
         $this->assertSame(OrderStatus::Washing, $order->fresh()->status);
+
+        $washingLog = $order->statusLogs()->where('to_status', 'washing')->sole();
+        $this->assertSame($cashier->id, $washingLog->user_id);
+        $this->assertSame($operator->id, $washingLog->worker_id);
+        $this->assertSame('WASH-02', $washingLog->machine_code);
 
         $page->callAction('changeStatus', ['status' => 'ready']);
         $this->assertSame(OrderStatus::Ready, $order->fresh()->status);
@@ -301,6 +312,8 @@ class OrderModuleTest extends TestCase
         $page->assertActionHidden('recordPayment');
         $page->callAction('changeStatus', ['status' => 'washing'])->assertNotified('Status diperbarui');
         $this->assertSame(OrderStatus::Washing, $order->fresh()->status);
+        $this->assertNull($order->statusLogs()->sole()->worker_id);
+        $this->assertNull($order->statusLogs()->sole()->machine_code);
     }
 
     public function test_staff_assigned_to_another_branch_cannot_view_the_order(): void
@@ -315,5 +328,25 @@ class OrderModuleTest extends TestCase
         $this->assertTrue($insider->can('view', $order));
         $this->assertFalse($insider->can('update', $order));
         $this->assertFalse($insider->can('delete', $order));
+    }
+
+    public function test_status_change_rejects_a_production_worker_assigned_to_another_branch(): void
+    {
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+        $cashier = $this->staff('cashier');
+        $foreignOperator = $this->staff('operator', $otherBranch);
+        $this->actAsInPanel($cashier);
+        $order = $this->makeOrder();
+
+        Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
+            ->callAction('changeStatus', [
+                'status' => 'washing',
+                'worker_id' => $foreignOperator->id,
+                'machine_code' => 'WASH-02',
+            ])
+            ->assertNotified('Gagal');
+
+        $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+        $this->assertSame(0, $order->statusLogs()->count());
     }
 }

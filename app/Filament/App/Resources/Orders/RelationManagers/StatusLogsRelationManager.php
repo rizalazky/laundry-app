@@ -40,7 +40,15 @@ class StatusLogsRelationManager extends RelationManager
                     ->color(fn (OrderStatus $state): string => $state->color()),
 
                 TextColumn::make('user.name')
-                    ->label('Oleh')
+                    ->label('Diubah Oleh')
+                    ->placeholder('—'),
+
+                TextColumn::make('worker.name')
+                    ->label('Petugas Produksi')
+                    ->placeholder('—'),
+
+                TextColumn::make('machine_code')
+                    ->label('Mesin')
                     ->placeholder('—'),
 
                 TextColumn::make('note')
