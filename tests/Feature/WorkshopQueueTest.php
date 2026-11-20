@@ -1,15 +1,15 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Enums\\OrderStatus;
-use App\\Filament\\App\\Resources\\Orders\\Pages\\ListOrders;
-use App\\Models\\Branch;
-use App\\Models\\Customer;
-use App\\Models\\Order;
-use App\\Models\\Tenant;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Tests\\TestCase;
+use App\Enums\OrderStatus;
+use App\Filament\App\Resources\Orders\Pages\ListOrders;
+use App\Models\Branch;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\Tenant;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class WorkshopQueueTest extends TestCase
 {
