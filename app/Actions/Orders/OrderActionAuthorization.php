@@ -17,7 +17,7 @@ class OrderActionAuthorization
      *
      * @param  list<string>  $allowedRoles
      */
-    public function authorizeBranch(User $user, Branch $branch, array $allowedRoles): Branch
+    public function authorizeBranch(User $user, Branch $branch, array $allowedRoles, bool $requireActiveBusiness = true): Branch
     {
         $actor = User::query()->find($user->getKey());
 
@@ -31,20 +31,20 @@ class OrderActionAuthorization
             ->where('tenant_id', $actor->tenant_id)
             ->first();
 
-        if ($authorizedBranch === null || ! $authorizedBranch->is_active) {
+        if ($authorizedBranch === null || ($requireActiveBusiness && ! $authorizedBranch->is_active)) {
             throw new DomainException('Cabang tidak ditemukan atau sedang tidak aktif.');
         }
 
         $tenant = Tenant::query()->find($authorizedBranch->tenant_id);
 
-        if ($tenant === null || ! $tenant->hasActiveSubscription()) {
+        if ($tenant === null || ($requireActiveBusiness && ! $tenant->hasActiveSubscription())) {
             throw new DomainException('Masa aktif langganan bisnis Anda telah berakhir atau bisnis sedang tidak aktif.');
         }
 
         if ($actor->role !== 'tenant_owner' && ! $actor->branches()
             ->whereKey($authorizedBranch->getKey())
             ->where('branches.tenant_id', $actor->tenant_id)
-            ->where('branches.is_active', true)
+            ->when($requireActiveBusiness, fn ($query) => $query->where('branches.is_active', true))
             ->exists()) {
             throw new DomainException('Anda tidak memiliki akses ke cabang ini.');
         }
@@ -55,7 +55,7 @@ class OrderActionAuthorization
     /**
      * @param  list<string>  $allowedRoles
      */
-    public function authorizeOrder(User $user, Order $order, array $allowedRoles): Order
+    public function authorizeOrder(User $user, Order $order, array $allowedRoles, bool $requireActiveBusiness = true): Order
     {
         $lockedOrder = Order::query()
             ->withoutGlobalScope('tenant')
@@ -75,7 +75,7 @@ class OrderActionAuthorization
             throw new DomainException('Cabang order tidak valid.');
         }
 
-        $this->authorizeBranch($user, $branch, $allowedRoles);
+        $this->authorizeBranch($user, $branch, $allowedRoles, $requireActiveBusiness);
 
         return $lockedOrder;
     }
