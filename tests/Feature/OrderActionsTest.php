@@ -252,6 +252,36 @@ class OrderActionsTest extends TestCase
         $payment->delete();
     }
 
+    public function test_database_guards_block_mass_updates_deletes_and_parent_cascades_for_payment_ledger(): void
+    {
+        $order = $this->createOrder(initialPayment: ['amount' => 10000, 'method' => PaymentMethod::Cash]);
+        $payment = $order->payments()->sole();
+
+        foreach ([
+            fn () => Payment::query()->whereKey($payment->id)->update(['amount' => 1]),
+            fn () => Payment::query()->whereKey($payment->id)->delete(),
+            fn () => \\Illuminate\\Support\\Facades\\DB::table('payments')->where('id', $payment->id)->update(['amount' => 1]),
+            fn () => \\Illuminate\\Support\\Facades\\DB::table('payments')->where('id', $payment->id)->delete(),
+        ] as $attempt) {
+            try {
+                $attempt();
+                $this->fail('Database-level ledger guards must reject direct updates and deletes.');
+            } catch (\\Illuminate\\Database\\QueryException) {
+                $this->assertDatabaseHas('payments', [
+                    'id' => $payment->id,
+                    'amount' => '10000.00',
+                ]);
+            }
+        }
+
+        try {
+            $order->delete();
+            $this->fail('An order with ledger entries must not be physically deleted.');
+        } catch (\\Illuminate\\Database\\QueryException) {
+            $this->assertDatabaseHas('payments', ['id' => $payment->id]);
+        }
+    }
+
     public function test_status_moves_forward_only_and_completion_requires_full_payment(): void
     {
         $order = $this->createOrder();
