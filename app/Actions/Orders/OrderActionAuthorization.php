@@ -7,7 +7,6 @@ use App\Models\Order;
 use App\Models\Tenant;
 use App\Models\User;
 use DomainException;
-use Illuminate\Support\Facades\DB;
 
 class OrderActionAuthorization
 {
