@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'ci/**'
+      - 'hardening/**'
   pull_request:
     branches:
       - main
