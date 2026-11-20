@@ -77,21 +77,7 @@ class ServiceForm
                             ->schema([
                                 Select::make('branch_id')
                                     ->label('Cabang')
-                                    ->options(fn (Get $get): array => Branch::query()
-                                        ->where('tenant_id', $tenantId)
-                                        ->where(function ($query) use ($get): void {
-                                            $query->where('is_active', true);
-
-                                            if (filled($selectedBranchId = $get('branch_id'))) {
-                                                $query->orWhereKey($selectedBranchId);
-                                            }
-                                        })
-                                        ->orderBy('name')
-                                        ->get(['id', 'name', 'is_active'])
-                                        ->mapWithKeys(fn (Branch $branch): array => [
-                                            $branch->getKey() => $branch->name . ($branch->is_active ? '' : ' (Inactive)'),
-                                        ])
-                                        ->all())
+                                    ->options(fn (Get $get): array => self::branchOptions($tenantId, $get('branch_id')))
                                     ->required()
                                     ->native(false)
                                     ->distinct()
@@ -108,4 +94,27 @@ class ServiceForm
                     ]),
             ]);
     }
+    public static function branchOptions(?int $tenantId, mixed $selectedBranchId): array
+    {
+        if ($tenantId === null) {
+            return [];
+        }
+
+        return Branch::query()
+            ->where('tenant_id', $tenantId)
+            ->where(function ($query) use ($selectedBranchId): void {
+                $query->where('is_active', true);
+
+                if (filled($selectedBranchId)) {
+                    $query->orWhereKey($selectedBranchId);
+                }
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_active'])
+            ->mapWithKeys(fn (Branch $branch): array => [
+                $branch->getKey() => $branch->name . ($branch->is_active ? '' : ' (Inactive)'),
+            ])
+            ->all();
+    }
+
 }

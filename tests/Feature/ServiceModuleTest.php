@@ -263,7 +263,7 @@ class ServiceModuleTest extends TestCase
         $this->assertSame('7500.00', $service->fresh()->price);
     }
 
-    public function test_existing_inactive_branch_price_remains_visible_when_editing_a_service(): void
+    public function test_inactive_branch_price_options_are_only_included_for_existing_overrides(): void
     {
         $tenant = Tenant::factory()->create();
         $activeBranch = Branch::factory()->for($tenant)->create([
@@ -276,21 +276,16 @@ class ServiceModuleTest extends TestCase
             'name' => 'Cabang Nonaktif',
             'is_active' => false,
         ]);
-        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
-        $service = Service::factory()->for($tenant)->create(['name' => 'Cuci Reguler']);
-        BranchServicePrice::factory()->create([
-            'branch_id' => $inactiveBranch->id,
-            'service_id' => $service->id,
-            'price' => 12500,
-        ]);
 
-        $this->actingAs($owner);
-        Filament::setCurrentPanel('app');
-        Filament::setTenant($activeBranch);
+        $newOverrideOptions = ServiceForm::branchOptions($tenant->id, null);
 
-        Livewire::test(EditService::class, ['record' => $service->getRouteKey()])
-            ->assertSet('data.branchPrices.0.branch_id', $inactiveBranch->id)
-            ->assertSee('Cabang Nonaktif (Inactive)');
+        $this->assertArrayHasKey($activeBranch->id, $newOverrideOptions);
+        $this->assertArrayNotHasKey($inactiveBranch->id, $newOverrideOptions);
+
+        $existingOverrideOptions = ServiceForm::branchOptions($tenant->id, $inactiveBranch->id);
+
+        $this->assertArrayHasKey($activeBranch->id, $existingOverrideOptions);
+        $this->assertSame('Cabang Nonaktif (Inactive)', $existingOverrideOptions[$inactiveBranch->id]);
     }
 
 }
