@@ -3,6 +3,7 @@
 namespace App\Filament\App\Resources\Orders\Schemas;
 
 use App\Enums\PaymentMethod;
+use App\Enums\ServiceUnit;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Service;
@@ -80,7 +81,8 @@ class OrderForm
                                     ->numeric()
                                     ->minValue(0.01)
                                     ->maxValue(99999)
-                                    ->step(0.01)
+                                    ->step(fn (Get $get): int|float => self::isPieceService($get('service_id'), $tenantId) ? 1 : 0.01)
+                                    ->rules(fn (Get $get): array => self::isPieceService($get('service_id'), $tenantId) ? ['integer'] : [])
                                     ->required()
                                     ->live(onBlur: true),
                             ]),
@@ -149,6 +151,18 @@ class OrderForm
             ]);
     }
 
+    private static function isPieceService(mixed $serviceId, ?int $tenantId): bool
+    {
+        if (blank($serviceId) || $tenantId === null) {
+            return false;
+        }
+
+        return Service::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($serviceId)
+            ->value('unit') === ServiceUnit::Piece->value;
+    }
+
     /**
      * Preview the order total from the current branch prices. The server
      * recalculates everything again when the order is created.
@@ -163,7 +177,11 @@ class OrderForm
                 continue;
             }
 
-            $service = Service::query()->with('branchPrices')->find($item['service_id']);
+            $service = Service::query()
+                ->where('tenant_id', Auth::user()?->tenant_id)
+                ->where('is_active', true)
+                ->with('branchPrices')
+                ->find($item['service_id']);
 
             if ($service === null || ! $branch instanceof Branch) {
                 continue;

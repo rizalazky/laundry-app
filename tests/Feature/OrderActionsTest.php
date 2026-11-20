@@ -9,6 +9,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
+use App\Enums\ServiceUnit;
 use App\Models\Branch;
 use App\Models\BranchServicePrice;
 use App\Models\Customer;
@@ -104,6 +105,22 @@ class OrderActionsTest extends TestCase
 
         $this->assertSame('90000.00', $order->fresh()->total);
         $this->assertSame('9000.00', $order->items()->sole()->unit_price);
+    }
+
+    public function test_piece_services_reject_fractional_quantities_but_accept_whole_numbers(): void
+    {
+        $pieceService = Service::factory()->for($this->tenant)->create(['unit' => ServiceUnit::Piece]);
+
+        try {
+            $this->createOrder([['service_id' => $pieceService->id, 'quantity' => '1.5']]);
+            $this->fail('PCS quantities must be whole numbers.');
+        } catch (DomainException) {
+            $this->assertSame(0, Order::query()->count());
+        }
+
+        $order = $this->createOrder([['service_id' => $pieceService->id, 'quantity' => '2']]);
+
+        $this->assertSame('2.00', $order->items()->sole()->quantity);
     }
 
     public function test_invoice_numbers_are_sequential_per_branch_and_reset_each_day(): void

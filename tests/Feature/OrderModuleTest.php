@@ -8,6 +8,7 @@ use App\Actions\Orders\RecordPayment;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\ServiceUnit;
 use App\Filament\App\Resources\Orders\Pages\CreateOrder;
 use App\Filament\App\Resources\Orders\Pages\ViewOrder;
 use App\Models\Branch;
@@ -95,6 +96,32 @@ class OrderModuleTest extends TestCase
             ])
             ->assertSet('data.estimated_subtotal', '7.070')
             ->assertSet('data.estimated_total', '7.070');
+    }
+
+    public function test_piece_quantity_must_be_an_integer_in_the_order_form(): void
+    {
+        $pieceService = Service::factory()->for($this->tenant)->create(['unit' => ServiceUnit::Piece]);
+        $this->actAsInPanel($this->staff('cashier'));
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $this->customer->id,
+                'items' => [['service_id' => $pieceService->id, 'quantity' => '1.5']],
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['items.0.quantity']);
+
+        $this->assertSame(0, Order::query()->count());
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $this->customer->id,
+                'items' => [['service_id' => $pieceService->id, 'quantity' => '2']],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('2.00', Order::query()->sole()->items()->sole()->quantity);
     }
 
     public function test_order_list_only_shows_orders_of_the_current_branch_and_tenant(): void
