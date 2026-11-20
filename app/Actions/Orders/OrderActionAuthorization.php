@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Actions\\Orders;
+namespace App\Actions\Orders;
 
-use App\\Models\\Branch;
-use App\\Models\\Order;
-use App\\Models\\Tenant;
-use App\\Models\\User;
+use App\Models\Branch;
+use App\Models\Order;
+use App\Models\Tenant;
+use App\Models\User;
 use DomainException;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Support\Facades\DB;
 
 class OrderActionAuthorization
 {
