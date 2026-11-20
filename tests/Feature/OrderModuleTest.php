@@ -98,6 +98,20 @@ class OrderModuleTest extends TestCase
             ->assertSet('data.estimated_total', '7.070');
     }
 
+    public function test_order_form_preview_ignores_foreign_and_inactive_services(): void
+    {
+        $foreignService = Service::factory()->create(['price' => 50000]);
+        $inactiveService = Service::factory()->for($this->tenant)->inactive()->create(['price' => 40000]);
+        $this->actAsInPanel($this->staff('cashier'));
+
+        foreach ([$foreignService, $inactiveService] as $service) {
+            Livewire::test(CreateOrder::class)
+                ->fillForm(['items' => [['service_id' => $service->id, 'quantity' => 2]]])
+                ->assertSet('data.estimated_subtotal', '0')
+                ->assertSet('data.estimated_total', '0');
+        }
+    }
+
     public function test_piece_quantity_must_be_an_integer_in_the_order_form(): void
     {
         $pieceService = Service::factory()->for($this->tenant)->create(['unit' => ServiceUnit::Piece]);
