@@ -266,7 +266,12 @@ class ServiceModuleTest extends TestCase
     public function test_existing_inactive_branch_price_remains_visible_when_editing_a_service(): void
     {
         $tenant = Tenant::factory()->create();
-        $branch = Branch::factory()->for($tenant)->create([
+        $activeBranch = Branch::factory()->for($tenant)->create([
+            'code' => 'ACTIVE',
+            'name' => 'Cabang Aktif',
+            'is_active' => true,
+        ]);
+        $inactiveBranch = Branch::factory()->for($tenant)->create([
             'code' => 'OLD',
             'name' => 'Cabang Nonaktif',
             'is_active' => false,
@@ -274,17 +279,17 @@ class ServiceModuleTest extends TestCase
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $service = Service::factory()->for($tenant)->create(['name' => 'Cuci Reguler']);
         BranchServicePrice::factory()->create([
-            'branch_id' => $branch->id,
+            'branch_id' => $inactiveBranch->id,
             'service_id' => $service->id,
             'price' => 12500,
         ]);
 
         $this->actingAs($owner);
         Filament::setCurrentPanel('app');
-        Filament::setTenant($branch);
+        Filament::setTenant($activeBranch);
 
         Livewire::test(EditService::class, ['record' => $service->getRouteKey()])
-            ->assertSet('data.branchPrices.0.branch_id', $branch->id)
+            ->assertSet('data.branchPrices.0.branch_id', $inactiveBranch->id)
             ->assertSee('Cabang Nonaktif (Inactive)');
     }
 
