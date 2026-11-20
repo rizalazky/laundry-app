@@ -256,7 +256,9 @@ class OrderModuleTest extends TestCase
     public function test_only_owner_and_manager_can_refund(): void
     {
         $order = $this->makeOrder();
-        app(RecordPayment::class)->handle($order, 30000, PaymentMethod::Cash);
+        $cashier = $this->staff('cashier');
+        $order = $this->makeOrder(by: $cashier);
+        app(RecordPayment::class)->handle($order, 30000, PaymentMethod::Cash, $cashier);
 
         $this->actAsInPanel($this->staff('cashier'));
         Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
