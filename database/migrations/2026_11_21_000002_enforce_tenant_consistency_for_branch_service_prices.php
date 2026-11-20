@@ -9,6 +9,21 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Validate existing relationships before making any schema changes.
+        // MySQL/MariaDB may commit DDL immediately, so throwing after DDL
+        // could leave the migration partially applied and unsafe to retry.
+        $hasCrossTenantPrices = DB::table('branch_service_prices')
+            ->join('branches', 'branches.id', '=', 'branch_service_prices.branch_id')
+            ->join('services', 'services.id', '=', 'branch_service_prices.service_id')
+            ->whereColumn('branches.tenant_id', '!=', 'services.tenant_id')
+            ->exists();
+
+        if ($hasCrossTenantPrices) {
+            throw new RuntimeException(
+                'Cannot enforce tenant consistency: branch service prices contain cross-tenant references.'
+            );
+        }
+
         Schema::table('branches', function (Blueprint $table) {
             $table->unique(['id', 'tenant_id'], 'branches_id_tenant_unique');
         });
@@ -24,17 +39,6 @@ return new class extends Migration
         DB::statement(
             'UPDATE branch_service_prices SET tenant_id = (SELECT services.tenant_id FROM services WHERE services.id = branch_service_prices.service_id)'
         );
-
-        $hasCrossTenantPrices = DB::table('branch_service_prices')
-            ->join('branches', 'branches.id', '=', 'branch_service_prices.branch_id')
-            ->whereColumn('branches.tenant_id', '!=', 'branch_service_prices.tenant_id')
-            ->exists();
-
-        if ($hasCrossTenantPrices) {
-            throw new RuntimeException(
-                'Cannot enforce tenant consistency: branch service prices contain cross-tenant references.'
-            );
-        }
 
         Schema::table('branch_service_prices', function (Blueprint $table) {
             $table->unsignedBigInteger('tenant_id')->nullable(false)->change();
