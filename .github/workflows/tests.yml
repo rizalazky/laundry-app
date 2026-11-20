@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -47,12 +48,6 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate
-
-      - name: Run database migrations
-        run: php artisan migrate --force
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
 
       - name: Run test suite
         run: php artisan test
