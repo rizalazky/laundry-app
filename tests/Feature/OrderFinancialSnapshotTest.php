@@ -45,6 +45,8 @@ class OrderFinancialSnapshotTest extends TestCase
             fn () => DB::table('orders')->where('id', $order->getKey())->update(['invoice_no' => 'ALTERED']),
             fn () => DB::table('order_items')->where('id', $item->getKey())->update(['quantity' => '99.00']),
             fn () => DB::table('order_items')->where('id', $item->getKey())->delete(),
+            // Must block the parent DELETE before ON DELETE CASCADE can erase item snapshots.
+            fn () => DB::table('orders')->where('id', $order->getKey())->delete(),
         ];
 
         foreach ($attempts as $attempt) {
