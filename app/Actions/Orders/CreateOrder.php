@@ -1,21 +1,21 @@
 <?php
 
-namespace App\\Actions\\Orders;
+namespace App\Actions\Orders;
 
-use App\\Enums\\OrderStatus;
-use App\\Enums\\PaymentMethod;
-use App\\Enums\\PaymentStatus;
-use App\\Models\\Branch;
-use App\\Models\\Customer;
-use App\\Models\\Order;
-use App\\Models\\OrderStatusLog;
-use App\\Models\\Service;
-use App\\Models\\User;
-use Brick\\Math\\BigDecimal;
-use Brick\\Math\\RoundingMode;
-use Carbon\\CarbonInterface;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use App\Models\Branch;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\OrderStatusLog;
+use App\Models\Service;
+use App\Models\User;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
+use Carbon\CarbonInterface;
 use DomainException;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Support\Facades\DB;
 
 class CreateOrder
 {
