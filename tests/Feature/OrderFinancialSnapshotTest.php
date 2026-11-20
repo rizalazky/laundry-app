@@ -1,22 +1,21 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Actions\\Orders\\ChangeOrderStatus;
-use App\\Actions\\Orders\\CreateOrder;
-use App\\Actions\\Orders\\RecordPayment;
-use App\\Enums\\OrderStatus;
-use App\\Enums\\PaymentMethod;
-use App\\Models\\Branch;
-use App\\Models\\Customer;
-use App\\Models\\Order;
-use App\\Models\\Service;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\DB;
-use Tests\\TestCase;
+use App\Actions\Orders\ChangeOrderStatus;
+use App\Actions\Orders\CreateOrder;
+use App\Actions\Orders\RecordPayment;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Models\Branch;
+use App\Models\Customer;
+use App\Models\Service;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
 
 class OrderFinancialSnapshotTest extends TestCase
 {
