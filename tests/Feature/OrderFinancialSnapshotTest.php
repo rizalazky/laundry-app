@@ -47,6 +47,8 @@ class OrderFinancialSnapshotTest extends TestCase
             fn () => DB::table('order_items')->where('id', $item->getKey())->delete(),
             // Must block parent/ancestor DELETEs before ON DELETE CASCADE can erase snapshots.
             fn () => DB::table('orders')->where('id', $order->getKey())->delete(),
+            // REPLACE must not bypass DELETE triggers and rewrite the order snapshot.
+            fn () => DB::statement('INSERT OR REPLACE INTO orders SELECT * FROM orders WHERE id = ?', [$order->getKey()]),
             fn () => DB::table('branches')->where('id', $branch->getKey())->delete(),
             fn () => DB::table('tenants')->where('id', $tenant->getKey())->delete(),
         ];
