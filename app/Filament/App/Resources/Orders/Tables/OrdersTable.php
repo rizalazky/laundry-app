@@ -5,6 +5,7 @@ namespace App\Filament\App\Resources\Orders\Tables;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
+use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -76,6 +77,11 @@ class OrdersTable
             ])
             ->recordActions([
                 ViewAction::make(),
+                Action::make('receipt')
+                    ->label('Nota')
+                    ->icon('heroicon-o-printer')
+                    ->url(fn (Order $record): string => route('orders.receipt', $record))
+                    ->openUrlInNewTab(),
             ]);
     }
 }

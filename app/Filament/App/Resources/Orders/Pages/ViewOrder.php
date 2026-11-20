@@ -28,10 +28,22 @@ class ViewOrder extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->printReceiptAction(),
             $this->recordPaymentAction(),
             $this->changeStatusAction(),
             $this->refundAction(),
         ];
+    }
+
+    private function printReceiptAction(): Action
+    {
+        return Action::make('printReceipt')
+            ->label('Cetak Nota')
+            ->icon('heroicon-o-printer')
+            ->color('gray')
+            ->authorize('view')
+            ->url(fn (Order $record): string => route('orders.receipt', $record))
+            ->openUrlInNewTab();
     }
 
     private function recordPaymentAction(): Action
