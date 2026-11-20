@@ -49,8 +49,8 @@ class PaymentLedgerReplaceTest extends TestCase
         $values = array_map(fn (string $column) => $attributes[$column] ?? null, $columns);
 
         foreach ([
-            array_replace($values, [8 => '1.00']),
-            array_replace($values, [0 => $payment->id + 1000, 8 => '1.00']),
+            array_replace($values, [7 => '1.00']),
+            array_replace($values, [0 => $payment->id + 1000, 7 => '1.00']),
         ] as $replacement) {
             if ($replacement[0] !== $payment->id) {
                 $replacement[11] = 'immutable-payment-key';
