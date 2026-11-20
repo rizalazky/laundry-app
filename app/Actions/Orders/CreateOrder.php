@@ -103,6 +103,7 @@ class CreateOrder
                 throw new DomainException('Diskon tidak boleh negatif atau melebihi subtotal.');
             }
 
+            $total = $subtotal->minus($discount);
             $orderDate = now();
             $maxHours = $services->max('estimated_hours');
 
@@ -116,13 +117,13 @@ class CreateOrder
                 'due_at' => $dueAt ?? ($maxHours ? $orderDate->copy()->addHours((int) $maxHours) : null),
                 'subtotal' => (string) $subtotal,
                 'discount' => (string) $discount,
-                'total' => (string) $subtotal->minus($discount),
+                'total' => (string) $total,
                 'notes' => $notes,
             ]);
 
             $order->forceFill([
                 'status' => OrderStatus::Received,
-                'payment_status' => PaymentStatus::Unpaid,
+                'payment_status' => $total->isZero() ? PaymentStatus::Paid : PaymentStatus::Unpaid,
                 'paid_amount' => '0.00',
             ])->save();
 

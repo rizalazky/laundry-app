@@ -136,6 +136,20 @@ class OrderModuleTest extends TestCase
         $this->actingAs($operator)->get('/app/PUSAT/orders/create')->assertForbidden();
     }
 
+    public function test_zero_total_order_is_initialized_as_paid(): void
+    {
+        $order = app(CreateOrderAction::class)->handle(
+            branch: $this->branch,
+            user: $this->staff('cashier'),
+            customerId: $this->customer->id,
+            items: [['service_id' => $this->service->id, 'quantity' => 1]],
+            discount: 7000,
+        );
+
+        $this->assertSame('0.00', (string) $order->total);
+        $this->assertSame(PaymentStatus::Paid, $order->payment_status);
+    }
+
     public function test_cashier_can_create_an_order_with_a_down_payment(): void
     {
         $cashier = $this->staff('cashier');
