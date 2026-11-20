@@ -21,9 +21,9 @@ return new class extends Migration
             $table->unsignedBigInteger('tenant_id')->nullable()->after('id');
         });
 
-        DB::table('branch_service_prices')
-            ->join('services', 'services.id', '=', 'branch_service_prices.service_id')
-            ->update(['branch_service_prices.tenant_id' => DB::raw('services.tenant_id')]);
+        DB::statement(
+            'UPDATE branch_service_prices SET tenant_id = (SELECT services.tenant_id FROM services WHERE services.id = branch_service_prices.service_id)'
+        );
 
         $hasCrossTenantPrices = DB::table('branch_service_prices')
             ->join('branches', 'branches.id', '=', 'branch_service_prices.branch_id')
