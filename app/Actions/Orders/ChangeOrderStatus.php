@@ -1,15 +1,15 @@
 <?php
 
-namespace App\\Actions\\Orders;
+namespace App\Actions\Orders;
 
-use App\\Enums\\OrderStatus;
-use App\\Enums\\PaymentStatus;
-use App\\Models\\Order;
-use App\\Models\\OrderStatusLog;
-use App\\Models\\User;
-use Brick\\Math\\BigDecimal;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Models\Order;
+use App\Models\OrderStatusLog;
+use App\Models\User;
+use Brick\Math\BigDecimal;
 use DomainException;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Support\Facades\DB;
 
 class ChangeOrderStatus
 {
@@ -20,17 +20,23 @@ class ChangeOrderStatus
      */
     public function handle(Order $order, OrderStatus $to, User $user, ?string $note = null): Order
     {
+        $actor = User::query()->find($user->getKey());
+
+        if ($actor === null) {
+            throw new DomainException('Akun pengguna tidak ditemukan.');
+        }
+
         $this->authorization->authorizeOrder(
-            $user,
+            $actor,
             $order,
             ['tenant_owner', 'branch_manager', 'cashier', 'operator'],
         );
 
-        if (! $to->canBeSetByRole($user->role)) {
+        if (! $to->canBeSetByRole($actor->role)) {
             throw new DomainException('Peran Anda tidak diizinkan mengubah status ke "'.$to->label().'".');
         }
 
-        return DB::transaction(function () use ($order, $to, $user, $note): Order {
+        return DB::transaction(function () use ($order, $to, $actor, $note): Order {
             $locked = Order::query()
                 ->withoutGlobalScope('tenant')
                 ->whereKey($order->getKey())
@@ -55,7 +61,7 @@ class ChangeOrderStatus
 
             OrderStatusLog::query()->create([
                 'order_id' => $locked->getKey(),
-                'user_id' => $user->getKey(),
+                'user_id' => $actor->getKey(),
                 'from_status' => $from,
                 'to_status' => $to,
                 'note' => $note,
