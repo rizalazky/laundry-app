@@ -5,6 +5,7 @@ namespace App\Actions\Orders;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\ServiceUnit;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Order;
@@ -84,6 +85,13 @@ class CreateOrder
 
                 if ($quantity->isLessThanOrEqualTo(0)) {
                     throw new DomainException('Jumlah/berat harus lebih dari 0.');
+                }
+
+                if (
+                    $service->unit === ServiceUnit::Piece
+                    && ! $quantity->isEqualTo($quantity->toScale(0, RoundingMode::Down))
+                ) {
+                    throw new DomainException('Layanan dengan satuan PCS harus menggunakan jumlah bulat.');
                 }
 
                 $unitPrice = BigDecimal::of($service->priceForBranch($branch));

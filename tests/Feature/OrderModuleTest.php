@@ -8,6 +8,7 @@ use App\Actions\Orders\RecordPayment;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Enums\ServiceUnit;
 use App\Filament\App\Resources\Orders\Pages\CreateOrder;
 use App\Filament\App\Resources\Orders\Pages\ViewOrder;
 use App\Models\Branch;
@@ -95,6 +96,46 @@ class OrderModuleTest extends TestCase
             ])
             ->assertSet('data.estimated_subtotal', '7.070')
             ->assertSet('data.estimated_total', '7.070');
+    }
+
+    public function test_order_form_preview_ignores_foreign_and_inactive_services(): void
+    {
+        $foreignService = Service::factory()->create(['price' => 50000]);
+        $inactiveService = Service::factory()->for($this->tenant)->inactive()->create(['price' => 40000]);
+        $this->actAsInPanel($this->staff('cashier'));
+
+        foreach ([$foreignService, $inactiveService] as $service) {
+            Livewire::test(CreateOrder::class)
+                ->fillForm(['items' => [['service_id' => $service->id, 'quantity' => 2]]])
+                ->assertSet('data.estimated_subtotal', '0')
+                ->assertSet('data.estimated_total', '0');
+        }
+    }
+
+    public function test_fractional_piece_quantity_is_rejected_before_order_creation(): void
+    {
+        $pieceService = Service::factory()->for($this->tenant)->create(['unit' => ServiceUnit::Piece]);
+        $this->actAsInPanel($this->staff('cashier'));
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $this->customer->id,
+                'items' => [['service_id' => $pieceService->id, 'quantity' => '1.5']],
+            ])
+            ->call('create')
+            ->assertNotified('Order gagal dibuat');
+
+        $this->assertSame(0, Order::query()->count());
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $this->customer->id,
+                'items' => [['service_id' => $pieceService->id, 'quantity' => '2']],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('2.00', Order::query()->sole()->items()->sole()->quantity);
     }
 
     public function test_order_list_only_shows_orders_of_the_current_branch_and_tenant(): void
