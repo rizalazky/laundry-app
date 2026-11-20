@@ -43,6 +43,7 @@ class OrderActionsTest extends TestCase
         $this->tenant = Tenant::factory()->create();
         $this->branch = Branch::factory()->for($this->tenant)->create(['code' => 'pusat']);
         $this->cashier = User::factory()->for($this->tenant)->withRole('cashier')->create();
+        $this->cashier->branches()->attach($this->branch);
         $this->customer = Customer::factory()->for($this->tenant)->create();
         $this->service = Service::factory()->for($this->tenant)->create([
             'name' => 'Cuci Kiloan',
@@ -108,6 +109,7 @@ class OrderActionsTest extends TestCase
     public function test_invoice_numbers_are_sequential_per_branch_and_reset_each_day(): void
     {
         $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+        $this->cashier->branches()->attach($otherBranch);
 
         $this->travelTo(now()->setDate(2026, 11, 19)->setTime(10, 0));
 
@@ -162,7 +164,9 @@ class OrderActionsTest extends TestCase
 
         $record->handle($order, 10000.50, PaymentMethod::Cash, $this->cashier);
         $record->handle($order, 20000, PaymentMethod::Qris, $this->cashier);
-        $record->handle($order, 5000.25, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+        $record->handle($order, 5000.25, PaymentMethod::Cash, $manager, PaymentType::Refund);
 
         $ledger = $order->payments()->get()->sum(
             fn (Payment $payment) => $payment->type === PaymentType::Refund ? -$payment->amount : $payment->amount
@@ -197,19 +201,23 @@ class OrderActionsTest extends TestCase
 
         $this->assertSame(PaymentStatus::Paid, $order->payment_status);
 
-        $record->handle($order, 20000, PaymentMethod::Cash, $this->cashier, PaymentType::Refund, notes: 'Salah hitung');
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+        $record->handle($order, 20000, PaymentMethod::Cash, $manager, PaymentType::Refund, notes: 'Salah hitung');
         $this->assertSame('50000.00', $order->paid_amount);
         $this->assertSame(PaymentStatus::Partial, $order->payment_status);
 
         $this->expectException(DomainException::class);
-        $record->handle($order, 50000.01, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
+        $record->handle($order, 50000.01, PaymentMethod::Cash, $manager, PaymentType::Refund);
     }
 
     public function test_full_refund_returns_the_order_to_unpaid(): void
     {
         $order = $this->createOrder(initialPayment: ['amount' => 10000, 'method' => PaymentMethod::Cash]);
 
-        app(RecordPayment::class)->handle($order, 10000, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+        app(RecordPayment::class)->handle($order, 10000, PaymentMethod::Cash, $manager, PaymentType::Refund);
 
         $this->assertSame('0.00', $order->paid_amount);
         $this->assertSame(PaymentStatus::Unpaid, $order->payment_status);
@@ -280,6 +288,7 @@ class OrderActionsTest extends TestCase
     {
         $paid = $this->createOrder(initialPayment: ['amount' => 5000, 'method' => PaymentMethod::Cash]);
         $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
         $change = app(ChangeOrderStatus::class);
 
         try {
@@ -301,6 +310,7 @@ class OrderActionsTest extends TestCase
     {
         $order = $this->createOrder();
         $operator = User::factory()->for($this->tenant)->withRole('operator')->create();
+        $operator->branches()->attach($this->branch);
         $change = app(ChangeOrderStatus::class);
 
         $change->handle($order, OrderStatus::Washing, $operator);
@@ -347,4 +357,95 @@ class OrderActionsTest extends TestCase
         $this->assertSame(0, Order::query()->count());
         $this->assertSame(0, Payment::query()->count());
     }
+
+    public function test_order_creation_checks_actor_branch_membership_active_state_and_subscription(): void
+    {
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+
+        try {
+            $this->createOrder(branch: $otherBranch);
+            $this->fail('Cashier assigned to another branch must be rejected.');
+        } catch (DomainException) {
+            $this->assertSame(0, Order::query()->count());
+        }
+
+        $inactiveCashier = User::factory()->for($this->tenant)->withRole('cashier')->create(['is_active' => false]);
+        $inactiveCashier->branches()->attach($this->branch);
+
+        try {
+            app(CreateOrder::class)->handle($this->branch, $inactiveCashier, $this->customer->id, [['service_id' => $this->service->id, 'quantity' => 1]]);
+            $this->fail('Inactive users must be rejected.');
+        } catch (DomainException) {
+            $this->assertSame(0, Order::query()->count());
+        }
+
+        $inactiveBranch = Branch::factory()->for($this->tenant)->inactive()->create();
+
+        try {
+            $this->createOrder(branch: $inactiveBranch);
+            $this->fail('Inactive branches must be rejected.');
+        } catch (DomainException) {
+            $this->assertSame(0, Order::query()->count());
+        }
+
+        $this->tenant->update(['subscription_ends_at' => now()->subMinute()]);
+
+        try {
+            $this->createOrder();
+            $this->fail('Expired subscriptions must be rejected.');
+        } catch (DomainException) {
+            $this->assertSame(0, Order::query()->count());
+        }
+    }
+
+    public function test_tenant_owner_can_create_orders_in_any_active_branch_of_their_tenant(): void
+    {
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+        $owner = User::factory()->for($this->tenant)->withRole('tenant_owner')->create();
+
+        $order = app(CreateOrder::class)->handle(
+            $otherBranch,
+            $owner,
+            $this->customer->id,
+            [['service_id' => $this->service->id, 'quantity' => 1]],
+        );
+
+        $this->assertSame($otherBranch->id, $order->branch_id);
+    }
+
+    public function test_order_actions_reject_staff_from_another_branch_and_inactive_staff(): void
+    {
+        $order = $this->createOrder();
+        $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
+        $outsider = User::factory()->for($this->tenant)->withRole('cashier')->create();
+        $outsider->branches()->attach($otherBranch);
+
+        foreach ([
+            fn () => app(ChangeOrderStatus::class)->handle($order, OrderStatus::Washing, $outsider),
+            fn () => app(RecordPayment::class)->handle($order, 1000, PaymentMethod::Cash, $outsider),
+        ] as $attempt) {
+            try {
+                $attempt();
+                $this->fail('Staff without branch access must be rejected.');
+            } catch (DomainException) {
+                $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+                $this->assertSame('0.00', $order->fresh()->paid_amount);
+            }
+        }
+
+        $inactive = User::factory()->for($this->tenant)->withRole('cashier')->create(['is_active' => false]);
+        $inactive->branches()->attach($this->branch);
+
+        $this->expectException(DomainException::class);
+        app(RecordPayment::class)->handle($order, 1000, PaymentMethod::Cash, $inactive);
+    }
+
+    public function test_cashier_cannot_record_refunds_through_the_business_action(): void
+    {
+        $order = $this->createOrder(initialPayment: ['amount' => 10000, 'method' => PaymentMethod::Cash]);
+
+        $this->expectException(DomainException::class);
+        app(RecordPayment::class)->handle($order, 1000, PaymentMethod::Cash, $this->cashier, PaymentType::Refund);
+    }
+
 }
