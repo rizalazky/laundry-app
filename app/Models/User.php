@@ -22,6 +22,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         'tenant_id',
         'name',
         'email',
+        'phone_whatsapp',
         'password',
         'role',
         'is_active',
