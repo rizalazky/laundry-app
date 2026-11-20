@@ -23,6 +23,24 @@ return new class extends Migration
             SQL);
 
             DB::unprepared(<<<'SQL'
+                CREATE TRIGGER branches_prevent_delete_with_orders
+                BEFORE DELETE ON branches
+                WHEN EXISTS (SELECT 1 FROM orders WHERE branch_id = OLD.id)
+                BEGIN
+                    SELECT RAISE(ABORT, 'Branches with historical orders cannot be deleted.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER tenants_prevent_delete_with_orders
+                BEFORE DELETE ON tenants
+                WHEN EXISTS (SELECT 1 FROM orders WHERE tenant_id = OLD.id)
+                BEGIN
+                    SELECT RAISE(ABORT, 'Tenants with historical orders cannot be deleted.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
                 CREATE TRIGGER orders_prevent_delete
                 BEFORE DELETE ON orders
                 BEGIN
@@ -67,6 +85,30 @@ return new class extends Migration
             SQL);
 
             DB::unprepared(<<<'SQL'
+                CREATE TRIGGER branches_prevent_delete_with_orders
+                BEFORE DELETE ON branches
+                FOR EACH ROW
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM orders WHERE branch_id = OLD.id) THEN
+                        SIGNAL SQLSTATE '45000'
+                            SET MESSAGE_TEXT = 'Branches with historical orders cannot be deleted.';
+                    END IF;
+                END
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER tenants_prevent_delete_with_orders
+                BEFORE DELETE ON tenants
+                FOR EACH ROW
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM orders WHERE tenant_id = OLD.id) THEN
+                        SIGNAL SQLSTATE '45000'
+                            SET MESSAGE_TEXT = 'Tenants with historical orders cannot be deleted.';
+                    END IF;
+                END
+            SQL);
+
+            DB::unprepared(<<<'SQL'
                 CREATE TRIGGER orders_prevent_delete
                 BEFORE DELETE ON orders
                 FOR EACH ROW
@@ -101,6 +143,8 @@ return new class extends Migration
         $driver = DB::connection()->getDriverName();
 
         if ($driver === 'sqlite' || $driver === 'mysql' || $driver === 'mariadb') {
+            DB::unprepared('DROP TRIGGER IF EXISTS branches_prevent_delete_with_orders');
+            DB::unprepared('DROP TRIGGER IF EXISTS tenants_prevent_delete_with_orders');
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_financial_snapshot_update');
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_delete');
             DB::unprepared('DROP TRIGGER IF EXISTS order_items_prevent_update');
