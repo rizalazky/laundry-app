@@ -67,6 +67,22 @@ class OrderModuleTest extends TestCase
         Filament::setTenant($branch ?? $this->branch);
     }
 
+    public function test_quantity_with_more_than_two_decimals_is_rounded_before_calculating_subtotal(): void
+    {
+        $order = app(CreateOrderAction::class)->handle(
+            branch: $this->branch,
+            user: $this->staff('cashier'),
+            customerId: $this->customer->id,
+            items: [['service_id' => $this->service->id, 'quantity' => '1.005']],
+        );
+
+        $item = $order->items()->sole();
+
+        $this->assertSame('1.01', (string) $item->quantity);
+        $this->assertSame('7070.00', (string) $item->subtotal);
+        $this->assertSame('7070.00', (string) $order->total);
+    }
+
     public function test_order_list_only_shows_orders_of_the_current_branch_and_tenant(): void
     {
         $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);

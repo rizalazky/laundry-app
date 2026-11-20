@@ -83,7 +83,8 @@ class CreateOrder
                 }
 
                 $unitPrice = BigDecimal::of($service->priceForBranch($branch));
-                $lineSubtotal = $unitPrice->multipliedBy($quantity)->toScale(2, RoundingMode::HalfUp);
+                $normalizedQuantity = BigDecimal::of($quantity)->toScale(2, RoundingMode::HalfUp);
+                $lineSubtotal = $unitPrice->multipliedBy($normalizedQuantity)->toScale(2, RoundingMode::HalfUp);
                 $subtotal = $subtotal->plus($lineSubtotal);
 
                 $lines[] = [
