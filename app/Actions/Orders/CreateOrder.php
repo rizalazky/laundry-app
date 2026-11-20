@@ -1,33 +1,31 @@
 <?php
 
-namespace App\Actions\Orders;
+namespace App\\Actions\\Orders;
 
-use App\Enums\OrderStatus;
-use App\Enums\PaymentMethod;
-use App\Enums\PaymentStatus;
-use App\Models\Branch;
-use App\Models\Customer;
-use App\Models\Order;
-use App\Models\OrderStatusLog;
-use App\Models\Service;
-use App\Models\User;
-use Brick\Math\BigDecimal;
-use Brick\Math\RoundingMode;
-use Carbon\CarbonInterface;
+use App\\Enums\\OrderStatus;
+use App\\Enums\\PaymentMethod;
+use App\\Enums\\PaymentStatus;
+use App\\Models\\Branch;
+use App\\Models\\Customer;
+use App\\Models\\Order;
+use App\\Models\\OrderStatusLog;
+use App\\Models\\Service;
+use App\\Models\\User;
+use Brick\\Math\\BigDecimal;
+use Brick\\Math\\RoundingMode;
+use Carbon\\CarbonInterface;
 use DomainException;
-use Illuminate\Support\Facades\DB;
+use Illuminate\\Support\\Facades\\DB;
 
 class CreateOrder
 {
     public function __construct(
         private GenerateInvoiceNumber $generateInvoiceNumber,
         private RecordPayment $recordPayment,
+        private OrderActionAuthorization $authorization,
     ) {}
 
     /**
-     * Create an order with priced line items and, optionally, a first payment
-     * (down payment). Prices are snapshotted from the branch price at order time.
-     *
      * @param  list<array{service_id: int|string, quantity: int|string|float}>  $items
      * @param  array{amount: int|string|float, method: PaymentMethod, reference?: string|null}|null  $initialPayment
      *
@@ -46,6 +44,12 @@ class CreateOrder
         if ($items === []) {
             throw new DomainException('Order harus memiliki minimal satu layanan.');
         }
+
+        $branch = $this->authorization->authorizeBranch(
+            $user,
+            $branch,
+            ['tenant_owner', 'branch_manager', 'cashier'],
+        );
 
         return DB::transaction(function () use ($branch, $user, $customerId, $items, $discount, $notes, $dueAt, $initialPayment): Order {
             $customer = Customer::query()
