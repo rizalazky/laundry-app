@@ -116,7 +116,7 @@ class OrderModuleTest extends TestCase
     {
         $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
         $owner = User::factory()->for($this->tenant)->withRole('tenant_owner')->create();
-        $elsewhere = $this->makeOrder($otherBranch);
+        $elsewhere = $this->makeOrder($otherBranch, $owner);
         $foreign = Order::factory()->create();
 
         $this->actingAs($owner)->get('/app/PUSAT/orders/'.$elsewhere->id)->assertNotFound();
