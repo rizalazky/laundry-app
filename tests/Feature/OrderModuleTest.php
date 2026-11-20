@@ -83,6 +83,18 @@ class OrderModuleTest extends TestCase
         $this->assertSame('7070.00', (string) $order->total);
     }
 
+    public function test_form_previews_rounded_quantity_matching_saved_subtotal(): void
+    {
+        $this->actAsInPanel($this->staff('cashier'));
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'items' => [['service_id' => $this->service->id, 'quantity' => '1.005']],
+            ])
+            ->assertSet('data.estimated_subtotal', '7.070')
+            ->assertSet('data.estimated_total', '7.070');
+    }
+
     public function test_order_list_only_shows_orders_of_the_current_branch_and_tenant(): void
     {
         $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);

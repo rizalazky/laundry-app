@@ -169,9 +169,12 @@ class OrderForm
                 continue;
             }
 
+            $normalizedQuantity = BigDecimal::of((string) $item['quantity'])
+                ->toScale(2, RoundingMode::HalfUp);
+
             $subtotal = $subtotal->plus(
                 BigDecimal::of($service->priceForBranch($branch))
-                    ->multipliedBy((string) $item['quantity'])
+                    ->multipliedBy($normalizedQuantity)
                     ->toScale(2, RoundingMode::HalfUp)
             );
         }
