@@ -206,6 +206,86 @@ class FinancialSettlementTest extends TestCase
         );
     }
 
+    public function test_bank_transfer_rejects_non_asset_coa_accounts(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $source = $this->makeBankAccount($tenant, '1010', '1111111111');
+        $destination = $this->makeBankAccount($tenant, '1010', '2222222222');
+        $revenueAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '4000')
+            ->firstOrFail();
+
+        $source->update(['coa_id' => $revenueAccount->id]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Akun COA rekening sumber dan tujuan harus bertipe aset.');
+
+        app(RecordBankTransfer::class)->handle(
+            tenantId: $tenant->id,
+            sourceBankId: $source->id,
+            destinationBankId: $destination->id,
+            amount: '10000',
+            transferredAt: now(),
+        );
+    }
+
+    public function test_settlement_rejects_bank_accounts_mapped_to_non_asset_coa(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $bank = $this->makeBankAccount($tenant);
+        $revenueAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '4000')
+            ->firstOrFail();
+
+        $bank->update(['coa_id' => $revenueAccount->id]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Akun Kas/EDC Clearing dan rekening bank harus tersedia, aktif, serta bertipe aset.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_OUTLET_CASH,
+            targetBankId: $bank->id,
+            grossAmount: '10000',
+            mdrAmount: '0',
+            netAmount: '10000',
+            settledAt: now(),
+        );
+    }
+
+    public function test_edc_settlement_rejects_a_custom_account_using_the_clearing_code(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+        $clearingAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '1030')
+            ->firstOrFail();
+
+        $clearingAccount->update([
+            'name' => 'Akun Custom Tenant',
+            'is_system' => false,
+        ]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Kode akun 1030 sudah digunakan oleh akun lain. Perbaiki konflik kode akun EDC Clearing sebelum mencatat settlement.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_EDC,
+            targetBankId: $bank->id,
+            grossAmount: '100000',
+            mdrAmount: '1500',
+            netAmount: '98500',
+            settledAt: now(),
+            edcMachineId: $machine->id,
+        );
+    }
+
     public function test_bank_transfer_rejects_same_source_and_destination_account(): void
     {
         $tenant = Tenant::factory()->create();
