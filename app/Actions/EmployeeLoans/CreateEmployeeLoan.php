@@ -46,15 +46,20 @@ class CreateEmployeeLoan
 
     private function toCents(string|int|float $amount): int
     {
-        if (! is_numeric($amount) || (float) $amount < 0 || (float) $amount > 9999999999999.99) {
-            throw new DomainException('Nominal kasbon tidak valid.');
+        $value = trim((string) $amount);
+
+        if (! preg_match('/^(\d{1,13})(?:\.(\d{1,2}))?$/', $value, $matches)) {
+            throw new DomainException('Nominal kasbon harus berupa angka dengan maksimal dua angka desimal.');
         }
 
-        return (int) round((float) $amount * 100);
+        $whole = (int) $matches[1];
+        $fraction = (int) str_pad($matches[2] ?? '', 2, '0');
+
+        return ($whole * 100) + $fraction;
     }
 
     private function fromCents(int $amount): string
     {
-        return number_format($amount / 100, 2, '.', '');
+        return intdiv($amount, 100).'.'.str_pad((string) ($amount % 100), 2, '0', STR_PAD_LEFT);
     }
 }
