@@ -185,12 +185,17 @@ class CreateJournal
                 ->where('tenant_id', $tenantId)
                 ->where('reference_type', $referenceType)
                 ->where('reference_id', $referenceId)
-                ->with('entries')
+                ->lockForUpdate()
                 ->first();
 
             if ($existing === null) {
                 throw $exception;
             }
+
+            // A locking read bypasses the caller transaction's REPEATABLE READ
+            // snapshot. Load entries the same way: eager loading would otherwise
+            // use a snapshot read and could miss the winner's committed entries.
+            $this->loadEntriesForCurrentRead($existing);
 
             $accounts = ChartOfAccount::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
@@ -225,6 +230,15 @@ class CreateJournal
                 previous: $exception,
             );
         }
+    }
+
+    private function loadEntriesForCurrentRead(Journal $journal): void
+    {
+        $entries = $journal->entries()
+            ->lockForUpdate()
+            ->get();
+
+        $journal->setRelation('entries', $entries);
     }
 
     /**
