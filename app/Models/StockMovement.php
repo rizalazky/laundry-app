@@ -18,6 +18,7 @@ class StockMovement extends Model
         'branch_id',
         'inventory_item_id',
         'supplier_id',
+        'supplier_name_snapshot',
         'purchase_quantity',
         'purchase_unit_id',
         'purchase_unit_name_snapshot',
