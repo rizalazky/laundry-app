@@ -64,6 +64,9 @@ class UserPolicyTest extends TestCase
         $foreignAssignedStaff->branches()->attach($foreignBranch);
         $otherManager->branches()->attach($branchA);
 
+        $this->grantPermission($tenant, 'branch_manager', 'staff.view');
+        $this->grantPermission($tenant, 'branch_manager', 'staff.manage');
+
         $policy = new UserPolicy();
 
         $this->assertTrue($policy->viewAny($manager));
@@ -126,6 +129,20 @@ class UserPolicyTest extends TestCase
 
         $this->assertFalse($owner->canAccessTenant($branch));
         $this->assertFalse($manager->canAccessTenant($branch));
+    }
+
+    private function grantPermission(Tenant $tenant, string $role, string $slug): void
+    {
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $slug, 'group' => 'Karyawan'],
+        );
+
+        RolePermission::query()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+            'role' => $role,
+            'permission_id' => $permission->id,
+        ]);
     }
 
     private function createTenant(string $slug): Tenant
