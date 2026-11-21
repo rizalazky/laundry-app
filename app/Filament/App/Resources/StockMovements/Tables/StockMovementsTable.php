@@ -36,7 +36,7 @@ class StockMovementsTable
                         StockMovementType::Adjustment => 'info',
                     }),
 
-                TextColumn::make('supplier.name')
+                TextColumn::make('supplier_name_snapshot')
                     ->label('Supplier')
                     ->placeholder('—')
                     ->toggleable(),
