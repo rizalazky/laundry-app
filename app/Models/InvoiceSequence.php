@@ -27,17 +27,29 @@ class InvoiceSequence extends Model
     protected static function booted(): void
     {
         static::addGlobalScope('tenant', function (Builder $builder): void {
-            $tenantId = Auth::user()?->tenant_id;
+            $user = Auth::user();
 
-            if ($tenantId !== null) {
-                $builder->whereHas('branch', fn (Builder $branches) => $branches->where('tenant_id', $tenantId));
+            if ($user === null || $user->role === 'super_admin') {
+                return;
             }
+
+            if ($user->tenant_id === null) {
+                $builder->whereRaw('1 = 0');
+
+                return;
+            }
+
+            $builder->whereHas('branch', fn (Builder $branches) => $branches->where('tenant_id', $user->tenant_id));
         });
 
         static::creating(function (InvoiceSequence $sequence): void {
-            $tenantId = Auth::user()?->tenant_id;
+            $user = Auth::user();
 
-            if ($tenantId !== null && ! Branch::query()->whereKey($sequence->branch_id)->exists()) {
+            if (
+                $user !== null
+                && $user->role !== 'super_admin'
+                && ($user->tenant_id === null || ! Branch::query()->whereKey($sequence->branch_id)->exists())
+            ) {
                 throw (new ModelNotFoundException())->setModel(Branch::class, [$sequence->branch_id]);
             }
         });
