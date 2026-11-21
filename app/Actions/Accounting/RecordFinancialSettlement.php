@@ -155,7 +155,7 @@ class RecordFinancialSettlement
 
             $clearingCode = $sourceType === CashSettlement::SOURCE_EDC ? '1030' : '1000';
 
-            if (! $accounts->has($clearingCode) || $bankAccount === null) {
+            if (! $accounts->has($clearingCode) || $bankAccount === null || $bankAccount->code === $clearingCode || $bankAccount->code === '5500') {
                 throw new DomainException('Akun Kas/EDC Clearing atau akun rekening bank belum tersedia atau nonaktif.');
             }
 
@@ -207,7 +207,7 @@ class RecordFinancialSettlement
                 referenceType: 'cash_settlement',
                 referenceId: $settlement->getKey(),
                 description: $sourceType === CashSettlement::SOURCE_EDC
-                    ? 'Settlement EDC '.$(string) ($machine?->terminal_name ?? '')
+                    ? 'Settlement EDC '.($machine?->terminal_name ?? '')
                     : 'Setoran kas '.($expectedWorkshop ? 'workshop' : 'outlet'),
                 entries: $entries,
                 createdBy: $createdBy ?? Auth::id(),
