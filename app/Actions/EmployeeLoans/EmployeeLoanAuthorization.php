@@ -1,0 +1,63 @@
+<?php
+
+namespace App\Actions\EmployeeLoans;
+
+use App\Models\User;
+use DomainException;
+use Illuminate\Support\Facades\Auth;
+
+class EmployeeLoanAuthorization
+{
+    public function authorizeManager(User $actor): void
+    {
+        if (Auth::hasUser() && (int) Auth::id() !== (int) $actor->getKey()) {
+            throw new DomainException('Aksi kasbon hanya dapat dilakukan oleh akun yang sedang masuk.');
+        }
+
+        if (
+            ! $actor->is_active
+            || $actor->tenant_id === null
+            || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
+            || ! $actor->hasPermissionTo('staff.manage')
+        ) {
+            throw new DomainException('Anda tidak memiliki izin untuk mengelola kasbon karyawan.');
+        }
+    }
+
+    public function authorizeEmployee(User $actor, User $employee, bool $requireActive = true): User
+    {
+        $employee = User::query()
+            ->whereKey($employee->getKey())
+            ->where('tenant_id', $actor->tenant_id)
+            ->whereIn('role', ['branch_manager', 'cashier', 'operator'])
+            ->when($requireActive, fn ($query) => $query->where('is_active', true))
+            ->first();
+
+        if ($employee === null) {
+            throw new DomainException('Karyawan tidak ditemukan atau tidak termasuk dalam tenant aktif.');
+        }
+
+        if ($actor->role === 'branch_manager') {
+            $managedBranchIds = $actor->branches()
+                ->where('branches.tenant_id', $actor->tenant_id)
+                ->where('branches.is_active', true)
+                ->pluck('branches.id');
+
+            $employeeBranchIds = $employee->branches()
+                ->where('branches.tenant_id', $actor->tenant_id)
+                ->where('branches.is_active', true)
+                ->pluck('branches.id');
+
+            if (
+                $employeeBranchIds->isEmpty()
+                || $employeeBranchIds->diff($managedBranchIds)->isNotEmpty()
+                || $employeeBranchIds->intersect($managedBranchIds)->isEmpty()
+                || ! in_array($employee->role, ['cashier', 'operator'], true)
+            ) {
+                throw new DomainException('Karyawan berada di luar cakupan cabang yang Anda kelola.');
+            }
+        }
+
+        return $employee;
+    }
+}
