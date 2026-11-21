@@ -20,6 +20,7 @@ class BranchPermissionEnforcementTest extends TestCase
     public function test_branch_manager_without_view_permission_cannot_view_branch_profile(): void
     {
         [$tenant, $branch, $manager] = $this->context();
+        $this->actingAs($manager);
 
         $this->assertFalse(Gate::forUser($manager)->allows('viewAny', Branch::class));
         $this->assertFalse(Gate::forUser($manager)->allows('view', $branch));
@@ -29,6 +30,7 @@ class BranchPermissionEnforcementTest extends TestCase
     public function test_branch_manager_with_view_permission_can_view_only_assigned_branches(): void
     {
         [$tenant, $branch, $manager] = $this->context();
+        $this->actingAs($manager);
         $otherBranch = Branch::factory()->for($tenant)->create();
 
         $this->grantPermission($manager, 'branches.view');
@@ -59,6 +61,7 @@ class BranchPermissionEnforcementTest extends TestCase
     public function test_branch_manager_cannot_create_a_branch_even_with_manage_permission(): void
     {
         [, , $manager] = $this->context();
+        $this->actingAs($manager);
         $this->grantPermission($manager, 'branches.view');
         $this->grantPermission($manager, 'branches.manage');
 
