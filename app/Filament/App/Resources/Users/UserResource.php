@@ -31,7 +31,8 @@ class UserResource extends Resource
         return $user !== null
             && in_array($user->role, ['tenant_owner', 'branch_manager'], true)
             && $user->is_active
-            && $user->tenant_id !== null;
+            && $user->tenant_id !== null
+            && $user->hasPermissionTo('staff.view');
     }
 
     public static function getEloquentQuery(): Builder
