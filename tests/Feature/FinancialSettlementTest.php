@@ -167,8 +167,16 @@ class FinancialSettlementTest extends TestCase
     public function test_bank_transfer_posts_debit_to_destination_and_credit_to_source(): void
     {
         $tenant = Tenant::factory()->create();
+        ChartOfAccount::withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'code' => '1011',
+            'name' => 'Bank BNI',
+            'account_type' => 'asset',
+            'is_system' => false,
+            'is_active' => true,
+        ]);
         $source = $this->makeBankAccount($tenant, '1010', '1111111111');
-        $destination = $this->makeBankAccount($tenant, '1020', '2222222222');
+        $destination = $this->makeBankAccount($tenant, '1011', '2222222222');
 
         $transfer = app(RecordBankTransfer::class)->handle(
             tenantId: $tenant->id,
