@@ -50,8 +50,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['tenant_id', 'branch_id', 'is_active']);
-            $table->unique(['id', 'tenant_id'], 'investors_id_tenant_unique');
-            $table->foreign(['branch_id', 'tenant_id'], 'investors_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
             $table->foreign(['branch_id', 'tenant_id'], 'edc_machines_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
             $table->foreign(['bank_account_id', 'tenant_id'], 'edc_machines_bank_tenant_foreign')->references(['id', 'tenant_id'])->on('bank_accounts')->restrictOnDelete();
         });
@@ -118,7 +116,7 @@ return new class extends Migration
             $table->index(['tenant_id', 'journal_date'], 'journals_tenant_date_index');
             $table->index(['tenant_id', 'reference_type', 'reference_id'], 'journals_tenant_reference_index');
             $table->unique(['id', 'tenant_id'], 'journals_id_tenant_unique');
-            $table->foreign(['branch_id', 'tenant_id'], 'journals_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->nullOnDelete();
+            $table->foreign(['branch_id', 'tenant_id'], 'journals_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->restrictOnDelete();
         });
 
         Schema::create('journal_entries', function (Blueprint $table) {
@@ -148,8 +146,6 @@ return new class extends Migration
             $table->index(['tenant_id', 'branch_id', 'is_active']);
             $table->unique(['id', 'tenant_id'], 'investors_id_tenant_unique');
             $table->foreign(['branch_id', 'tenant_id'], 'investors_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
-            $table->foreign(['branch_id', 'tenant_id'], 'edc_machines_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
-            $table->foreign(['bank_account_id', 'tenant_id'], 'edc_machines_bank_tenant_foreign')->references(['id', 'tenant_id'])->on('bank_accounts')->restrictOnDelete();
         });
 
         Schema::create('profit_sharings', function (Blueprint $table) {
