@@ -77,6 +77,7 @@ class GenerateFinancialReports
         $baseQuery = $this->scopedEntries($tenantId, $branchId);
 
         $openingEntries = (clone $baseQuery)
+            ->where('coa_id', $accountId)
             ->whereHas('journal', fn (Builder $query) => $query->where('journal_date', '<', $from))
             ->get(['debit', 'credit']);
 
