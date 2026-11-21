@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -47,4 +49,92 @@ class BacklogFoundationSchemaTest extends TestCase
             $this->assertTrue(Schema::hasTable($table), "Expected {$table} table to exist.");
         }
     }
+    public function test_edc_machine_cannot_reference_another_tenants_branch_or_bank_account(): void
+    {
+        $tenantA = $this->createTenant('Tenant A');
+        $tenantB = $this->createTenant('Tenant B');
+        $branchB = DB::table('branches')->insertGetId([
+            'tenant_id' => $tenantB, 'code' => 'B-01', 'name' => 'Branch B',
+            'is_workshop' => false, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $coaB = DB::table('chart_of_accounts')->insertGetId([
+            'tenant_id' => $tenantB, 'code' => '1000', 'name' => 'Cash',
+            'account_type' => 'asset', 'is_system' => false, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $bankB = DB::table('bank_accounts')->insertGetId([
+            'tenant_id' => $tenantB, 'coa_id' => $coaB, 'bank_name' => 'Bank B',
+            'account_number' => '123456', 'holder_name' => 'Tenant B',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('edc_machines')->insert([
+            'tenant_id' => $tenantA, 'branch_id' => $branchB, 'bank_account_id' => $bankB,
+            'terminal_name' => 'EDC A', 'mdr_percent' => 1.5, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    public function test_customer_membership_cannot_reference_another_tenants_customer(): void
+    {
+        $tenantA = $this->createTenant('Tenant A');
+        $tenantB = $this->createTenant('Tenant B');
+        $customerB = DB::table('customers')->insertGetId([
+            'tenant_id' => $tenantB, 'name' => 'Customer B',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $tierA = DB::table('member_tiers')->insertGetId([
+            'tenant_id' => $tenantA, 'name' => 'Gold', 'price' => 100,
+            'duration_days' => 30, 'discount_percent' => 5, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('customer_memberships')->insert([
+            'tenant_id' => $tenantA, 'customer_id' => $customerB, 'member_tier_id' => $tierA,
+            'started_at' => now(), 'expired_at' => now()->addDays(30), 'status' => 'active',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    public function test_profit_sharing_cannot_reference_another_tenants_investor(): void
+    {
+        $tenantA = $this->createTenant('Tenant A');
+        $tenantB = $this->createTenant('Tenant B');
+        $branchB = DB::table('branches')->insertGetId([
+            'tenant_id' => $tenantB, 'code' => 'B-01', 'name' => 'Branch B',
+            'is_workshop' => false, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $investorB = DB::table('investors')->insertGetId([
+            'tenant_id' => $tenantB, 'branch_id' => $branchB, 'name' => 'Investor B',
+            'capital_amount' => 1000000, 'share_percent' => 10, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        DB::table('profit_sharings')->insert([
+            'tenant_id' => $tenantA, 'investor_id' => $investorB, 'period_month' => '2026-11',
+            'net_profit_base' => 100000, 'payout_amount' => 10000, 'status' => 'draft',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    }
+
+    private function createTenant(string $name): int
+    {
+        return DB::table('tenants')->insertGetId([
+            'name' => $name,
+            'slug' => str($name)->slug().'-'.uniqid(),
+            'owner_email' => str($name)->slug().'@example.test',
+            'plan' => 'starter',
+            'max_branches' => 1,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
 }
