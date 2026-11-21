@@ -1,0 +1,173 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Actions\Accounting\CreateJournal;
+use App\Actions\Accounting\GenerateFinancialReports;
+use App\Models\Branch;
+use App\Models\Tenant;
+use Carbon\CarbonImmutable;
+use DomainException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class FinancialReportsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_general_journal_is_scoped_to_tenant_branch_and_period(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $otherBranch = Branch::factory()->for($tenant)->create();
+
+        $this->postJournal($tenant->id, $branch->id, '2026-01-10 09:00:00', 'Jurnal dalam periode', [
+            ['account_code' => '1000', 'debit' => '100000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '100000'],
+        ]);
+        $this->postJournal($tenant->id, $otherBranch->id, '2026-01-10 10:00:00', 'Jurnal cabang lain', [
+            ['account_code' => '1000', 'debit' => '20000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '20000'],
+        ]);
+        $this->postJournal($otherTenant->id, null, '2026-01-10 11:00:00', 'Jurnal tenant lain', [
+            ['account_code' => '1000', 'debit' => '30000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '30000'],
+        ]);
+        $this->postJournal($tenant->id, $branch->id, '2026-02-01 09:00:00', 'Jurnal di luar periode', [
+            ['account_code' => '1000', 'debit' => '40000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '40000'],
+        ]);
+
+        $journals = app(GenerateFinancialReports::class)->generalJournal(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01 00:00:00'),
+            CarbonImmutable::parse('2026-01-31 23:59:59'),
+            $branch->id,
+        );
+
+        $this->assertCount(1, $journals);
+        $this->assertSame('Jurnal dalam periode', $journals->first()->description);
+        $this->assertCount(2, $journals->first()->entries);
+        $this->assertNotNull($journals->first()->entries->first()->account);
+    }
+
+    public function test_general_ledger_calculates_opening_running_and_closing_balances(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $cash = $tenant->chartOfAccounts()->where('code', '1000')->firstOrFail();
+
+        $this->postJournal($tenant->id, $branch->id, '2026-01-01 09:00:00', 'Saldo awal kas', [
+            ['account_code' => '1000', 'debit' => '1000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '1000'],
+        ]);
+        $this->postJournal($tenant->id, $branch->id, '2026-01-10 09:00:00', 'Kas masuk', [
+            ['account_code' => '1000', 'debit' => '200', 'credit' => '0'],
+            ['account_code' => '4000', 'debit' => '0', 'credit' => '200'],
+        ]);
+        $this->postJournal($tenant->id, $branch->id, '2026-01-11 09:00:00', 'Kas keluar', [
+            ['account_code' => '5400', 'debit' => '50', 'credit' => '0'],
+            ['account_code' => '1000', 'debit' => '0', 'credit' => '50'],
+        ]);
+
+        $ledger = app(GenerateFinancialReports::class)->generalLedger(
+            $tenant->id,
+            $cash->id,
+            CarbonImmutable::parse('2026-01-10 00:00:00'),
+            CarbonImmutable::parse('2026-01-31 23:59:59'),
+            $branch->id,
+        );
+
+        $this->assertSame('1000.00', $ledger['opening_balance']);
+        $this->assertSame('200.00', $ledger['total_debit']);
+        $this->assertSame('50.00', $ledger['total_credit']);
+        $this->assertSame('1150.00', $ledger['closing_balance']);
+        $this->assertSame('1200.00', $ledger['entries'][0]->running_balance);
+        $this->assertSame('1150.00', $ledger['entries'][1]->running_balance);
+    }
+
+    public function test_income_statement_groups_revenue_and_expenses_by_account(): void
+    {
+        $tenant = Tenant::factory()->create();
+
+        $this->postJournal($tenant->id, null, '2026-01-10 09:00:00', 'Pendapatan laundry', [
+            ['account_code' => '1000', 'debit' => '200000', 'credit' => '0'],
+            ['account_code' => '4000', 'debit' => '0', 'credit' => '200000'],
+        ]);
+        $this->postJournal($tenant->id, null, '2026-01-11 09:00:00', 'Biaya operasional', [
+            ['account_code' => '5400', 'debit' => '50000', 'credit' => '0'],
+            ['account_code' => '1000', 'debit' => '0', 'credit' => '50000'],
+        ]);
+
+        $report = app(GenerateFinancialReports::class)->incomeStatement(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01 00:00:00'),
+            CarbonImmutable::parse('2026-01-31 23:59:59'),
+        );
+
+        $this->assertSame('200000.00', $report['total_revenue']);
+        $this->assertSame('50000.00', $report['total_expenses']);
+        $this->assertSame('150000.00', $report['net_income']);
+        $this->assertSame('200000.00', $report['revenue_accounts']->firstWhere('account.code', '4000')['amount']);
+        $this->assertSame('50000.00', $report['expense_accounts']->firstWhere('account.code', '5400')['amount']);
+    }
+
+    public function test_balance_sheet_includes_current_year_earnings_and_reconciles(): void
+    {
+        $tenant = Tenant::factory()->create();
+
+        $this->postJournal($tenant->id, null, '2026-01-01 09:00:00', 'Setoran modal', [
+            ['account_code' => '1000', 'debit' => '1000000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '1000000'],
+        ]);
+        $this->postJournal($tenant->id, null, '2026-01-10 09:00:00', 'Pendapatan laundry', [
+            ['account_code' => '1000', 'debit' => '200000', 'credit' => '0'],
+            ['account_code' => '4000', 'debit' => '0', 'credit' => '200000'],
+        ]);
+        $this->postJournal($tenant->id, null, '2026-01-11 09:00:00', 'Biaya operasional', [
+            ['account_code' => '5400', 'debit' => '50000', 'credit' => '0'],
+            ['account_code' => '1000', 'debit' => '0', 'credit' => '50000'],
+        ]);
+
+        $report = app(GenerateFinancialReports::class)->balanceSheet(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-31 23:59:59'),
+        );
+
+        $this->assertSame('1150000.00', $report['total_assets']);
+        $this->assertSame('1000000.00', $report['total_equity']);
+        $this->assertSame('150000.00', $report['current_year_earnings']);
+        $this->assertSame('0.00', $report['difference']);
+        $this->assertTrue($report['is_balanced']);
+    }
+
+    public function test_report_rejects_an_inverted_date_range(): void
+    {
+        $tenant = Tenant::factory()->create();
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $tenant->id,
+            CarbonImmutable::parse('2026-02-01'),
+            CarbonImmutable::parse('2026-01-01'),
+        );
+    }
+
+    /**
+     * @param  list<array{account_code: string, debit: string, credit: string}>  $entries
+     */
+    private function postJournal(int $tenantId, ?int $branchId, string $date, string $description, array $entries): void
+    {
+        app(CreateJournal::class)->handle(
+            tenantId: $tenantId,
+            branchId: $branchId,
+            journalDate: CarbonImmutable::parse($date),
+            referenceType: null,
+            referenceId: null,
+            description: $description,
+            entries: $entries,
+        );
+    }
+}
