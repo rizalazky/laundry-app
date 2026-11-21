@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\Accounting\CreateJournal;
 use App\Actions\Accounting\GenerateFinancialReports;
 use App\Models\Branch;
+use App\Models\ChartOfAccount;
 use App\Models\Tenant;
 use Carbon\CarbonImmutable;
 use DomainException;
