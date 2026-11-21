@@ -41,7 +41,7 @@ class ServicePolicy
 
     public function deleteAny(User $user): bool
     {
-        return $this->isOwner($user);
+        return $this->isOwner($user) && $user->hasPermissionTo('services.manage');
     }
 
     public function restore(User $user, Service $service): bool
