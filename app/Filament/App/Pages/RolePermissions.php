@@ -8,16 +8,18 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use BackedEnum;
+use UnitEnum;
 
 class RolePermissions extends Page
 {
-    protected static string $view = 'filament.app.pages.role-permissions';
+    protected string $view = 'filament.app.pages.role-permissions';
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
 
     protected static ?string $navigationLabel = 'Matriks Hak Akses';
 
-    protected static ?string $navigationGroup = 'Pengaturan';
+    protected static string|UnitEnum|null $navigationGroup = 'Pengaturan';
 
     protected static ?int $navigationSort = 90;
 
