@@ -243,7 +243,7 @@ class ManageStockOpname
             ->whereKey($locked->location_id)
             ->firstOrFail();
 
-        $this->authorization->authorizeBranch($user, $branch, ['tenant_owner']);
+        $this->authorization->authorizeBranch($user, $branch, 'stock.manage');
 
         return $locked;
     }
