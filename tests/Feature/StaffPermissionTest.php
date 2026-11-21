@@ -83,6 +83,7 @@ class StaffPermissionTest extends TestCase
         $manager->branches()->attach($branch);
 
         $this->grantPermission($otherTenant, 'branch_manager', 'staff.view');
+        $this->actingAs($manager);
 
         $this->assertFalse($manager->can('viewAny', User::class));
         $this->assertFalse(UserResource::canAccess());
