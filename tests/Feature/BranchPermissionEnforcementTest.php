@@ -109,7 +109,7 @@ class BranchPermissionEnforcementTest extends TestCase
      */
     private function context(): array
     {
-        $tenant = Tenant::factory()->create();
+        $tenant = Tenant::factory()->create(['max_branches' => 5]);
         $branch = Branch::factory()->for($tenant)->create();
         $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
         $manager->branches()->attach($branch);
