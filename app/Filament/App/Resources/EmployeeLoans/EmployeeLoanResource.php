@@ -140,6 +140,12 @@ class EmployeeLoanResource extends Resource
                     ->listWithLineBreaks()
                     ->limitList(3),
 
+                TextColumn::make('repayments.paid_at')
+                    ->label('Tanggal Cicilan')
+                    ->dateTime('d M Y H:i')
+                    ->listWithLineBreaks()
+                    ->limitList(3),
+
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
