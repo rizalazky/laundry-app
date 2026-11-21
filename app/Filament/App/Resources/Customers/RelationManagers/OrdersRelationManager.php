@@ -39,7 +39,10 @@ class OrdersRelationManager extends RelationManager
                     ->getTenants(Filament::getCurrentPanel())
                     ->modelKeys();
 
-                return $query->whereIn('branch_id', $branchIds);
+                return $query
+                    ->withoutGlobalScopes()
+                    ->where('orders.tenant_id', $user->tenant_id)
+                    ->whereIn('orders.branch_id', $branchIds);
             })
             ->defaultSort('order_date', 'desc')
             ->columns([
