@@ -2,7 +2,6 @@
 
 namespace App\Actions\Inventory;
 
-use App\Actions\Inventory\InventoryActionAuthorization;
 use App\Enums\StockMovementType;
 use App\Models\Branch;
 use App\Models\InventoryItem;
