@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\StockMovements\\Tables;
+namespace App\Filament\App\Resources\StockMovements\Tables;
 
-use App\\Enums\\StockMovementType;
-use Filament\\Tables\\Columns\\TextColumn;
-use Filament\\Tables\\Filters\\SelectFilter;
-use Filament\\Tables\\Table;
+use App\Enums\StockMovementType;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 
 class StockMovementsTable
 {
