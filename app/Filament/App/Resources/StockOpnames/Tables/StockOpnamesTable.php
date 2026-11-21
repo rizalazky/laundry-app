@@ -5,6 +5,7 @@ namespace App\Filament\App\Resources\StockOpnames\Tables;
 use App\Actions\Inventory\ManageStockOpname;
 use App\Models\StockOpname;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
@@ -46,6 +47,7 @@ class StockOpnamesTable
                         Repeater::make('items')
                             ->label('Daftar Barang')
                             ->schema([
+                                Hidden::make('id')->required(),
                                 TextInput::make('item_name_snapshot')
                                     ->label('Barang')
                                     ->disabled()
