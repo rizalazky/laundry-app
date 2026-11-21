@@ -18,6 +18,8 @@ class OrdersRelationManager extends RelationManager
 
     protected static ?string $title = 'Riwayat Transaksi';
 
+    protected static bool $isLazy = false;
+
     public function isReadOnly(): bool
     {
         return true;
