@@ -66,6 +66,7 @@ class CustomerModuleTest extends TestCase
         foreach (['cashier', 'operator'] as $role) {
             $user = $this->createUser($tenant, $role);
             $user->branches()->attach($branch);
+            $this->grantPermission($tenant, $role, 'customers.view');
 
             $this->assertTrue($user->canAccessPanel(Filament::getPanel('app')));
             $this->assertTrue($user->canAccessTenant($branch));
@@ -88,6 +89,55 @@ class CustomerModuleTest extends TestCase
             $this->get('/app/' . $branch->code . '/customers/' . $customer->id . '/edit')
                 ->assertForbidden();
         }
+    }
+
+    public function test_customer_view_permission_is_required_even_for_active_tenant_staff(): void
+    {
+        $tenant = $this->createTenant('laundry-customer-view-denied');
+        $branch = $this->createBranch($tenant, 'PUSAT');
+        $cashier = $this->createUser($tenant, 'cashier');
+        $cashier->branches()->attach($branch);
+
+        $this->actingAs($cashier)
+            ->get('/app/' . $branch->code . '/customers')
+            ->assertForbidden();
+    }
+
+    public function test_customer_manage_permission_is_required_for_branch_managers(): void
+    {
+        $tenant = $this->createTenant('laundry-customer-manage-denied');
+        $branch = $this->createBranch($tenant, 'PUSAT');
+        $manager = $this->createUser($tenant, 'branch_manager');
+        $manager->branches()->attach($branch);
+        $this->grantPermission($tenant, 'branch_manager', 'customers.view');
+
+        $this->actingAs($manager)
+            ->get('/app/' . $branch->code . '/customers')
+            ->assertOk();
+
+        $this->actingAs($manager)
+            ->get('/app/' . $branch->code . '/customers/create')
+            ->assertForbidden();
+
+        $this->grantPermission($tenant, 'branch_manager', 'customers.manage');
+
+        $this->actingAs($manager)
+            ->get('/app/' . $branch->code . '/customers/create')
+            ->assertOk();
+    }
+
+    private function grantPermission(Tenant $tenant, string $role, string $slug): void
+    {
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $slug, 'group' => 'Pelanggan'],
+        );
+
+        RolePermission::query()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+            'role' => $role,
+            'permission_id' => $permission->id,
+        ]);
     }
 
     public function test_customer_validation_normalizes_contacts_and_soft_deleted_contacts_can_be_reused(): void
@@ -186,16 +236,9 @@ class CustomerModuleTest extends TestCase
         $manager = $this->createUser($tenant, 'branch_manager');
         $manager->branches()->attach($assignedBranch);
 
-        $orderViewPermission = Permission::query()->firstOrCreate(
-            ['slug' => 'orders.view'],
-            ['name' => 'Lihat Order', 'group' => 'Pesanan'],
-        );
-
-        RolePermission::query()->create([
-            'tenant_id' => $tenant->id,
-            'role' => 'branch_manager',
-            'permission_id' => $orderViewPermission->id,
-        ]);
+        $this->grantPermission($tenant, 'branch_manager', 'customers.view');
+        $this->grantPermission($tenant, 'branch_manager', 'customers.manage');
+        $this->grantPermission($tenant, 'branch_manager', 'orders.view');
 
         $customer = $this->createCustomer($tenant, 'Customer Branch History');
 

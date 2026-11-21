@@ -15,7 +15,8 @@ class CustomerPolicy
     {
         return $user->is_active
             && $user->tenant_id !== null
-            && in_array($user->role, self::TENANT_ROLES, true);
+            && in_array($user->role, self::TENANT_ROLES, true)
+            && $user->hasPermissionTo('customers.view');
     }
 
     public function view(User $user, Customer $customer): bool
@@ -27,7 +28,8 @@ class CustomerPolicy
     {
         return $user->is_active
             && $user->tenant_id !== null
-            && in_array($user->role, self::MANAGER_ROLES, true);
+            && in_array($user->role, self::MANAGER_ROLES, true)
+            && $user->hasPermissionTo('customers.manage');
     }
 
     public function update(User $user, Customer $customer): bool
