@@ -1,17 +1,17 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\StockOpnames\\Tables;
+namespace App\Filament\App\Resources\StockOpnames\Tables;
 
-use App\\Actions\\Inventory\\ManageStockOpname;
-use App\\Models\\StockOpname;
-use Filament\\Actions\\Action;
-use Filament\\Forms\\Components\\Hidden;
-use Filament\\Forms\\Components\\Repeater;
-use Filament\\Forms\\Components\\TextInput;
-use Filament\\Tables\\Columns\\TextColumn;
-use Filament\\Tables\\Filters\\SelectFilter;
-use Filament\\Tables\\Table;
-use Illuminate\\Support\\Facades\\Auth;
+use App\Actions\Inventory\ManageStockOpname;
+use App\Models\StockOpname;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\TextInput;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class StockOpnamesTable
 {
