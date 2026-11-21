@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\\Database\\Migrations\\Migration;
+use Illuminate\\Database\\Schema\\Blueprint;
+use Illuminate\\Support\\Facades\\DB;
+use Illuminate\\Support\\Facades\\Schema;
 
 return new class extends Migration
 {
@@ -57,6 +57,16 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Legacy schema requires numeric counts. Treat uncounted draft rows as unchanged
+        // from their system snapshot before restoring the original NOT NULL constraints.
+        DB::table('stock_opname_items')
+            ->whereNull('physical_qty')
+            ->update(['physical_qty' => DB::raw('system_qty')]);
+
+        DB::table('stock_opname_items')
+            ->whereNull('difference_qty')
+            ->update(['difference_qty' => 0]);
+
         Schema::table('stock_opname_items', function (Blueprint $table) {
             $table->dropColumn([
                 'item_name_snapshot',
