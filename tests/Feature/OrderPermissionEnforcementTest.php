@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Order;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 class OrderPermissionEnforcementTest extends TestCase
@@ -95,6 +97,7 @@ class OrderPermissionEnforcementTest extends TestCase
             ->get('/app/PUSAT/orders/create')
             ->assertOk();
     }
+
     private function grantPermission(User $user, string $slug): void
     {
         $permission = Permission::query()->firstOrCreate(
