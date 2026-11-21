@@ -17,9 +17,9 @@ use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\RolePermissionService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class TenantOwnedChildModelIsolationTest extends TestCase
