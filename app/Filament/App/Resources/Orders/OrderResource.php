@@ -15,6 +15,7 @@ use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class OrderResource extends Resource
 {
@@ -29,6 +30,16 @@ class OrderResource extends Resource
     protected static ?string $modelLabel = 'Order';
 
     protected static ?string $pluralModelLabel = 'Order';
+
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->hasPermissionTo('orders.view') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->hasPermissionTo('orders.create') ?? false;
+    }
 
     public static function form(Schema $schema): Schema
     {
