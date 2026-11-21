@@ -76,7 +76,11 @@ class CreateStockMovement extends CreateRecord
             quantity: $quantity,
             notes: $data['notes'] ?? null,
             unitCost: $unitCost,
-            ...$purchaseDetails,
+            supplierId: $purchaseDetails['supplierId'] ?? null,
+            purchaseQuantity: $purchaseDetails['purchaseQuantity'] ?? null,
+            purchaseUnitId: $purchaseDetails['purchaseUnitId'] ?? null,
+            purchaseUnitNameSnapshot: $purchaseDetails['purchaseUnitNameSnapshot'] ?? null,
+            purchaseConversionFactor: $purchaseDetails['purchaseConversionFactor'] ?? null,
         );
     }
 }
