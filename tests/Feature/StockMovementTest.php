@@ -386,6 +386,129 @@ class StockMovementTest extends TestCase
         );
     }
 
+
+    public function test_stock_ledger_reconciles_sequential_movements_and_keeps_branch_balances_independent(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $otherBranch = Branch::factory()->for($tenant)->create();
+        $service = app(RecordStockMovement::class);
+
+        $service->handle($branch, $owner, $item->id, StockMovementType::In, '10');
+        $service->handle($branch, $owner, $item->id, StockMovementType::Out, '2');
+        $service->handle($branch, $owner, $item->id, StockMovementType::Adjustment, '-1');
+        $service->handle($branch, $owner, $item->id, StockMovementType::Usage, '3');
+        $service->handle($otherBranch, $owner, $item->id, StockMovementType::In, '4');
+
+        $movements = StockMovement::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('branch_id', $branch->id)
+            ->where('inventory_item_id', $item->id)
+            ->orderBy('id')
+            ->get();
+
+        $expectedBefore = '0.0000';
+        $signedTotal = 0.0;
+
+        foreach ($movements as $movement) {
+            $this->assertSame($expectedBefore, $movement->stock_before);
+            $expectedAfter = number_format(
+                (float) $movement->stock_before + (float) $movement->quantity,
+                4,
+                '.',
+                '',
+            );
+
+            $this->assertSame($expectedAfter, $movement->stock_after);
+            $expectedBefore = $movement->stock_after;
+            $signedTotal += (float) $movement->quantity;
+        }
+
+        $this->assertSame('4.0000', $expectedBefore);
+        $this->assertSame('4.0000', number_format($signedTotal, 4, '.', ''));
+
+        $this->assertDatabaseHas('location_stocks', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '4.0000',
+        ]);
+        $this->assertDatabaseHas('location_stocks', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $otherBranch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '4.0000',
+        ]);
+    }
+
+    public function test_stock_movement_history_never_exposes_another_tenants_ledger(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        app(RecordStockMovement::class)->handle(
+            $branch,
+            $owner,
+            $item->id,
+            StockMovementType::In,
+            '5',
+        );
+
+        $otherTenant = Tenant::factory()->create();
+        $otherBranch = Branch::factory()->for($otherTenant)->create();
+        $otherUnit = InventoryUnit::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'code' => 'pcs',
+            'name' => 'Pieces',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+        $foreignItem = InventoryItem::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'sku' => 'SECRET-001',
+            'name' => 'Barang Rahasia Tenant Lain',
+            'unit' => 'Pieces',
+            'base_unit_id' => $otherUnit->id,
+            'purchase_unit_id' => $otherUnit->id,
+            'purchase_unit_conversion_factor' => 1,
+            'item_category' => 'raw_material',
+        ]);
+        StockMovement::query()->withoutGlobalScope('tenant')->create([
+            'tenant_id' => $otherTenant->id,
+            'branch_id' => $otherBranch->id,
+            'inventory_item_id' => $foreignItem->id,
+            'movement_type' => StockMovementType::In,
+            'quantity' => '99.0000',
+            'stock_before' => '0.0000',
+            'stock_after' => '99.0000',
+            'unit_cost' => '0.00',
+            'created_by' => $owner->id,
+            'created_at' => now(),
+        ]);
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $this->get('/app/'.$branch->code.'/stock-movements')
+            ->assertOk()
+            ->assertSee('Detergen')
+            ->assertDontSee('Barang Rahasia Tenant Lain')
+            ->assertDontSee('SECRET-001');
+    }
+
+    public function test_non_owner_cannot_read_stock_movement_history(): void
+    {
+        [$tenant, $branch] = $this->makeInventoryContext();
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
+        $cashier->branches()->attach($branch);
+
+        $this->actingAs($cashier);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $this->get('/app/'.$branch->code.'/stock-movements')
+            ->assertForbidden();
+    }
+
     /**
      * @return array{Tenant, Branch, User, InventoryItem}
      */
