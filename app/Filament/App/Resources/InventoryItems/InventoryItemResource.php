@@ -1,19 +1,20 @@
 <?php
 
-namespace App\Filament\App\Resources\InventoryItems;
+namespace App\\Filament\\App\\Resources\\InventoryItems;
 
-use App\Filament\App\Resources\InventoryItems\Pages\CreateInventoryItem;
-use App\Filament\App\Resources\InventoryItems\Pages\EditInventoryItem;
-use App\Filament\App\Resources\InventoryItems\Pages\ListInventoryItems;
-use App\Filament\App\Resources\InventoryItems\Schemas\InventoryItemForm;
-use App\Filament\App\Resources\InventoryItems\Tables\InventoryItemsTable;
-use App\Models\InventoryItem;
+use App\\Filament\\App\\Resources\\InventoryItems\\Pages\\CreateInventoryItem;
+use App\\Filament\\App\\Resources\\InventoryItems\\Pages\\EditInventoryItem;
+use App\\Filament\\App\\Resources\\InventoryItems\\Pages\\ListInventoryItems;
+use App\\Filament\\App\\Resources\\InventoryItems\\Schemas\\InventoryItemForm;
+use App\\Filament\\App\\Resources\\InventoryItems\\Tables\\InventoryItemsTable;
+use App\\Models\\InventoryItem;
 use BackedEnum;
-use Filament\Resources\Resource;
-use Filament\Schemas\Schema;
-use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
+use Filament\\Facades\\Filament;
+use Filament\\Resources\\Resource;
+use Filament\\Schemas\\Schema;
+use Filament\\Tables\\Table;
+use Illuminate\\Database\\Eloquent\\Builder;
+use Illuminate\\Support\\Facades\\Auth;
 use UnitEnum;
 
 class InventoryItemResource extends Resource
@@ -29,8 +30,13 @@ class InventoryItemResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        $branchId = Filament::getTenant()?->getKey();
+
         return parent::getEloquentQuery()
-            ->where('tenant_id', Auth::user()?->tenant_id);
+            ->where('tenant_id', Auth::user()?->tenant_id)
+            ->withSum([
+                'locationStocks as current_stock' => fn (Builder $query) => $query->where('branch_id', $branchId),
+            ], 'quantity');
     }
 
     public static function form(Schema $schema): Schema
