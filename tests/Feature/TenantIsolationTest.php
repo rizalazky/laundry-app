@@ -32,7 +32,7 @@ class TenantIsolationTest extends TestCase
         );
     }
 
-    public function test_tenant_scoped_creation_overrides_a_foreign_tenant_id_from_authenticated_context(): void
+    public function test_tenant_scoped_saves_override_a_foreign_tenant_id_from_authenticated_context(): void
     {
         $tenant = Tenant::factory()->create();
         $otherTenant = Tenant::factory()->create();
@@ -45,6 +45,10 @@ class TenantIsolationTest extends TestCase
             'name' => 'Customer from forged tenant id',
             'phone' => '081234567890',
         ]);
+
+        $this->assertSame($tenant->id, $customer->fresh()->tenant_id);
+
+        $customer->update(['tenant_id' => $otherTenant->id]);
 
         $this->assertSame($tenant->id, $customer->fresh()->tenant_id);
         $this->assertSame(1, Customer::query()->count());
