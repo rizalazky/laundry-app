@@ -2,6 +2,7 @@
 
 namespace App\Actions\Accounting;
 
+use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Journal;
 use App\Models\JournalEntry;
@@ -25,6 +26,7 @@ class GenerateFinancialReports
         ?int $branchId = null,
     ): Collection {
         $this->assertTenantAccess($tenantId);
+        $this->assertBranchAccess($tenantId, $branchId);
         $this->assertDateRange($from, $to);
 
         return Journal::withoutGlobalScope('tenant')
@@ -64,6 +66,7 @@ class GenerateFinancialReports
         ?int $branchId = null,
     ): array {
         $this->assertTenantAccess($tenantId);
+        $this->assertBranchAccess($tenantId, $branchId);
         $this->assertDateRange($from, $to);
 
         $account = ChartOfAccount::withoutGlobalScope('tenant')
@@ -139,6 +142,7 @@ class GenerateFinancialReports
         ?int $branchId = null,
     ): array {
         $this->assertTenantAccess($tenantId);
+        $this->assertBranchAccess($tenantId, $branchId);
         $this->assertDateRange($from, $to);
 
         $totals = $this->totalsByAccount(
@@ -207,6 +211,7 @@ class GenerateFinancialReports
         ?int $branchId = null,
     ): array {
         $this->assertTenantAccess($tenantId);
+        $this->assertBranchAccess($tenantId, $branchId);
 
         $totals = $this->totalsByAccount(
             $this->scopedEntries($tenantId, $branchId)
@@ -351,6 +356,41 @@ class GenerateFinancialReports
 
         if ($authenticatedTenantId !== null && (int) $authenticatedTenantId !== $tenantId) {
             throw new DomainException('Tenant laporan tidak sesuai dengan tenant pengguna.');
+        }
+    }
+
+    private function assertBranchAccess(int $tenantId, ?int $branchId): void
+    {
+        $user = Auth::user();
+
+        if ($branchId === null) {
+            if ($user !== null && ! in_array($user->role, ['tenant_owner', 'super_admin'], true)) {
+                throw new DomainException('Pengguna cabang hanya dapat melihat laporan untuk cabang yang ditugaskan.');
+            }
+
+            return;
+        }
+
+        $branchExists = Branch::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('is_active', true)
+            ->whereKey($branchId)
+            ->exists();
+
+        if (! $branchExists) {
+            throw new DomainException('Cabang laporan tidak ditemukan atau bukan milik tenant ini.');
+        }
+
+        if (
+            $user !== null
+            && ! in_array($user->role, ['tenant_owner', 'super_admin'], true)
+            && ! $user->branches()
+                ->whereKey($branchId)
+                ->where('branches.tenant_id', $tenantId)
+                ->where('branches.is_active', true)
+                ->exists()
+        ) {
+            throw new DomainException('Pengguna tidak memiliki akses ke cabang laporan ini.');
         }
     }
 
