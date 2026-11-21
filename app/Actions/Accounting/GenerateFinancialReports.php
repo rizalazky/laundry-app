@@ -34,10 +34,10 @@ class GenerateFinancialReports
             ->whereBetween('journal_date', [$from, $to])
             ->when($branchId !== null, fn (Builder $query) => $query->where('branch_id', $branchId))
             ->with([
-                'entries' => fn (Builder $query) => $query
+                'entries' => fn ($query) => $query
                     ->withoutGlobalScope('tenant')
                     ->orderBy('id')
-                    ->with(['account' => fn (Builder $accountQuery) => $accountQuery->withoutGlobalScope('tenant')]),
+                    ->with(['account' => fn ($accountQuery) => $accountQuery->withoutGlobalScope('tenant')]),
             ])
             ->orderBy('journal_date')
             ->orderBy('id')
