@@ -271,8 +271,8 @@ class StockMovementTest extends TestCase
 
     public function test_inventory_history_includes_all_branches_in_the_same_tenant(): void
     {
-        [, $branch, $owner, $item] = $this->makeInventoryContext();
-        $otherBranch = Branch::factory()->for($owner->tenant)->create();
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $otherBranch = Branch::factory()->for($tenant)->create();
         $service = app(RecordStockMovement::class);
 
         $service->handle($branch, $owner, $item->id, StockMovementType::In, '5');
