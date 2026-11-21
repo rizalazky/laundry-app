@@ -38,7 +38,8 @@ class InventoryItemsTable
                     ->label('Stok Cabang Aktif')
                     ->numeric(decimalPlaces: 4)
                     ->suffix(fn ($record): string => ' '.($record->baseUnit?->code ?? $record->unit ?? ''))
-                    ->color(fn ($record): string => (float) ($record->current_stock ?? 0) <= (float) $record->min_stock ? 'danger' : 'success')
+                    ->color(fn ($record): string => (float) $record->min_stock > 0 && (float) ($record->current_stock ?? 0) <= (float) $record->min_stock ? 'danger' : 'success')
+                    ->placeholder('0.0000')
                     ->sortable(),
 
                 TextColumn::make('baseUnit.name')
