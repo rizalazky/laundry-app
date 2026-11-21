@@ -190,7 +190,7 @@ class FinancialSettlementTest extends TestCase
         $this->assertSame(
             [
                 '1010' => ['debit' => '0.00', 'credit' => '75000.00'],
-                '1020' => ['debit' => '75000.00', 'credit' => '0.00'],
+                '1011' => ['debit' => '75000.00', 'credit' => '0.00'],
             ],
             $journal->entries->mapWithKeys(fn ($entry) => [
                 $entry->account->code => ['debit' => $entry->debit, 'credit' => $entry->credit],
