@@ -99,7 +99,7 @@ class StockTransferTest extends TestCase
         $this->assertDatabaseCount('stock_movements', 0);
     }
 
-    public function test_transfer_cannot_be_shipped_twice_or_cross_tenant(): void
+    public function test_transfer_cannot_be_shipped_twice(): void
     {
         [, $source, $destination, $owner, $item] = $this->context();
         LocationStock::query()->create([
