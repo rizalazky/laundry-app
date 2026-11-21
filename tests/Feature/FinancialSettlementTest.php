@@ -58,7 +58,7 @@ class FinancialSettlementTest extends TestCase
             ],
             $journal->entries->mapWithKeys(fn ($entry) => [
                 $entry->account->code => ['debit' => $entry->debit, 'credit' => $entry->credit],
-            ])->all(),
+            ])->sortKeys()->all(),
         );
     }
 
