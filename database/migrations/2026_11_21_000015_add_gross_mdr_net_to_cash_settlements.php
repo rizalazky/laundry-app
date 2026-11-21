@@ -28,7 +28,23 @@ return new class extends Migration
             $table->index(['tenant_id', 'target_bank_id', 'settled_at'], 'cash_settlements_bank_date_index');
         });
 
-        // Existing tenants predate the EDC clearing account added to the default COA.\n        $now = now();\n        $tenantIds = DB::table('tenants')->pluck('id');\n\n        foreach ($tenantIds as $tenantId) {\n            DB::table('chart_of_accounts')->insertOrIgnore([\n                'tenant_id' => $tenantId,\n                'code' => '1030',\n                'name' => 'Piutang Settlement EDC',\n                'account_type' => 'asset',\n                'is_system' => true,\n                'is_active' => true,\n                'created_at' => $now,\n                'updated_at' => $now,\n            ]);\n        }\n\n        // Preserve historical settlement values before gross/MDR/net were separated.
+        // Existing tenants predate the EDC clearing account added to the default COA.
+        $now = now();
+
+        foreach (DB::table('tenants')->pluck('id') as $tenantId) {
+            DB::table('chart_of_accounts')->insertOrIgnore([
+                'tenant_id' => $tenantId,
+                'code' => '1030',
+                'name' => 'Piutang Settlement EDC',
+                'account_type' => 'asset',
+                'is_system' => true,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        // Preserve historical settlement values before gross/MDR/net were separated.
         DB::table('cash_settlements')->update([
             'gross_amount' => DB::raw('amount'),
             'mdr_amount' => 0,
