@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\UserPolicy;
