@@ -69,7 +69,9 @@ class ActivityLogTest extends TestCase
         $outsideLog = $logger->record($manager, 'staff.updated', $outsideEmployee, ['role' => 'cashier']);
 
         [, $foreignOwner, $foreignEmployee] = $this->foreignContext();
+        $this->actingAs($foreignOwner);
         $foreignLog = app(ActivityLogger::class)->record($foreignOwner, 'staff.updated', $foreignEmployee);
+        $this->actingAs($manager);
 
         $this->assertTrue(ActivityLogResource::canAccess());
         $this->assertSame(
