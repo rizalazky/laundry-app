@@ -15,10 +15,14 @@ class CreateEmployeeLoan
     {
         return DB::transaction(function () use ($actor, $employeeId, $amount, $notes): EmployeeLoan {
             $this->authorization->authorizeManager($actor);
-            $employee = $this->authorization->authorizeEmployee(
-                $actor,
-                new User(['id' => $employeeId]),
-            );
+
+            $employee = User::query()->find($employeeId);
+
+            if ($employee === null) {
+                throw new DomainException('Karyawan tidak ditemukan.');
+            }
+
+            $employee = $this->authorization->authorizeEmployee($actor, $employee);
             $amountInCents = $this->toCents($amount);
 
             if ($amountInCents <= 0) {
