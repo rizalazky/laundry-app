@@ -276,4 +276,51 @@ class InventoryPermissionEnforcementTest extends TestCase
         }
     }
 
+    public function test_stock_records_are_visible_only_when_all_related_branches_are_assigned(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $assignedBranch = Branch::factory()->for($tenant)->create();
+        $unassignedBranch = Branch::factory()->for($tenant)->create();
+        $user = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $user->branches()->attach($assignedBranch);
+
+        $this->grantPermission($tenant, 'branch_manager', 'stock.view', 'Inventori');
+
+        $assignedMovement = new StockMovement([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $assignedBranch->id,
+        ]);
+        $unassignedMovement = new StockMovement([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $unassignedBranch->id,
+        ]);
+        $assignedOpname = new StockOpname([
+            'tenant_id' => $tenant->id,
+            'location_type' => 'outlet',
+            'location_id' => $assignedBranch->id,
+        ]);
+        $unassignedOpname = new StockOpname([
+            'tenant_id' => $tenant->id,
+            'location_type' => 'outlet',
+            'location_id' => $unassignedBranch->id,
+        ]);
+        $assignedTransfer = new StockTransfer([
+            'tenant_id' => $tenant->id,
+            'source_branch_id' => $assignedBranch->id,
+            'destination_branch_id' => $assignedBranch->id,
+        ]);
+        $unassignedTransfer = new StockTransfer([
+            'tenant_id' => $tenant->id,
+            'source_branch_id' => $assignedBranch->id,
+            'destination_branch_id' => $unassignedBranch->id,
+        ]);
+
+        $this->assertTrue($user->can('view', $assignedMovement));
+        $this->assertFalse($user->can('view', $unassignedMovement));
+        $this->assertTrue($user->can('view', $assignedOpname));
+        $this->assertFalse($user->can('view', $unassignedOpname));
+        $this->assertTrue($user->can('view', $assignedTransfer));
+        $this->assertFalse($user->can('view', $unassignedTransfer));
+    }
+
 }
