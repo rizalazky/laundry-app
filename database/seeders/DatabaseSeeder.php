@@ -15,11 +15,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(PermissionSeeder::class);
+
         $email = config('app.seed_super_admin.email');
         $password = config('app.seed_super_admin.password') ?: (app()->isLocal() ? 'password' : null);
 
         if (blank($password)) {
-            $this->command?->warn('Super admin not seeded: set SEED_SUPER_ADMIN_PASSWORD.');
+            $this->command?->warn('Super Admin not seeded: set SEED_SUPER_ADMIN_PASSWORD.');
 
             return;
         }
