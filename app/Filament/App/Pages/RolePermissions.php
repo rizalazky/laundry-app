@@ -3,6 +3,7 @@
 namespace App\Filament\App\Pages;
 
 use App\Models\Permission;
+use App\Services\ActivityLogger;
 use App\Services\RolePermissionService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -59,7 +60,7 @@ class RolePermissions extends Page
             ->all();
     }
 
-    public function save(RolePermissionService $permissionService): void
+    public function save(RolePermissionService $permissionService, ActivityLogger $activityLogger): void
     {
         $user = Auth::user();
 
@@ -78,6 +79,11 @@ class RolePermissions extends Page
         }
 
         $permissionService->sync($user->tenant, $this->role, $this->selectedPermissions);
+
+        $activityLogger->record($user, 'staff.permissions.updated', $user->tenant, [
+            'role' => $this->role,
+            'permission_ids' => array_values(array_unique(array_map('intval', $this->selectedPermissions))),
+        ]);
 
         Notification::make()
             ->title('Matriks hak akses berhasil disimpan')
