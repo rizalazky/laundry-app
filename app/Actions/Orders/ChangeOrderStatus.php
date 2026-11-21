@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderStatusLog;
+use App\Models\ProductionLog;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use DomainException;
@@ -77,6 +78,30 @@ class ChangeOrderStatus
             }
 
             $from = $locked->status;
+            $transitionedAt = now();
+
+            ProductionLog::query()
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('order_id', $locked->getKey())
+                ->whereNull('finished_at')
+                ->lockForUpdate()
+                ->update([
+                    'finished_at' => $transitionedAt,
+                    'updated_at' => $transitionedAt,
+                ]);
+
+            $productionStage = $this->productionStageFor($to);
+
+            if ($productionStage !== null) {
+                ProductionLog::query()->create([
+                    'tenant_id' => $locked->tenant_id,
+                    'order_id' => $locked->getKey(),
+                    'stage' => $productionStage,
+                    'worker_id' => $workerId,
+                    'machine_code' => $machineCode,
+                    'started_at' => $transitionedAt,
+                ]);
+            }
 
             $locked->forceFill(['status' => $to])->save();
 
@@ -94,5 +119,16 @@ class ChangeOrderStatus
 
             return $order;
         });
+    }
+
+    private function productionStageFor(OrderStatus $status): ?string
+    {
+        return match ($status) {
+            OrderStatus::Washing => 'washer',
+            OrderStatus::Drying => 'dryer',
+            OrderStatus::Ironing => 'ironing',
+            OrderStatus::Packing => 'packing',
+            default => null,
+        };
     }
 }
