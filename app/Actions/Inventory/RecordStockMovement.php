@@ -2,7 +2,7 @@
 
 namespace App\Actions\Inventory;
 
-use App\Actions\Orders\OrderActionAuthorization;
+use App\Actions\Inventory\InventoryActionAuthorization;
 use App\Enums\StockMovementType;
 use App\Models\Branch;
 use App\Models\InventoryItem;
@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 class RecordStockMovement
 {
     public function __construct(
-        private OrderActionAuthorization $authorization,
+        private InventoryActionAuthorization $authorization,
     ) {}
 
     public function handle(
@@ -34,7 +34,7 @@ class RecordStockMovement
         ?string $purchaseUnitNameSnapshot = null,
         string|int|float|null $purchaseConversionFactor = null,
     ): StockMovement {
-        $branch = $this->authorization->authorizeBranch($user, $branch, ['tenant_owner']);
+        $branch = $this->authorization->authorizeBranch($user, $branch, 'stock.manage');
 
         $type = $movementType instanceof StockMovementType
             ? $movementType
