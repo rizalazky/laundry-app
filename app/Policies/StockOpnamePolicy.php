@@ -15,7 +15,11 @@ class StockOpnamePolicy
     public function view(User $user, StockOpname $stockOpname): bool
     {
         return $user->hasPermissionTo('stock.view')
-            && (int) $user->tenant_id === (int) $stockOpname->tenant_id;
+            && (int) $user->tenant_id === (int) $stockOpname->tenant_id
+            && ($user->role === 'tenant_owner' || $user->branches()
+                ->whereKey($stockOpname->location_id)
+                ->where('branches.tenant_id', $user->tenant_id)
+                ->exists());
     }
 
     public function create(User $user): bool
