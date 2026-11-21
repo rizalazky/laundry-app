@@ -441,4 +441,47 @@ class OrderModuleTest extends TestCase
             workerId: $foreignOperator->id,
         );
     }
+    public function test_cashier_can_use_edc_debit_for_down_payment_and_edc_credit_for_later_payment(): void
+    {
+        $cashier = $this->staff('cashier');
+        $this->actAsInPanel($cashier);
+
+        Livewire::test(CreateOrder::class)
+            ->fillForm([
+                'customer_id' => $this->customer->id,
+                'items' => [['service_id' => $this->service->id, 'quantity' => 5]],
+                'discount' => 5000,
+                'down_payment' => 10000,
+                'payment_method' => PaymentMethod::EdcDebit->value,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $order = Order::query()->sole();
+
+        $this->assertSame(PaymentMethod::EdcDebit, $order->payments()->sole()->method);
+
+        $creditPayment = app(RecordPayment::class)->handle(
+            order: $order,
+            amount: '5000',
+            method: PaymentMethod::EdcCredit,
+            user: $cashier,
+            idempotencyKey: 'edc-credit-installment',
+        );
+
+        $this->assertSame(PaymentMethod::EdcCredit, $creditPayment->fresh()->method);
+        $this->assertSame('15000.00', $order->fresh()->paid_amount);
+        $this->assertSame(PaymentStatus::Partial, $order->fresh()->payment_status);
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $order->id,
+            'method' => 'edc_debit',
+            'amount' => '10000.00',
+        ]);
+        $this->assertDatabaseHas('payments', [
+            'order_id' => $order->id,
+            'method' => 'edc_credit',
+            'amount' => '5000.00',
+        ]);
+    }
+
 }

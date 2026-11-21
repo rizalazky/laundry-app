@@ -7,6 +7,8 @@ enum PaymentMethod: string
     case Cash = 'cash';
     case Transfer = 'transfer';
     case Qris = 'qris';
+    case EdcDebit = 'edc_debit';
+    case EdcCredit = 'edc_credit';
 
     public function label(): string
     {
@@ -14,6 +16,8 @@ enum PaymentMethod: string
             self::Cash => 'Tunai',
             self::Transfer => 'Transfer Bank',
             self::Qris => 'QRIS',
+            self::EdcDebit => 'EDC Debit',
+            self::EdcCredit => 'EDC Credit',
         };
     }
 
