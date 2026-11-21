@@ -108,6 +108,26 @@ class UserPolicyTest extends TestCase
         $this->assertFalse($manager->canAccessTenant($foreignBranch));
     }
 
+    public function test_inactive_users_cannot_access_any_branch_even_if_they_remain_assigned(): void
+    {
+        $tenant = $this->createTenant('laundry-inactive-access');
+        $branch = $tenant->branches()->create([
+            'code' => 'ACTIVE',
+            'name' => 'Active Branch',
+            'is_active' => true,
+        ]);
+
+        $owner = $this->createUser($tenant, 'tenant_owner');
+        $manager = $this->createUser($tenant, 'branch_manager');
+        $manager->branches()->attach($branch);
+
+        $owner->update(['is_active' => false]);
+        $manager->update(['is_active' => false]);
+
+        $this->assertFalse($owner->canAccessTenant($branch));
+        $this->assertFalse($manager->canAccessTenant($branch));
+    }
+
     private function createTenant(string $slug): Tenant
     {
         return Tenant::create([
