@@ -101,7 +101,11 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
 
     public function canAccessTenant(Model $tenant): bool
     {
-        if ((int) $tenant->tenant_id !== (int) $this->tenant_id || $this->tenant_id === null) {
+        if (
+            ! $this->is_active
+            || $this->tenant_id === null
+            || (int) $tenant->tenant_id !== (int) $this->tenant_id
+        ) {
             return false;
         }
 
