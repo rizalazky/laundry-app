@@ -14,14 +14,15 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use UnitEnum;
 
 class InventoryItemResource extends Resource
 {
     protected static ?string $model = InventoryItem::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
+    protected static UnitEnum|string|null $navigationGroup = 'Master Data';
     protected static ?string $recordTitleAttribute = 'name';
-    protected static ?string $navigationGroup = 'Master Data';
     protected static ?string $navigationLabel = 'Barang Inventori';
     protected static ?string $modelLabel = 'Barang Inventori';
     protected static ?string $pluralModelLabel = 'Barang Inventori';

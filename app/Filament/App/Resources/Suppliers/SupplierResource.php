@@ -14,14 +14,15 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use UnitEnum;
 
 class SupplierResource extends Resource
 {
     protected static ?string $model = Supplier::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-truck';
+    protected static UnitEnum|string|null $navigationGroup = 'Master Data';
     protected static ?string $recordTitleAttribute = 'name';
-    protected static ?string $navigationGroup = 'Master Data';
     protected static ?string $navigationLabel = 'Supplier';
     protected static ?string $modelLabel = 'Supplier';
     protected static ?string $pluralModelLabel = 'Supplier';
