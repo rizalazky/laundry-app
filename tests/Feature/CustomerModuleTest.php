@@ -91,7 +91,6 @@ class CustomerModuleTest extends TestCase
         }
     }
 
-
     public function test_customer_view_permission_is_required_even_for_active_tenant_staff(): void
     {
         $tenant = $this->createTenant('laundry-customer-view-denied');
