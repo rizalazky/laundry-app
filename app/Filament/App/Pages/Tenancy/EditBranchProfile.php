@@ -74,10 +74,6 @@ class EditBranchProfile extends EditTenantProfile
                     ->orderBy('name')
                     ->pluck('name', 'id')
                     ->all())
-                ->default(fn (): array => Filament::getTenant()?->workshops()
-                    ->pluck('branches.id')
-                    ->map(fn ($id): int => (int) $id)
-                    ->all() ?? [])
                 ->visible(fn (Get $get): bool => Auth::user()?->role === 'tenant_owner' && ! (bool) $get('is_workshop')),
         ]);
     }
@@ -114,6 +110,17 @@ class EditBranchProfile extends EditTenantProfile
 
             return $record;
         });
+    }
+
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['workshop_ids'] = Filament::getTenant()?->workshops()
+            ->pluck('branches.id')
+            ->map(fn ($id): int => (int) $id)
+            ->all() ?? [];
+
+        return $data;
     }
 
 }
