@@ -3,9 +3,11 @@
 namespace App\Filament\App\Resources\StockMovements\Tables;
 
 use App\Enums\StockMovementType;
+use App\Models\Branch;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class StockMovementsTable
 {
@@ -73,6 +75,13 @@ class StockMovementsTable
                     ->label('Jenis Mutasi')
                     ->options(collect(StockMovementType::cases())
                         ->mapWithKeys(fn (StockMovementType $type): array => [$type->value => $type->label()])
+                        ->all()),
+                SelectFilter::make('branch_id')
+                    ->label('Lokasi')
+                    ->options(fn (): array => Branch::query()
+                        ->where('tenant_id', Auth::user()?->tenant_id)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
                         ->all()),
             ]);
     }
