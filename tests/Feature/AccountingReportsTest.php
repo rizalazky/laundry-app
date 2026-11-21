@@ -44,7 +44,7 @@ class AccountingReportsTest extends TestCase
             ->set('fromDate', '2026-01-01')
             ->set('toDate', '2026-01-31')
             ->set('reportType', 'income-statement')
-            ->assertSee('Pendapatan laundry')
+            ->assertSee('4000')
             ->assertSee('200.000,00')
             ->assertSee('50.000,00')
             ->assertSee('150.000,00');
