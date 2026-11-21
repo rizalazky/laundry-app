@@ -521,4 +521,102 @@ class OrderActionsTest extends TestCase
         $this->assertFalse(OrderStatus::Packing->canMoveTo(OrderStatus::Ironing));
     }
 
+    public function test_production_stage_transitions_close_previous_logs_and_open_the_next_stage(): void
+    {
+        $operator = User::factory()->for($this->tenant)->withRole('operator')->create();
+        $operator->branches()->attach($this->branch);
+        $order = $this->createOrder();
+
+        $this->travelTo(now()->startOfSecond());
+
+        app(ChangeOrderStatus::class)->handle(
+            $order,
+            OrderStatus::Washing,
+            $this->cashier,
+            workerId: $operator->getKey(),
+            machineCode: 'WASH-01',
+        );
+
+        $washingLog = $order->productionLogs()->sole();
+
+        $this->assertSame('washer', $washingLog->stage);
+        $this->assertSame($operator->getKey(), $washingLog->worker_id);
+        $this->assertSame('WASH-01', $washingLog->machine_code);
+        $this->assertNull($washingLog->finished_at);
+
+        $this->travel(20)->minutes();
+
+        app(ChangeOrderStatus::class)->handle(
+            $order->fresh(),
+            OrderStatus::Drying,
+            $this->cashier,
+            machineCode: 'DRY-01',
+        );
+
+        $this->travel(30)->minutes();
+
+        app(ChangeOrderStatus::class)->handle(
+            $order->fresh(),
+            OrderStatus::Ready,
+            $this->cashier,
+        );
+
+        $logs = $order->productionLogs()->orderBy('id')->get();
+
+        $this->assertCount(2, $logs);
+        $this->assertSame('washer', $logs[0]->stage);
+        $this->assertTrue($logs[0]->finished_at->greaterThan($logs[0]->started_at));
+        $this->assertSame('dryer', $logs[1]->stage);
+        $this->assertSame('DRY-01', $logs[1]->machine_code);
+        $this->assertTrue($logs[1]->finished_at->greaterThan($logs[1]->started_at));
+    }
+
+    public function test_cancelling_an_order_closes_its_active_production_log(): void
+    {
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+        $order = $this->createOrder();
+
+        app(ChangeOrderStatus::class)->handle(
+            $order,
+            OrderStatus::Washing,
+            $this->cashier,
+        );
+
+        app(ChangeOrderStatus::class)->handle(
+            $order->fresh(),
+            OrderStatus::Cancelled,
+            $manager,
+        );
+
+        $productionLog = $order->productionLogs()->sole();
+
+        $this->assertSame('washer', $productionLog->stage);
+        $this->assertNotNull($productionLog->finished_at);
+        $this->assertSame(OrderStatus::Cancelled, $order->fresh()->status);
+    }
+
+    public function test_invalid_worker_does_not_create_a_production_log_or_change_order_status(): void
+    {
+        $otherTenant = Tenant::factory()->create();
+        $otherBranch = Branch::factory()->for($otherTenant)->create();
+        $foreignWorker = User::factory()->for($otherTenant)->withRole('operator')->create();
+        $foreignWorker->branches()->attach($otherBranch);
+        $order = $this->createOrder();
+
+        try {
+            app(ChangeOrderStatus::class)->handle(
+                $order,
+                OrderStatus::Washing,
+                $this->cashier,
+                workerId: $foreignWorker->getKey(),
+                machineCode: 'WASH-FOREIGN',
+            );
+            $this->fail('A worker from another tenant must be rejected.');
+        } catch (DomainException) {
+            $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+            $this->assertDatabaseCount('production_logs', 0);
+        }
+    }
+
 }
