@@ -52,17 +52,26 @@ class OrderPolicy
 
     public function changeStatus(User $user, Order $order): bool
     {
-        return $this->canAccessOrder($user, $order, self::TENANT_ROLES);
+        return $this->canAccessOrder($user, $order, self::TENANT_ROLES)
+            && $user->hasPermissionTo('orders.update');
     }
 
     public function recordPayment(User $user, Order $order): bool
     {
-        return $this->canAccessOrder($user, $order, self::CASHIER_ROLES);
+        return $this->canAccessOrder($user, $order, self::CASHIER_ROLES)
+            && $user->hasPermissionTo('orders.payment');
     }
 
     public function refund(User $user, Order $order): bool
     {
-        return $this->canAccessOrder($user, $order, self::MANAGER_ROLES);
+        return $this->canAccessOrder($user, $order, self::MANAGER_ROLES)
+            && $user->hasPermissionTo('orders.refund');
+    }
+
+    public function cancel(User $user, Order $order): bool
+    {
+        return $this->canAccessOrder($user, $order, self::MANAGER_ROLES)
+            && $user->hasPermissionTo('orders.cancel');
     }
 
     /**
@@ -82,6 +91,7 @@ class OrderPolicy
     {
         return $this->isTenantStaff($user, $roles)
             && (int) $user->tenant_id === (int) $order->tenant_id
-            && $user->canAccessTenant($order->branch);
+            && $user->canAccessTenant($order->branch)
+            && $user->hasPermissionTo('orders.view');
     }
 }

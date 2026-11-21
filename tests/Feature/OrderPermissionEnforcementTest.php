@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Order;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
 
 class OrderPermissionEnforcementTest extends TestCase
@@ -37,7 +39,7 @@ class OrderPermissionEnforcementTest extends TestCase
                 ['name' => $slug, 'group' => 'Pesanan'],
             );
 
-            RolePermission::query()->create([
+            RolePermission::query()->firstOrCreate([
                 'tenant_id' => $this->tenant->id,
                 'role' => 'cashier',
                 'permission_id' => $permission->id,
@@ -95,4 +97,59 @@ class OrderPermissionEnforcementTest extends TestCase
             ->get('/app/PUSAT/orders/create')
             ->assertOk();
     }
+
+    private function grantPermission(User $user, string $slug): void
+    {
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $slug, 'group' => 'Pesanan'],
+        );
+
+        RolePermission::query()->firstOrCreate([
+            'tenant_id' => $this->tenant->id,
+            'role' => $user->role,
+            'permission_id' => $permission->id,
+        ]);
+    }
+
+    public function test_order_detail_and_status_payment_actions_require_their_own_permissions(): void
+    {
+        $user = $this->staffWithPermissions(['orders.view']);
+        $order = Order::factory()->for($this->branch)->create();
+        $gate = Gate::forUser($user);
+
+        $this->assertTrue($gate->allows('view', $order));
+        $this->assertFalse($gate->allows('changeStatus', $order));
+        $this->assertFalse($gate->allows('recordPayment', $order));
+
+        $this->grantPermission($user, 'orders.update');
+        $this->grantPermission($user, 'orders.payment');
+
+        $this->assertTrue($gate->allows('changeStatus', $order));
+        $this->assertTrue($gate->allows('recordPayment', $order));
+    }
+
+    public function test_refund_and_cancellation_require_manager_role_and_explicit_permissions(): void
+    {
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+        $order = Order::factory()->for($this->branch)->create();
+        $gate = Gate::forUser($manager);
+
+        $this->assertFalse($gate->allows('refund', $order));
+        $this->assertFalse($gate->allows('cancel', $order));
+
+        $this->grantPermission($manager, 'orders.view');
+        $this->grantPermission($manager, 'orders.refund');
+        $this->grantPermission($manager, 'orders.cancel');
+
+        $this->assertTrue($gate->allows('refund', $order));
+        $this->assertTrue($gate->allows('cancel', $order));
+        $this->assertFalse($gate->allows('recordPayment', $order));
+
+        $this->grantPermission($manager, 'orders.payment');
+
+        $this->assertTrue($gate->allows('recordPayment', $order));
+    }
+
 }
