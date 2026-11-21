@@ -2,6 +2,7 @@
 
 namespace App\Filament\App\Pages\Tenancy;
 
+use App\Models\Branch;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -11,10 +12,10 @@ use Filament\Pages\Tenancy\EditTenantProfile;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
-use App\Models\Branch;
 
 class EditBranchProfile extends EditTenantProfile
 {
@@ -25,7 +26,9 @@ class EditBranchProfile extends EditTenantProfile
 
     public static function canView(Model $tenant): bool
     {
-        return in_array(Auth::user()?->role, ['tenant_owner', 'branch_manager']);
+        $user = Auth::user();
+
+        return $user !== null && Gate::forUser($user)->allows('view', $tenant);
     }
 
     public function form(Schema $schema): Schema
@@ -80,6 +83,8 @@ class EditBranchProfile extends EditTenantProfile
 
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
+        Gate::authorize('update', $record);
+
         $workshopIds = $data['workshop_ids'] ?? [];
         unset($data['workshop_ids']);
 
@@ -112,7 +117,6 @@ class EditBranchProfile extends EditTenantProfile
         });
     }
 
-
     protected function mutateFormDataBeforeFill(array $data): array
     {
         $data['workshop_ids'] = Filament::getTenant()?->workshops()
@@ -122,5 +126,4 @@ class EditBranchProfile extends EditTenantProfile
 
         return $data;
     }
-
 }
