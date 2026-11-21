@@ -8,6 +8,8 @@ use App\Filament\App\Resources\Services\Pages\EditService;
 use App\Filament\App\Resources\Services\Schemas\ServiceForm;
 use App\Models\Branch;
 use App\Models\BranchServicePrice;
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
@@ -60,9 +62,20 @@ class ServiceModuleTest extends TestCase
         $branch = Branch::factory()->for($tenant)->create();
         $service = Service::factory()->for($tenant)->create(['name' => 'Cuci Setrika']);
 
+        $serviceViewPermission = Permission::query()->create([
+            'name' => 'Lihat Layanan',
+            'slug' => 'services.view',
+            'group' => 'Layanan',
+        ]);
+
         foreach (['branch_manager', 'cashier', 'operator'] as $role) {
             $user = User::factory()->for($tenant)->withRole($role)->create();
             $user->branches()->attach($branch);
+            RolePermission::query()->create([
+                'tenant_id' => $tenant->id,
+                'role' => $role,
+                'permission_id' => $serviceViewPermission->id,
+            ]);
 
             $this->actingAs($user)
                 ->get('/app/'.$branch->code.'/services')
@@ -77,6 +90,36 @@ class ServiceModuleTest extends TestCase
                 ->get('/app/'.$branch->code.'/services/'.$service->id.'/edit')
                 ->assertForbidden();
         }
+    }
+
+    public function test_staff_requires_services_view_permission_to_access_the_service_list(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $service = Service::factory()->for($tenant)->create(['name' => 'Cuci Reguler']);
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
+        $cashier->branches()->attach($branch);
+
+        $this->actingAs($cashier)
+            ->get('/app/'.$branch->code.'/services')
+            ->assertForbidden();
+
+        $permission = Permission::query()->create([
+            'name' => 'Lihat Layanan',
+            'slug' => 'services.view',
+            'group' => 'Layanan',
+        ]);
+
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'cashier',
+            'permission_id' => $permission->id,
+        ]);
+
+        $this->actingAs($cashier)
+            ->get('/app/'.$branch->code.'/services')
+            ->assertOk()
+            ->assertSee('Cuci Reguler');
     }
 
     public function test_policy_blocks_inactive_owners_and_other_tenants(): void
