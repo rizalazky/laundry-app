@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\UserPolicy;
@@ -63,6 +65,9 @@ class UserPolicyTest extends TestCase
         $sharedStaff->branches()->attach([$branchA->id, $branchB->id]);
         $foreignAssignedStaff->branches()->attach($foreignBranch);
         $otherManager->branches()->attach($branchA);
+
+        $this->grantPermission($tenant, 'branch_manager', 'staff.view');
+        $this->grantPermission($tenant, 'branch_manager', 'staff.manage');
 
         $policy = new UserPolicy();
 
@@ -126,6 +131,20 @@ class UserPolicyTest extends TestCase
 
         $this->assertFalse($owner->canAccessTenant($branch));
         $this->assertFalse($manager->canAccessTenant($branch));
+    }
+
+    private function grantPermission(Tenant $tenant, string $role, string $slug): void
+    {
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => $slug],
+            ['name' => $slug, 'group' => 'Karyawan'],
+        );
+
+        RolePermission::query()->firstOrCreate([
+            'tenant_id' => $tenant->id,
+            'role' => $role,
+            'permission_id' => $permission->id,
+        ]);
     }
 
     private function createTenant(string $slug): Tenant
