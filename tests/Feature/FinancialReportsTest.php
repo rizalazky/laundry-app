@@ -56,7 +56,7 @@ class FinancialReportsTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $branch = Branch::factory()->for($tenant)->create();
-        $cash = $tenant->chartOfAccounts()->where('code', '1000')->firstOrFail();
+        $cash = ChartOfAccount::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->where('code', '1000')->firstOrFail();
 
         $this->postJournal($tenant->id, $branch->id, '2026-01-01 09:00:00', 'Saldo awal kas', [
             ['account_code' => '1000', 'debit' => '1000', 'credit' => '0'],
