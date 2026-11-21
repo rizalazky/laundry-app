@@ -15,6 +15,7 @@ use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Actions\Accounting\TenantScopedIdempotency;
 
 class RecordFinancialSettlement
 {
@@ -40,6 +41,7 @@ class RecordFinancialSettlement
         ?int $edcMachineId = null,
         ?string $referenceNumber = null,
         ?int $createdBy = null,
+        ?string $idempotencyKey = null,
     ): CashSettlement {
         $authenticatedTenantId = Auth::user()?->tenant_id;
 
@@ -79,7 +81,42 @@ class RecordFinancialSettlement
             throw new DomainException('Setoran kas tidak boleh menggunakan mesin EDC atau biaya MDR.');
         }
 
-        return DB::transaction(function () use (
+        $referenceNumber = $referenceNumber !== null ? trim($referenceNumber) : null;
+        $idempotencyKey = $idempotencyKey !== null ? trim($idempotencyKey) : null;
+        $referenceNumber = $referenceNumber === '' ? null : $referenceNumber;
+        $idempotencyKey = $idempotencyKey === '' ? null : $idempotencyKey;
+
+        if ($referenceNumber !== null && strlen($referenceNumber) > 100) {
+            throw new DomainException('Reference number maksimal 100 karakter.');
+        }
+
+        if ($idempotencyKey !== null && strlen($idempotencyKey) > 128) {
+            throw new DomainException('Idempotency key maksimal 128 karakter.');
+        }
+
+        if ($referenceNumber === null && $idempotencyKey === null) {
+            throw new DomainException('Reference number atau idempotency key wajib diisi untuk mencegah pencatatan ganda.');
+        }
+
+        $payloadHash = hash('sha256', json_encode([
+            'branch_id' => $branchId,
+            'source_type' => $sourceType,
+            'target_bank_id' => $targetBankId,
+            'gross_amount' => (string) $gross,
+            'mdr_amount' => (string) $mdr,
+            'net_amount' => (string) $net,
+            'settled_at' => $settledAt->format('Y-m-d H:i:s'),
+            'edc_machine_id' => $edcMachineId,
+            'reference_number' => $referenceNumber,
+        ], JSON_THROW_ON_ERROR));
+
+        return app(TenantScopedIdempotency::class)->execute(
+            modelClass: CashSettlement::class,
+            tenantId: $tenantId,
+            referenceNumber: $referenceNumber,
+            idempotencyKey: $idempotencyKey,
+            payloadHash: $payloadHash,
+            callback: function () use (
             $tenantId,
             $branchId,
             $sourceType,
@@ -91,6 +128,8 @@ class RecordFinancialSettlement
             $edcMachineId,
             $referenceNumber,
             $createdBy,
+            $idempotencyKey,
+            $payloadHash,
         ): CashSettlement {
             $branch = Branch::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
@@ -185,6 +224,8 @@ class RecordFinancialSettlement
                 'edc_machine_id' => $machine?->getKey(),
                 'target_bank_id' => $bank->getKey(),
                 'reference_number' => $referenceNumber,
+                'idempotency_key' => $idempotencyKey,
+                'payload_hash' => $payloadHash,
                 'settled_at' => $settledAt,
                 'created_by' => $createdBy ?? Auth::id(),
             ]);
@@ -224,8 +265,8 @@ class RecordFinancialSettlement
                 createdBy: $createdBy ?? Auth::id(),
             );
 
-            return $settlement->load(['branch', 'edcMachine', 'targetBank']);
-        });
+            return $settlement;
+        })->load(['branch', 'edcMachine', 'targetBank']);
     }
 
     /**
