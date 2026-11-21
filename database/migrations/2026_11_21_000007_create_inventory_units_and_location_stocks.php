@@ -10,10 +10,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Use explicit index statements because SQLite's table-alter rebuild
-        // otherwise attempts to create these composite indexes twice.
-        DB::statement('CREATE UNIQUE INDEX branches_id_tenant_unique ON branches (id, tenant_id)');
-        DB::statement('CREATE UNIQUE INDEX inventory_items_id_tenant_unique ON inventory_items (id, tenant_id)');
+        // branches(id, tenant_id) is already uniquely indexed by the earlier
+        // branch-service tenant integrity migration.
+        Schema::table('inventory_items', function (Blueprint $table) {
+            $table->unique(['id', 'tenant_id'], 'inventory_items_id_tenant_unique');
+        });
 
         Schema::create('inventory_units', function (Blueprint $table) {
             $table->id();
@@ -130,10 +131,6 @@ return new class extends Migration
 
         Schema::table('inventory_items', function (Blueprint $table) {
             $table->dropUnique('inventory_items_id_tenant_unique');
-        });
-
-        Schema::table('branches', function (Blueprint $table) {
-            $table->dropUnique('branches_id_tenant_unique');
         });
     }
 };
