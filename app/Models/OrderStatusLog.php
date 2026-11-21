@@ -34,17 +34,29 @@ class OrderStatusLog extends Model
     protected static function booted(): void
     {
         static::addGlobalScope('tenant', function (Builder $builder): void {
-            $tenantId = Auth::user()?->tenant_id;
+            $user = Auth::user();
 
-            if ($tenantId !== null) {
-                $builder->whereHas('order', fn (Builder $orders) => $orders->where('tenant_id', $tenantId));
+            if ($user === null || $user->role === 'super_admin') {
+                return;
             }
+
+            if ($user->tenant_id === null) {
+                $builder->whereRaw('1 = 0');
+
+                return;
+            }
+
+            $builder->whereHas('order', fn (Builder $orders) => $orders->where('tenant_id', $user->tenant_id));
         });
 
         static::creating(function (OrderStatusLog $statusLog): void {
-            $tenantId = Auth::user()?->tenant_id;
+            $user = Auth::user();
 
-            if ($tenantId !== null && ! Order::query()->whereKey($statusLog->order_id)->exists()) {
+            if (
+                $user !== null
+                && $user->role !== 'super_admin'
+                && ($user->tenant_id === null || ! Order::query()->whereKey($statusLog->order_id)->exists())
+            ) {
                 throw (new ModelNotFoundException())->setModel(Order::class, [$statusLog->order_id]);
             }
         });
