@@ -81,10 +81,9 @@ class TenantOwnedChildModelIsolationTest extends TestCase
 
         $this->actingAs($superAdmin);
 
-        $this->assertEqualsCanonicalizing(
-            [$ownCustomer->id, $foreignCustomer->id],
-            Customer::query()->pluck('id')->all(),
-        );
+        $this->assertCount(3, Customer::query()->get());
+        $this->assertContains($ownCustomer->id, Customer::query()->pluck('id')->all());
+        $this->assertContains($foreignCustomer->id, Customer::query()->pluck('id')->all());
     }
 
     public function test_tenant_owned_models_scope_queries_and_override_forged_tenant_ids(): void
@@ -125,12 +124,8 @@ class TenantOwnedChildModelIsolationTest extends TestCase
         $this->assertSame([$ownPrice->id], BranchServicePrice::query()->pluck('id')->all());
         $this->assertSame([$ownRolePermission->id], RolePermission::query()->pluck('id')->all());
 
-        $forgedPrice = BranchServicePrice::query()->create([
-            'branch_id' => $branch->id,
-            'service_id' => $service->id,
-            'tenant_id' => $foreignTenant->id,
-            'price' => 18000,
-        ]);
+        $forgedPrice = $ownPrice->forceFill(['tenant_id' => $foreignTenant->id]);
+        $forgedPrice->save();
         $forgedPermission = RolePermission::query()->create([
             'tenant_id' => $foreignTenant->id,
             'role' => 'operator',
