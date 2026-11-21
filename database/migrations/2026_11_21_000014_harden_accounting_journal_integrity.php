@@ -11,7 +11,7 @@ return new class extends Migration
         // Existing deployments may contain duplicate source references because
         // the original schema only had a non-unique index. Never delete or merge
         // accounting journals automatically: their entries require reconciliation.
-        $duplicates = \\Illuminate\\Support\\Facades\\DB::table('journals')
+        $duplicates = \Illuminate\\Support\\Facades\\DB::table('journals')
             ->select('tenant_id', 'reference_type', 'reference_id')
             ->selectRaw('COUNT(*) as duplicate_count')
             ->whereNotNull('reference_type')
@@ -22,7 +22,7 @@ return new class extends Migration
 
         if ($duplicates->isNotEmpty()) {
             $details = $duplicates->map(function ($duplicate) {
-                $journalIds = \\Illuminate\\Support\\Facades\\DB::table('journals')
+                $journalIds = \Illuminate\\Support\\Facades\\DB::table('journals')
                     ->where('tenant_id', $duplicate->tenant_id)
                     ->where('reference_type', $duplicate->reference_type)
                     ->where('reference_id', $duplicate->reference_id)
@@ -39,7 +39,7 @@ return new class extends Migration
                 );
             })->implode('; ');
 
-            throw new \\RuntimeException(
+            throw new \RuntimeException(
                 'Cannot enforce unique journal source references because duplicate journals exist. '
                 .'Reconcile these journal records and their entries, then rerun the migration: '.$details
             );
