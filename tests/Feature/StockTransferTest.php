@@ -119,6 +119,19 @@ class StockTransferTest extends TestCase
         $service->ship($owner, $transfer);
     }
 
+    public function test_request_rejects_a_destination_branch_from_another_tenant(): void
+    {
+        [, $source, , $owner, $item] = $this->context();
+        $otherTenant = Tenant::factory()->create();
+        $otherBranch = Branch::factory()->for($otherTenant)->create();
+
+        $this->expectException(\\DomainException::class);
+
+        app(ManageStockTransfer::class)->request($owner, $source, $otherBranch, [
+            ['inventory_item_id' => $item->id, 'quantity' => '1'],
+        ]);
+    }
+
     private function context(): array
     {
         $tenant = Tenant::factory()->create();
