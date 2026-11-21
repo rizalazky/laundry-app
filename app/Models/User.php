@@ -49,6 +49,27 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         return $this->belongsToMany(Branch::class);
     }
 
+    public function hasPermissionTo(string $permission): bool
+    {
+        if (! $this->is_active) {
+            return false;
+        }
+
+        if (in_array($this->role, ['super_admin', 'tenant_owner'], true)) {
+            return true;
+        }
+
+        if ($this->tenant_id === null) {
+            return false;
+        }
+
+        return RolePermission::query()
+            ->where('tenant_id', $this->tenant_id)
+            ->where('role', $this->role)
+            ->whereHas('permission', fn ($query) => $query->where('slug', $permission))
+            ->exists();
+    }
+
     public function canAccessPanel(Panel $panel): bool
     {
         if (! $this->is_active) {
