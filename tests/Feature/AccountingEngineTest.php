@@ -23,7 +23,7 @@ class AccountingEngineTest extends TestCase
             ->where('tenant_id', $tenant->id)
             ->get();
 
-        $this->assertCount(19, $accounts);
+        $this->assertCount(20, $accounts);
         $this->assertDatabaseHas('chart_of_accounts', [
             'tenant_id' => $tenant->id,
             'code' => '1000',
