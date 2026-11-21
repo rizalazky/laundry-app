@@ -25,10 +25,6 @@ class ManageStockTransfer
         $source = $this->authorization->authorizeBranch($user, $source, ['tenant_owner']);
         $destination = $this->authorization->authorizeBranch($user, $destination, ['tenant_owner']);
 
-        if ($source->is_workshop === $destination->is_workshop && $source->getKey() === $destination->getKey()) {
-            throw ValidationException::withMessages(['destination_branch_id' => 'Lokasi tujuan harus berbeda dari lokasi asal.']);
-        }
-
         if ($source->getKey() === $destination->getKey()) {
             throw ValidationException::withMessages(['destination_branch_id' => 'Lokasi tujuan harus berbeda dari lokasi asal.']);
         }
