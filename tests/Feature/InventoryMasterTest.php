@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Filament\App\Resources\InventoryItems\Pages\CreateInventoryItem;
 use App\Filament\App\Resources\Suppliers\Pages\CreateSupplier;
 use App\Models\InventoryItem;
+use App\Models\InventoryUnit;
 use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\InventoryItemPolicy;
+use App\Policies\InventoryUnitPolicy;
 use App\Policies\SupplierPolicy;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -95,11 +97,28 @@ class InventoryMasterTest extends TestCase
             'phone' => '08123456789',
         ]);
 
+        $baseUnit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'liter',
+            'name' => 'Liter',
+            'decimal_places' => 3,
+            'is_active' => true,
+        ]);
+        $purchaseUnit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'jerigen',
+            'name' => 'Jerigen',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+
         Livewire::test(CreateInventoryItem::class)
             ->fillForm([
                 'sku' => 'DET-001',
                 'name' => 'Detergen Cair',
-                'unit' => 'liter',
+                'base_unit_id' => $baseUnit->id,
+                'purchase_unit_id' => $purchaseUnit->id,
+                'purchase_unit_conversion_factor' => 20,
                 'item_category' => 'raw_material',
                 'min_stock' => 5.5,
             ])
@@ -110,7 +129,10 @@ class InventoryMasterTest extends TestCase
             'tenant_id' => $tenant->id,
             'sku' => 'DET-001',
             'name' => 'Detergen Cair',
-            'unit' => 'liter',
+            'unit' => 'Liter',
+            'base_unit_id' => $baseUnit->id,
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_conversion_factor' => '20.000000',
             'item_category' => 'raw_material',
             'min_stock' => '5.50',
         ]);
@@ -142,11 +164,21 @@ class InventoryMasterTest extends TestCase
         Filament::setCurrentPanel('app');
         Filament::setTenant($branch);
 
+        $unit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'pack',
+            'name' => 'Pack',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+
         Livewire::test(CreateInventoryItem::class)
             ->fillForm([
                 'sku' => 'PLS-001',
                 'name' => 'Plastik Baru',
-                'unit' => 'pack',
+                'base_unit_id' => $unit->id,
+                'purchase_unit_id' => $unit->id,
+                'purchase_unit_conversion_factor' => 1,
                 'item_category' => 'raw_material',
                 'min_stock' => 0,
             ])
@@ -175,6 +207,7 @@ class InventoryMasterTest extends TestCase
 
         $supplierPolicy = new SupplierPolicy;
         $inventoryPolicy = new InventoryItemPolicy;
+        $unitPolicy = new InventoryUnitPolicy;
 
         $this->assertTrue($supplierPolicy->viewAny($owner));
         $this->assertTrue($supplierPolicy->update($owner, $supplier));
@@ -187,6 +220,20 @@ class InventoryMasterTest extends TestCase
         $this->assertFalse($inventoryPolicy->viewAny($inactiveOwner));
         $this->assertFalse($inventoryPolicy->update($foreignOwner, $item));
         $this->assertFalse($inventoryPolicy->viewAny($manager));
+
+        $unit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'pcs',
+            'name' => 'Pieces',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+        $this->assertTrue($unitPolicy->viewAny($owner));
+        $this->assertTrue($unitPolicy->update($owner, $unit));
+        $this->assertFalse($unitPolicy->viewAny($inactiveOwner));
+        $this->assertFalse($unitPolicy->update($foreignOwner, $unit));
+        $this->assertFalse($unitPolicy->delete($owner, $unit));
+        $this->assertFalse($unitPolicy->viewAny($manager));
     }
 
     public function test_inventory_item_database_constraint_rejects_duplicate_sku_in_same_tenant(): void
