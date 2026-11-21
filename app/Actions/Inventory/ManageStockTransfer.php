@@ -139,7 +139,7 @@ class ManageStockTransfer
                 $after = $before->plus($delta)->toScale(4);
 
                 if ($after->isLessThan(0)) {
-                    throw ValidationException::withMessages(['stock' => 'Stok '.$line->inventoryItem->name.' tidak mencukupi. Tersedia: '.$before.'.']);
+                    throw ValidationException::withMessages(['stock' => 'Stok '.($line->inventoryItem?->name ?? 'Barang #'.$line->inventory_item_id).' tidak mencukupi. Tersedia: '.$before.'.']);
                 }
 
                 $balance->update(['quantity' => (string) $after]);
