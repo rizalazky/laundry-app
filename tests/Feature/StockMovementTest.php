@@ -30,7 +30,7 @@ class StockMovementTest extends TestCase
         $adjustment = $service->handle($branch, $owner, $item->id, StockMovementType::Adjustment, '-2');
 
         $this->assertSame('10.0000', $incoming->quantity);
-        $this->assertSame('10.0000', $incoming->stock_before);
+        $this->assertSame('0.0000', $incoming->stock_before);
         $this->assertSame('10.0000', $incoming->stock_after);
 
         $this->assertSame('-3.0000', $outgoing->quantity);
@@ -48,6 +48,9 @@ class StockMovementTest extends TestCase
             'quantity' => '5.0000',
         ]);
         $this->assertSame(3, StockMovement::query()->withoutGlobalScope('tenant')->count());
+        $this->assertSame($branch->id, $incoming->branch_id);
+        $this->assertSame($branch->id, $outgoing->branch_id);
+        $this->assertSame($branch->id, $adjustment->branch_id);
     }
 
     public function test_outgoing_movement_cannot_make_stock_negative_and_does_not_create_an_audit_record(): void
@@ -68,10 +71,10 @@ class StockMovementTest extends TestCase
             $this->assertArrayHasKey('quantity', $exception->errors());
         }
 
-        $this->assertDatabaseHas('location_stocks', [
+        // The balance-row insert is part of the same transaction and must roll back.
+        $this->assertDatabaseMissing('location_stocks', [
             'branch_id' => $branch->id,
             'inventory_item_id' => $item->id,
-            'quantity' => '0.0000',
         ]);
         $this->assertDatabaseCount('stock_movements', 0);
     }
