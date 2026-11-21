@@ -29,9 +29,13 @@ class RolePermissionService
      */
     public function sync(Tenant $tenant, string $role, array $permissionIds): void
     {
-        $actorTenantId = Auth::user()?->tenant_id;
+        $actor = Auth::user();
 
-        if ($actorTenantId !== null && (int) $actorTenantId !== (int) $tenant->getKey()) {
+        if (
+            $actor !== null
+            && $actor->role !== 'super_admin'
+            && ($actor->tenant_id === null || (int) $actor->tenant_id !== (int) $tenant->getKey())
+        ) {
             throw new AuthorizationException('Tenant lain tidak dapat mengubah matriks hak akses.');
         }
 
