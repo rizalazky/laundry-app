@@ -10,12 +10,13 @@ class UserPolicy
     {
         return $user->is_active
             && in_array($user->role, ['tenant_owner', 'branch_manager'], true)
-            && $user->tenant_id !== null;
+            && $user->tenant_id !== null
+            && $user->hasPermissionTo('staff.view');
     }
 
     public function view(User $user, User $model): bool
     {
-        if (! $this->isInSameTenant($user, $model)) {
+        if (! $this->viewAny($user) || ! $this->isInSameTenant($user, $model)) {
             return false;
         }
 
@@ -24,12 +25,16 @@ class UserPolicy
 
     public function create(User $user): bool
     {
-        return $this->viewAny($user);
+        return $this->viewAny($user) && $user->hasPermissionTo('staff.manage');
     }
 
     public function update(User $user, User $model): bool
     {
-        if (! $this->isInSameTenant($user, $model) || ! $this->canManageRole($user, $model)) {
+        if (
+            ! $this->isInSameTenant($user, $model)
+            || ! $this->canManageRole($user, $model)
+            || ! $user->hasPermissionTo('staff.manage')
+        ) {
             return false;
         }
 
@@ -39,7 +44,11 @@ class UserPolicy
 
     public function delete(User $user, User $model): bool
     {
-        if (! $this->isInSameTenant($user, $model) || ! $this->canManageRole($user, $model)) {
+        if (
+            ! $this->isInSameTenant($user, $model)
+            || ! $this->canManageRole($user, $model)
+            || ! $user->hasPermissionTo('staff.manage')
+        ) {
             return false;
         }
 
