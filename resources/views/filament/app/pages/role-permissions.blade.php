@@ -1,69 +1,124 @@
 <x-filament-panels::page>
+    @php
+        $roleLabels = [
+            'branch_manager' => 'Branch Manager',
+            'cashier' => 'Kasir',
+            'operator' => 'Operator Produksi',
+        ];
+
+        $selectedCount = count($selectedPermissions);
+    @endphp
+
     <div class="space-y-6">
         <x-filament::section>
-            <div class="space-y-2">
-                <h2 class="text-base font-semibold text-gray-950 dark:text-white">
-                    Atur hak akses berdasarkan jabatan
-                </h2>
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                    Pengaturan berlaku untuk seluruh karyawan dengan role yang dipilih di tenant ini.
-                    Tenant Owner tetap memiliki akses penuh dan tidak dapat dibatasi dari halaman ini.
-                </p>
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div class="max-w-2xl space-y-2">
+                    <div class="flex items-center gap-2">
+                        <x-filament::icon icon="heroicon-o-shield-check" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                        <h2 class="text-base font-semibold text-gray-950 dark:text-white">
+                            Pengaturan hak akses
+                        </h2>
+                    </div>
+                    <p class="text-sm leading-6 text-gray-600 dark:text-gray-400">
+                        Tentukan fitur yang dapat diakses oleh karyawan berdasarkan jabatan.
+                        Perubahan berlaku untuk seluruh karyawan dengan jabatan tersebut di tenant ini.
+                    </p>
+                    <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                        <x-filament::badge color="success">Tenant Owner: akses penuh</x-filament::badge>
+                        <x-filament::badge color="gray">{{ $selectedCount }} hak akses dipilih</x-filament::badge>
+                    </div>
+                </div>
 
-                <div class="max-w-md pt-2">
-                    <label for="role" class="mb-2 block text-sm font-medium text-gray-950 dark:text-white">
-                        Jabatan
+                <div class="w-full lg:max-w-xs">
+                    <label for="role" class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Jabatan yang diatur
                     </label>
-                    <select
-                        id="role"
-                        wire:model.live="role"
-                        class="fi-input w-full rounded-lg border-gray-300 bg-white shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-white"
-                    >
-                        <option value="branch_manager">Branch Manager</option>
-                        <option value="cashier">Kasir</option>
-                        <option value="operator">Operator Produksi</option>
-                    </select>
+                    <x-filament::input.wrapper>
+                        <x-filament::input.select id="role" wire:model.live="role">
+                            @foreach ($roleLabels as $value => $label)
+                                <option value="{{ $value }}">{{ $label }}</option>
+                            @endforeach
+                        </x-filament::input.select>
+                    </x-filament::input.wrapper>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Pilih jabatan untuk melihat dan mengubah hak aksesnya.
+                    </p>
                 </div>
             </div>
         </x-filament::section>
 
-        @forelse ($this->getPermissionGroups() as $group => $permissions)
-            <x-filament::section :heading="$group">
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    @foreach ($permissions as $permission)
-                        <label
-                            wire:key="permission-{{ $permission->id }}"
-                            class="flex items-start gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10"
-                        >
-                            <input
-                                type="checkbox"
-                                value="{{ $permission->id }}"
-                                wire:model="selectedPermissions"
-                                class="mt-1 rounded border-gray-300 text-primary-600 shadow-sm focus:ring-primary-500 dark:border-white/20 dark:bg-white/5"
-                            >
-                            <span class="min-w-0">
-                                <span class="block text-sm font-medium text-gray-950 dark:text-white">
-                                    {{ $permission->name }}
-                                </span>
-                                <span class="block text-xs text-gray-500 dark:text-gray-400">
-                                    {{ $permission->slug }}
-                                </span>
-                            </span>
-                        </label>
-                    @endforeach
+        @if ($this->getPermissionGroups() !== [])
+            <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                @foreach ($this->getPermissionGroups() as $group => $permissions)
+                    @php
+                        $groupSelectedCount = collect($permissions)
+                            ->whereIn('id', $selectedPermissions)
+                            ->count();
+                    @endphp
+
+                    <x-filament::section :key="'permission-group-' . $loop->index">
+                        <x-slot name="heading">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span>{{ $group }}</span>
+                                <x-filament::badge color="{{ $groupSelectedCount === count($permissions) ? 'success' : 'gray' }}">
+                                    {{ $groupSelectedCount }}/{{ count($permissions) }}
+                                </x-filament::badge>
+                            </div>
+                        </x-slot>
+
+                        <div class="-mx-4 divide-y divide-gray-100 dark:divide-white/5 sm:-mx-6">
+                            @foreach ($permissions as $permission)
+                                <label
+                                    wire:key="permission-{{ $permission->id }}"
+                                    class="flex cursor-pointer items-start gap-3 px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-white/5 sm:px-6"
+                                >
+                                    <x-filament::input.checkbox
+                                        wire:model="selectedPermissions"
+                                        value="{{ $permission->id }}"
+                                        class="mt-0.5"
+                                    />
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                                            {{ $permission->name }}
+                                        </span>
+                                        <span class="mt-0.5 block break-all text-xs text-gray-500 dark:text-gray-400">
+                                            {{ $permission->slug }}
+                                        </span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </x-filament::section>
+                @endforeach
+            </div>
+        @else
+            <x-filament::section>
+                <div class="flex items-start gap-3">
+                    <x-filament::icon icon="heroicon-o-information-circle" class="mt-0.5 h-5 w-5 text-gray-400" />
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-950 dark:text-white">
+                            Katalog hak akses belum tersedia
+                        </h3>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            Jalankan seeder permission untuk menampilkan daftar hak akses di halaman ini.
+                        </p>
+                    </div>
                 </div>
             </x-filament::section>
-        @empty
-            <x-filament::section>
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                    Katalog permission belum tersedia. Jalankan seeder permission terlebih dahulu.
-                </p>
-            </x-filament::section>
-        @endforelse
+        @endif
 
-        <div class="flex justify-end">
-            <x-filament::button wire:click="save" icon="heroicon-m-check">
-                Simpan Matriks Hak Akses
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Pastikan perubahan sudah sesuai sebelum disimpan.
+            </p>
+            <x-filament::button
+                wire:click="save"
+                wire:loading.attr="disabled"
+                wire:target="save"
+                icon="heroicon-m-check"
+            >
+                <span wire:loading.remove wire:target="save">Simpan perubahan</span>
+                <span wire:loading wire:target="save">Menyimpan...</span>
             </x-filament::button>
         </div>
     </div>
