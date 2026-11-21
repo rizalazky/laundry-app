@@ -8,8 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('customers', function (Blueprint $table) { $table->unique(['id', 'tenant_id'], 'customers_id_tenant_unique'); });
-        Schema::table('orders', function (Blueprint $table) { $table->unique(['id', 'tenant_id'], 'orders_id_tenant_unique'); });
+        Schema::table('customers', function (Blueprint $table) {
+            $table->unique(['id', 'tenant_id'], 'customers_id_tenant_unique');
+        });
+
+        Schema::table('orders', function (Blueprint $table) {
+            $table->unique(['id', 'tenant_id'], 'orders_id_tenant_unique');
+        });
 
         Schema::create('member_tiers', function (Blueprint $table) {
             $table->id();
