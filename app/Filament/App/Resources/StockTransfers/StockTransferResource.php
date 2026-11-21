@@ -28,6 +28,16 @@ class StockTransferResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('tenant_id', Auth::user()?->tenant_id)
+            ->when(Auth::user()?->role !== 'tenant_owner', function (Builder $query): void {
+                $user = Auth::user();
+                $branchIds = $user->branches()
+                    ->where('branches.tenant_id', $user->tenant_id)
+                    ->where('branches.is_active', true)
+                    ->select('branches.id');
+
+                $query->whereIn('source_branch_id', $branchIds)
+                    ->whereIn('destination_branch_id', $branchIds);
+            })
             ->with(['sourceBranch', 'destinationBranch', 'requestedBy']);
     }
 

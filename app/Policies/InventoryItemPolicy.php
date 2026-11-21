@@ -9,22 +9,24 @@ class InventoryItemPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $this->isOwner($user);
+        return $user->hasPermissionTo('inventory.view');
     }
 
     public function view(User $user, InventoryItem $inventoryItem): bool
     {
-        return $this->isOwner($user) && $this->isInSameTenant($user, $inventoryItem);
+        return $user->hasPermissionTo('inventory.view')
+            && (int) $user->tenant_id === (int) $inventoryItem->tenant_id;
     }
 
     public function create(User $user): bool
     {
-        return $this->isOwner($user);
+        return $user->hasPermissionTo('inventory.manage');
     }
 
     public function update(User $user, InventoryItem $inventoryItem): bool
     {
-        return $this->isOwner($user) && $this->isInSameTenant($user, $inventoryItem);
+        return $user->hasPermissionTo('inventory.manage')
+            && (int) $user->tenant_id === (int) $inventoryItem->tenant_id;
     }
 
     public function delete(User $user, InventoryItem $inventoryItem): bool
@@ -34,7 +36,7 @@ class InventoryItemPolicy
 
     public function deleteAny(User $user): bool
     {
-        return $this->isOwner($user);
+        return $user->hasPermissionTo('inventory.manage');
     }
 
     public function restore(User $user, InventoryItem $inventoryItem): bool
@@ -45,17 +47,5 @@ class InventoryItemPolicy
     public function forceDelete(User $user, InventoryItem $inventoryItem): bool
     {
         return false;
-    }
-
-    private function isOwner(User $user): bool
-    {
-        return $user->is_active
-            && $user->tenant_id !== null
-            && $user->role === 'tenant_owner';
-    }
-
-    private function isInSameTenant(User $user, InventoryItem $inventoryItem): bool
-    {
-        return (int) $user->tenant_id === (int) $inventoryItem->tenant_id;
     }
 }

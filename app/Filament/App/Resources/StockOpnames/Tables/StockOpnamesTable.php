@@ -40,7 +40,7 @@ class StockOpnamesTable
                 Action::make('count')
                     ->label('Input Hitungan')
                     ->icon('heroicon-o-pencil-square')
-                    ->visible(fn (StockOpname $record): bool => $record->status === 'draft')
+                    ->visible(fn (StockOpname $record): bool => $record->status === 'draft' && Auth::user()?->hasPermissionTo('stock.manage') === true)
                     ->modalHeading('Input Hasil Hitung Fisik')
                     ->modalWidth('5xl')
                     ->schema([
@@ -109,7 +109,7 @@ class StockOpnamesTable
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalDescription('Stok cabang akan disesuaikan dengan hasil hitung fisik. Tindakan ini tidak dapat dibatalkan.')
-                    ->visible(fn (StockOpname $record): bool => $record->status === 'draft')
+                    ->visible(fn (StockOpname $record): bool => $record->status === 'draft' && Auth::user()?->hasPermissionTo('stock.manage') === true)
                     ->action(fn (StockOpname $record) => app(ManageStockOpname::class)->finalize(Auth::user(), $record)),
 
                 Action::make('view')

@@ -9,17 +9,22 @@ class StockOpnamePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $this->isOwner($user);
+        return $user->hasPermissionTo('stock.view');
     }
 
     public function view(User $user, StockOpname $stockOpname): bool
     {
-        return $this->isOwner($user) && (int) $user->tenant_id === (int) $stockOpname->tenant_id;
+        return $user->hasPermissionTo('stock.view')
+            && (int) $user->tenant_id === (int) $stockOpname->tenant_id
+            && ($user->role === 'tenant_owner' || $user->branches()
+                ->whereKey($stockOpname->location_id)
+                ->where('branches.tenant_id', $user->tenant_id)
+                ->exists());
     }
 
     public function create(User $user): bool
     {
-        return $this->isOwner($user);
+        return $user->hasPermissionTo('stock.manage');
     }
 
     public function update(User $user, StockOpname $stockOpname): bool
@@ -35,10 +40,5 @@ class StockOpnamePolicy
     public function deleteAny(User $user): bool
     {
         return false;
-    }
-
-    private function isOwner(User $user): bool
-    {
-        return $user->is_active && $user->tenant_id !== null && $user->role === 'tenant_owner';
     }
 }

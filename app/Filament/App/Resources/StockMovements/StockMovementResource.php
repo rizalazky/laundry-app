@@ -30,6 +30,13 @@ class StockMovementResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('tenant_id', Auth::user()?->tenant_id)
+            ->when(Auth::user()?->role !== 'tenant_owner', function (Builder $query): void {
+                $user = Auth::user();
+                $query->whereIn('branch_id', $user->branches()
+                    ->where('branches.tenant_id', $user->tenant_id)
+                    ->where('branches.is_active', true)
+                    ->select('branches.id'));
+            })
             ->with(['branch', 'inventoryItem.baseUnit', 'supplier', 'createdBy']);
     }
 
