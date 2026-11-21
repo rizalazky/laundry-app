@@ -253,6 +253,7 @@ class StockMovementTest extends TestCase
             'branch_id' => $branch->id,
             'inventory_item_id' => $item->id,
             'supplier_id' => $supplier->id,
+            'supplier_name_snapshot' => 'Supplier Form Test',
             'movement_type' => 'purchase',
             'purchase_quantity' => '2.0000',
             'purchase_unit_id' => $purchaseUnit->id,
@@ -266,6 +267,25 @@ class StockMovementTest extends TestCase
             'inventory_item_id' => $item->id,
             'quantity' => '10.0000',
         ]);
+    }
+
+    public function test_inventory_history_includes_all_branches_in_the_same_tenant(): void
+    {
+        [, $branch, $owner, $item] = $this->makeInventoryContext();
+        $otherBranch = Branch::factory()->for($owner->tenant)->create();
+        $service = app(RecordStockMovement::class);
+
+        $service->handle($branch, $owner, $item->id, StockMovementType::In, '5');
+        $service->handle($otherBranch, $owner, $item->id, StockMovementType::In, '3');
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $this->get('/app/'.$branch->code.'/stock-movements')
+            ->assertOk()
+            ->assertSee('5.0000')
+            ->assertSee('3.0000');
     }
 
     public function test_actor_cannot_record_movement_for_another_tenants_branch(): void
