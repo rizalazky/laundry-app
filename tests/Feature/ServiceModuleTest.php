@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ServiceUnit;
 use App\Filament\App\Resources\Services\Pages\CreateService;
 use App\Filament\App\Resources\Services\Pages\EditService;
+use App\Filament\App\Resources\Services\Schemas\ServiceForm;
 use App\Models\Branch;
 use App\Models\BranchServicePrice;
 use App\Models\Service;
@@ -262,4 +263,30 @@ class ServiceModuleTest extends TestCase
 
         $this->assertSame('7500.00', $service->fresh()->price);
     }
+
+    public function test_inactive_branch_price_options_are_only_included_for_existing_overrides(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $activeBranch = Branch::factory()->for($tenant)->create([
+            'code' => 'ACTIVE',
+            'name' => 'Cabang Aktif',
+            'is_active' => true,
+        ]);
+        $inactiveBranch = Branch::factory()->for($tenant)->create([
+            'code' => 'OLD',
+            'name' => 'Cabang Nonaktif',
+            'is_active' => false,
+        ]);
+
+        $newOverrideOptions = ServiceForm::branchOptions($tenant->id, null);
+
+        $this->assertArrayHasKey($activeBranch->id, $newOverrideOptions);
+        $this->assertArrayNotHasKey($inactiveBranch->id, $newOverrideOptions);
+
+        $existingOverrideOptions = ServiceForm::branchOptions($tenant->id, $inactiveBranch->id);
+
+        $this->assertArrayHasKey($activeBranch->id, $existingOverrideOptions);
+        $this->assertSame('Cabang Nonaktif (Inactive)', $existingOverrideOptions[$inactiveBranch->id]);
+    }
+
 }
