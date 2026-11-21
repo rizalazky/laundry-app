@@ -24,7 +24,6 @@ return new class extends Migration
             $table->unsignedTinyInteger('decimal_places_snapshot')->default(4)->after('unit_snapshot');
             $table->timestamp('counted_at')->nullable()->after('difference_qty');
         });
-    }
 
         $existingItems = DB::table('stock_opname_items as opname_items')
             ->leftJoin('inventory_items as items', 'items.id', '=', 'opname_items.inventory_item_id')
@@ -54,6 +53,7 @@ return new class extends Migration
         Schema::table('stock_opname_items', function (Blueprint $table) {
             $table->string('item_name_snapshot')->nullable(false)->change();
         });
+    }
 
     public function down(): void
     {
