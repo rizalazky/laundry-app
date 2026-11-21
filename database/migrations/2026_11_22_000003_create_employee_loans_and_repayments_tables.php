@@ -15,7 +15,7 @@ return new class extends Migration
             $table->foreignId('created_by')->constrained('users')->restrictOnDelete();
             $table->decimal('amount', 15, 2);
             $table->decimal('remaining_amount', 15, 2);
-            $table->string('status', 20)->default('active');
+            $table->enum('status', ['active', 'paid'])->default('active');
             $table->timestamp('issued_at');
             $table->text('notes')->nullable();
             $table->timestamps();
