@@ -17,8 +17,8 @@ use App\Models\StockTransfer;
 use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use DomainException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class InventoryPermissionEnforcementTest extends TestCase
@@ -280,9 +280,10 @@ class InventoryPermissionEnforcementTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $assignedBranch = Branch::factory()->for($tenant)->create();
+        $assignedDestination = Branch::factory()->for($tenant)->create();
         $unassignedBranch = Branch::factory()->for($tenant)->create();
         $user = User::factory()->for($tenant)->withRole('branch_manager')->create();
-        $user->branches()->attach($assignedBranch);
+        $user->branches()->attach([$assignedBranch->id, $assignedDestination->id]);
 
         $this->grantPermission($tenant, 'branch_manager', 'stock.view', 'Inventori');
 
@@ -307,7 +308,7 @@ class InventoryPermissionEnforcementTest extends TestCase
         $assignedTransfer = new StockTransfer([
             'tenant_id' => $tenant->id,
             'source_branch_id' => $assignedBranch->id,
-            'destination_branch_id' => $assignedBranch->id,
+            'destination_branch_id' => $assignedDestination->id,
         ]);
         $unassignedTransfer = new StockTransfer([
             'tenant_id' => $tenant->id,
