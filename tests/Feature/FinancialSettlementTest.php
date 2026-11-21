@@ -1,0 +1,547 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Actions\Accounting\RecordBankTransfer;
+use App\Actions\Accounting\RecordFinancialSettlement;
+use App\Models\BankAccount;
+use App\Models\Branch;
+use App\Models\CashSettlement;
+use App\Models\ChartOfAccount;
+use App\Models\EdcMachine;
+use App\Models\Journal;
+use App\Models\Tenant;
+use DomainException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+class FinancialSettlementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_edc_settlement_records_gross_mdr_net_and_posts_balanced_journal(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+
+        $settlement = app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_EDC,
+            targetBankId: $bank->id,
+            grossAmount: '100000.00',
+            mdrAmount: '1500.00',
+            netAmount: '98500.00',
+            settledAt: now(),
+            edcMachineId: $machine->id,
+            referenceNumber: 'EDC-SETTLE-001',
+        );
+
+        $this->assertSame('100000.00', $settlement->gross_amount);
+        $this->assertSame('1500.00', $settlement->mdr_amount);
+        $this->assertSame('98500.00', $settlement->net_amount);
+        $this->assertSame('100000.00', $settlement->amount);
+        $this->assertSame($machine->id, $settlement->edc_machine_id);
+
+        $journal = Journal::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('reference_type', 'cash_settlement')
+            ->where('reference_id', $settlement->id)
+            ->with('entries.account')
+            ->sole();
+
+        $this->assertCount(3, $journal->entries);
+        $this->assertSame(
+            [
+                '1010' => ['debit' => '98500.00', 'credit' => '0.00'],
+                '1030' => ['debit' => '0.00', 'credit' => '100000.00'],
+                '5500' => ['debit' => '1500.00', 'credit' => '0.00'],
+            ],
+            $journal->entries->mapWithKeys(fn ($entry) => [
+                $entry->account->code => ['debit' => $entry->debit, 'credit' => $entry->credit],
+            ])->sortKeys()->all(),
+        );
+    }
+
+    public function test_cash_deposit_moves_cash_to_bank_without_mdr(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $bank = $this->makeBankAccount($tenant);
+
+        $settlement = app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_OUTLET_CASH,
+            targetBankId: $bank->id,
+            grossAmount: '250000.00',
+            mdrAmount: '0.00',
+            netAmount: '250000.00',
+            settledAt: now(),
+            referenceNumber: 'CASH-DEP-001',
+        );
+
+        $journal = Journal::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('reference_id', $settlement->id)
+            ->with('entries.account')
+            ->sole();
+
+        $this->assertCount(2, $journal->entries);
+        $this->assertSame(
+            ['1000' => ['debit' => '0.00', 'credit' => '250000.00'], '1010' => ['debit' => '250000.00', 'credit' => '0.00']],
+            $journal->entries->mapWithKeys(fn ($entry) => [
+                $entry->account->code => ['debit' => $entry->debit, 'credit' => $entry->credit],
+            ])->sortKeys()->all(),
+        );
+    }
+
+    public function test_workshop_cash_deposit_requires_a_workshop_branch(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $bank = $this->makeBankAccount($tenant);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Jenis setoran kas tidak sesuai dengan tipe cabang.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_WORKSHOP_CASH,
+            targetBankId: $bank->id,
+            grossAmount: '100000',
+            mdrAmount: '0',
+            netAmount: '100000',
+            settledAt: now(),
+            referenceNumber: 'WORKSHOP-INVALID-001',
+        );
+    }
+
+    public function test_settlement_rejects_amounts_that_do_not_reconcile(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Gross harus sama dengan MDR ditambah net aktual yang diterima bank.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_EDC,
+            targetBankId: $bank->id,
+            grossAmount: '100000.00',
+            mdrAmount: '1500.00',
+            netAmount: '98000.00',
+            settledAt: now(),
+            edcMachineId: $machine->id,
+            referenceNumber: 'EDC-INVALID-AMOUNT-001',
+        );
+    }
+
+    public function test_edc_machine_must_belong_to_the_selected_branch_and_bank(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+        $otherBranch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Mesin EDC harus aktif, terdaftar pada cabang ini, dan terhubung ke rekening tujuan.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $otherBranch->id,
+            sourceType: CashSettlement::SOURCE_EDC,
+            targetBankId: $bank->id,
+            grossAmount: '100000.00',
+            mdrAmount: '1500.00',
+            netAmount: '98500.00',
+            settledAt: now(),
+            edcMachineId: $machine->id,
+            referenceNumber: 'EDC-WRONG-BRANCH-001',
+        );
+    }
+
+    public function test_estimated_mdr_uses_two_decimal_half_up_rounding(): void
+    {
+        $action = app(RecordFinancialSettlement::class);
+
+        $this->assertSame('1500.00', $action->estimateMdr('100000', '1.50'));
+        $this->assertSame('1.01', $action->estimateMdr('67', '1.50'));
+    }
+
+    public function test_bank_transfer_posts_debit_to_destination_and_credit_to_source(): void
+    {
+        $tenant = Tenant::factory()->create();
+        ChartOfAccount::withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'code' => '1011',
+            'name' => 'Bank BNI',
+            'account_type' => 'asset',
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+        $source = $this->makeBankAccount($tenant, '1010', '1111111111');
+        $destination = $this->makeBankAccount($tenant, '1011', '2222222222');
+
+        $transfer = app(RecordBankTransfer::class)->handle(
+            tenantId: $tenant->id,
+            sourceBankId: $source->id,
+            destinationBankId: $destination->id,
+            amount: '75000.00',
+            transferredAt: now(),
+            referenceNumber: 'TRF-001',
+        );
+
+        $journal = Journal::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('reference_type', 'bank_transfer')
+            ->where('reference_id', $transfer->id)
+            ->with('entries.account')
+            ->sole();
+
+        $this->assertCount(2, $journal->entries);
+        $this->assertSame(
+            [
+                '1010' => ['debit' => '0.00', 'credit' => '75000.00'],
+                '1011' => ['debit' => '75000.00', 'credit' => '0.00'],
+            ],
+            $journal->entries->mapWithKeys(fn ($entry) => [
+                $entry->account->code => ['debit' => $entry->debit, 'credit' => $entry->credit],
+            ])->sortKeys()->all(),
+        );
+    }
+
+    public function test_bank_transfer_rejects_non_asset_coa_accounts(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $source = $this->makeBankAccount($tenant, '1010', '1111111111');
+        $destination = $this->makeBankAccount($tenant, '1010', '2222222222');
+        $revenueAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '4000')
+            ->firstOrFail();
+
+        $source->update(['coa_id' => $revenueAccount->id]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Akun COA rekening sumber dan tujuan harus bertipe aset.');
+
+        app(RecordBankTransfer::class)->handle(
+            tenantId: $tenant->id,
+            sourceBankId: $source->id,
+            destinationBankId: $destination->id,
+            amount: '10000',
+            transferredAt: now(),
+            referenceNumber: 'TRANSFER-BAD-COA-001',
+        );
+    }
+
+    public function test_settlement_rejects_bank_accounts_mapped_to_non_asset_coa(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $bank = $this->makeBankAccount($tenant);
+        $revenueAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '4000')
+            ->firstOrFail();
+
+        $bank->update(['coa_id' => $revenueAccount->id]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Akun Kas/EDC Clearing dan rekening bank harus tersedia, aktif, serta bertipe aset.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_OUTLET_CASH,
+            targetBankId: $bank->id,
+            grossAmount: '10000',
+            mdrAmount: '0',
+            netAmount: '10000',
+            settledAt: now(),
+            referenceNumber: 'SETTLEMENT-BAD-COA-001',
+        );
+    }
+
+    public function test_edc_settlement_rejects_a_custom_account_using_the_clearing_code(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+        $clearingAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '1030')
+            ->firstOrFail();
+
+        $clearingAccount->update([
+            'name' => 'Akun Custom Tenant',
+            'is_system' => false,
+        ]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Kode akun 1030 sudah digunakan oleh akun lain. Perbaiki konflik kode akun EDC Clearing sebelum mencatat settlement.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_EDC,
+            targetBankId: $bank->id,
+            grossAmount: '100000',
+            mdrAmount: '1500',
+            netAmount: '98500',
+            settledAt: now(),
+            edcMachineId: $machine->id,
+            referenceNumber: 'EDC-CUSTOM-COA-001',
+        );
+    }
+
+    public function test_bank_transfer_rejects_same_source_and_destination_account(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $bank = $this->makeBankAccount($tenant);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Rekening sumber dan tujuan harus berbeda.');
+
+        app(RecordBankTransfer::class)->handle(
+            tenantId: $tenant->id,
+            sourceBankId: $bank->id,
+            destinationBankId: $bank->id,
+            amount: '10000',
+            transferredAt: now(),
+            referenceNumber: 'TRANSFER-SAME-ACCOUNT-001',
+        );
+    }
+
+
+    public function test_identical_edc_settlement_retry_returns_existing_record_and_journal(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+        $action = app(RecordFinancialSettlement::class);
+        $settledAt = now()->startOfSecond();
+
+        $arguments = [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'sourceType' => CashSettlement::SOURCE_EDC,
+            'targetBankId' => $bank->id,
+            'grossAmount' => '100000.00',
+            'mdrAmount' => '1500.00',
+            'netAmount' => '98500.00',
+            'settledAt' => $settledAt,
+            'edcMachineId' => $machine->id,
+            'referenceNumber' => null,
+            'idempotencyKey' => 'edc-retry-key-001',
+        ];
+
+        $first = $action->handle(...$arguments);
+        $retry = $action->handle(...$arguments);
+
+        $this->assertSame($first->id, $retry->id);
+        $this->assertDatabaseCount('cash_settlements', 1);
+        $this->assertDatabaseCount('journals', 1);
+    }
+
+    public function test_identical_bank_statement_reference_retry_returns_existing_record_and_journal(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+        $action = app(RecordFinancialSettlement::class);
+        $arguments = [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'sourceType' => CashSettlement::SOURCE_EDC,
+            'targetBankId' => $bank->id,
+            'grossAmount' => '100000.00',
+            'mdrAmount' => '1500.00',
+            'netAmount' => '98500.00',
+            'settledAt' => now()->startOfSecond(),
+            'edcMachineId' => $machine->id,
+            'referenceNumber' => 'BANK-STMT-EDC-RETRY-REF-001',
+        ];
+
+        $first = $action->handle(...$arguments);
+        $retry = $action->handle(...$arguments);
+
+        $this->assertSame($first->id, $retry->id);
+        $this->assertDatabaseCount('cash_settlements', 1);
+        $this->assertDatabaseCount('journals', 1);
+    }
+
+    public function test_settlement_rejects_same_reference_with_conflicting_payload(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+        $action = app(RecordFinancialSettlement::class);
+        $settledAt = now()->startOfSecond();
+
+        $arguments = [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'sourceType' => CashSettlement::SOURCE_EDC,
+            'targetBankId' => $bank->id,
+            'grossAmount' => '100000.00',
+            'mdrAmount' => '1500.00',
+            'netAmount' => '98500.00',
+            'settledAt' => $settledAt,
+            'edcMachineId' => $machine->id,
+            'referenceNumber' => 'BANK-STMT-EDC-CONFLICT-001',
+        ];
+
+        $action->handle(...$arguments);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Reference number atau idempotency key sudah digunakan dengan payload berbeda.');
+
+        $action->handle(...array_merge($arguments, ['netAmount' => '98000.00', 'mdrAmount' => '2000.00']));
+    }
+
+    public function test_settlement_idempotency_is_scoped_to_tenant(): void
+    {
+        [$tenantA, $branchA, $bankA, $machineA] = $this->makeEdcSetup();
+        [$tenantB, $branchB, $bankB, $machineB] = $this->makeEdcSetup();
+        $action = app(RecordFinancialSettlement::class);
+        $settledAt = now()->startOfSecond();
+
+        $makeArguments = fn ($tenant, $branch, $bank, $machine) => [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'sourceType' => CashSettlement::SOURCE_EDC,
+            'targetBankId' => $bank->id,
+            'grossAmount' => '100000.00',
+            'mdrAmount' => '1500.00',
+            'netAmount' => '98500.00',
+            'settledAt' => $settledAt,
+            'edcMachineId' => $machine->id,
+            'referenceNumber' => 'SAME-BANK-REFERENCE-001',
+            'idempotencyKey' => 'same-tenant-key-001',
+        ];
+
+        $settlementA = $action->handle(...$makeArguments($tenantA, $branchA, $bankA, $machineA));
+        $settlementB = $action->handle(...$makeArguments($tenantB, $branchB, $bankB, $machineB));
+
+        $this->assertNotSame($settlementA->id, $settlementB->id);
+        $this->assertDatabaseCount('cash_settlements', 2);
+        $this->assertDatabaseCount('journals', 2);
+    }
+
+    public function test_identical_bank_transfer_retry_returns_existing_record_and_journal(): void
+    {
+        $tenant = Tenant::factory()->create();
+        ChartOfAccount::withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'code' => '1011',
+            'name' => 'Bank BNI',
+            'account_type' => 'asset',
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+        $source = $this->makeBankAccount($tenant, '1010', '1111111111');
+        $destination = $this->makeBankAccount($tenant, '1011', '2222222222');
+        $action = app(RecordBankTransfer::class);
+        $arguments = [
+            'tenantId' => $tenant->id,
+            'sourceBankId' => $source->id,
+            'destinationBankId' => $destination->id,
+            'amount' => '75000.00',
+            'transferredAt' => now()->startOfSecond(),
+            'referenceNumber' => null,
+            'idempotencyKey' => 'bank-transfer-key-001',
+        ];
+
+        $first = $action->handle(...$arguments);
+        $retry = $action->handle(...$arguments);
+
+        $this->assertSame($first->id, $retry->id);
+        $this->assertDatabaseCount('bank_transfers', 1);
+        $this->assertDatabaseCount('journals', 1);
+    }
+
+    public function test_bank_transfer_rejects_same_reference_with_conflicting_payload(): void
+    {
+        $tenant = Tenant::factory()->create();
+        ChartOfAccount::withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'code' => '1011',
+            'name' => 'Bank BNI',
+            'account_type' => 'asset',
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+        $source = $this->makeBankAccount($tenant, '1010', '1111111111');
+        $destination = $this->makeBankAccount($tenant, '1011', '2222222222');
+        $action = app(RecordBankTransfer::class);
+        $arguments = [
+            'tenantId' => $tenant->id,
+            'sourceBankId' => $source->id,
+            'destinationBankId' => $destination->id,
+            'amount' => '75000.00',
+            'transferredAt' => now()->startOfSecond(),
+            'referenceNumber' => null,
+            'idempotencyKey' => 'bank-transfer-conflict-key-001',
+        ];
+
+        $action->handle(...$arguments);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Reference number atau idempotency key sudah digunakan dengan payload berbeda.');
+
+        $action->handle(...array_merge($arguments, ['amount' => '76000.00']));
+    }
+
+    public function test_settlement_requires_a_reference_number_or_idempotency_key(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Reference number atau idempotency key wajib diisi untuk mencegah pencatatan ganda.');
+
+        app(RecordFinancialSettlement::class)->handle(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            sourceType: CashSettlement::SOURCE_EDC,
+            targetBankId: $bank->id,
+            grossAmount: '100000',
+            mdrAmount: '1500',
+            netAmount: '98500',
+            settledAt: now(),
+            edcMachineId: $machine->id,
+        );
+    }
+
+    /**
+     * @return array{Tenant, Branch, BankAccount, EdcMachine}
+     */
+    private function makeEdcSetup(): array
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $bank = $this->makeBankAccount($tenant);
+        $machine = EdcMachine::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'bank_account_id' => $bank->id,
+            'terminal_name' => 'EDC BCA 01',
+            'mdr_percent' => '1.50',
+            'is_active' => true,
+        ]);
+
+        return [$tenant, $branch, $bank, $machine];
+    }
+
+    private function makeBankAccount(
+        Tenant $tenant,
+        string $coaCode = '1010',
+        string $accountNumber = '1234567890',
+    ): BankAccount {
+        $bankCoa = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', $coaCode)
+            ->firstOrFail();
+
+        return BankAccount::query()->create([
+            'tenant_id' => $tenant->id,
+            'coa_id' => $bankCoa->id,
+            'bank_name' => 'Bank Test',
+            'account_number' => $accountNumber,
+            'holder_name' => 'Laundry Test',
+            'is_active' => true,
+        ]);
+    }
+}

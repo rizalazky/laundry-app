@@ -17,6 +17,7 @@ class EnsureDefaultChartOfAccounts
         ['code' => '1000', 'name' => 'Kas', 'account_type' => 'asset'],
         ['code' => '1010', 'name' => 'Bank', 'account_type' => 'asset'],
         ['code' => '1020', 'name' => 'Saldo QRIS / E-Wallet', 'account_type' => 'asset'],
+        ['code' => '1030', 'name' => 'Piutang Settlement EDC', 'account_type' => 'asset'],
         ['code' => '1100', 'name' => 'Piutang Usaha', 'account_type' => 'asset'],
         ['code' => '1200', 'name' => 'Persediaan Bahan', 'account_type' => 'asset'],
         ['code' => '1500', 'name' => 'Peralatan', 'account_type' => 'asset'],
