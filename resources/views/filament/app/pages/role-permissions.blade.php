@@ -7,6 +7,7 @@
         ];
 
         $selectedCount = count($selectedPermissions);
+        $permissionGroups = $this->getPermissionGroups();
     @endphp
 
     <div class="space-y-6">
@@ -47,16 +48,16 @@
             </div>
         </x-filament::section>
 
-        @if ($this->getPermissionGroups() !== [])
+        @if ($permissionGroups !== [])
             <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
-                @foreach ($this->getPermissionGroups() as $group => $permissions)
+                @foreach ($permissionGroups as $group => $permissions)
                     @php
                         $groupSelectedCount = collect($permissions)
                             ->whereIn('id', $selectedPermissions)
                             ->count();
                     @endphp
 
-                    <x-filament::section :key="'permission-group-' . $loop->index">
+                    <x-filament::section wire:key="permission-group-{{ $loop->index }}">
                         <x-slot name="heading">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span>{{ $group }}</span>
