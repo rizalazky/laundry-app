@@ -2,7 +2,7 @@
 
 namespace App\Actions\Inventory;
 
-use App\Actions\Orders\OrderActionAuthorization;
+use App\Actions\Inventory\InventoryActionAuthorization;
 use App\Enums\StockMovementType;
 use App\Models\Branch;
 use App\Models\InventoryItem;
@@ -18,12 +18,12 @@ use DomainException;
 
 class ManageStockTransfer
 {
-    public function __construct(private OrderActionAuthorization $authorization) {}
+    public function __construct(private InventoryActionAuthorization $authorization) {}
 
     public function request(User $user, Branch $source, Branch $destination, array $items, ?string $notes = null, string $type = 'distribution'): StockTransfer
     {
-        $source = $this->authorization->authorizeBranch($user, $source, ['tenant_owner']);
-        $destination = $this->authorization->authorizeBranch($user, $destination, ['tenant_owner']);
+        $source = $this->authorization->authorizeBranch($user, $source, 'stock.manage');
+        $destination = $this->authorization->authorizeBranch($user, $destination, 'stock.manage');
 
         if ($source->getKey() === $destination->getKey()) {
             throw ValidationException::withMessages(['destination_branch_id' => 'Lokasi tujuan harus berbeda dari lokasi asal.']);
@@ -110,7 +110,7 @@ class ManageStockTransfer
             $branch = Branch::query()->withoutGlobalScope('tenant')
                 ->whereKey($deductSource ? $locked->source_branch_id : $locked->destination_branch_id)
                 ->firstOrFail();
-            $this->authorization->authorizeBranch($user, $branch, ['tenant_owner']);
+            $this->authorization->authorizeBranch($user, $branch, 'stock.manage');
 
             if ($locked->status !== $expected) {
                 throw ValidationException::withMessages(['status' => 'Status distribusi sudah berubah atau tindakan tidak sesuai urutan.']);
