@@ -1,20 +1,20 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\InventoryItems;
+namespace App\Filament\App\Resources\InventoryItems;
 
-use App\\Filament\\App\\Resources\\InventoryItems\\Pages\\CreateInventoryItem;
-use App\\Filament\\App\\Resources\\InventoryItems\\Pages\\EditInventoryItem;
-use App\\Filament\\App\\Resources\\InventoryItems\\Pages\\ListInventoryItems;
-use App\\Filament\\App\\Resources\\InventoryItems\\Schemas\\InventoryItemForm;
-use App\\Filament\\App\\Resources\\InventoryItems\\Tables\\InventoryItemsTable;
-use App\\Models\\InventoryItem;
+use App\Filament\App\Resources\InventoryItems\Pages\CreateInventoryItem;
+use App\Filament\App\Resources\InventoryItems\Pages\EditInventoryItem;
+use App\Filament\App\Resources\InventoryItems\Pages\ListInventoryItems;
+use App\Filament\App\Resources\InventoryItems\Schemas\InventoryItemForm;
+use App\Filament\App\Resources\InventoryItems\Tables\InventoryItemsTable;
+use App\Models\InventoryItem;
 use BackedEnum;
-use Filament\\Facades\\Filament;
-use Filament\\Resources\\Resource;
-use Filament\\Schemas\\Schema;
-use Filament\\Tables\\Table;
-use Illuminate\\Database\\Eloquent\\Builder;
-use Illuminate\\Support\\Facades\\Auth;
+use Filament\Facades\Filament;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class InventoryItemResource extends Resource
