@@ -15,7 +15,8 @@ class OrderPolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->isTenantStaff($user, self::TENANT_ROLES);
+        return $this->isTenantStaff($user, self::TENANT_ROLES)
+            && $user->hasPermissionTo('orders.view');
     }
 
     public function view(User $user, Order $order): bool
@@ -25,7 +26,8 @@ class OrderPolicy
 
     public function create(User $user): bool
     {
-        return $this->isTenantStaff($user, self::CASHIER_ROLES);
+        return $this->isTenantStaff($user, self::CASHIER_ROLES)
+            && $user->hasPermissionTo('orders.create');
     }
 
     public function update(User $user, Order $order): bool
