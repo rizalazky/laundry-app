@@ -46,8 +46,8 @@ class AccountingReports extends Page
         $user = Auth::user();
 
         return $user !== null
-            && $user->is_active
-            && $user->tenant_id !== null;
+            && $user->tenant_id !== null
+            && $user->hasPermissionTo('reports.view');
     }
 
     public function mount(): void
