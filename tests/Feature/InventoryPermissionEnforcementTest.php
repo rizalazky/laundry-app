@@ -78,10 +78,21 @@ class InventoryPermissionEnforcementTest extends TestCase
     public function test_stock_permissions_cover_movements_opnames_and_transfers(): void
     {
         $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $destination = Branch::factory()->for($tenant)->create();
         $user = User::factory()->for($tenant)->withRole('cashier')->create();
-        $movement = new StockMovement(['tenant_id' => $tenant->id]);
-        $opname = new StockOpname(['tenant_id' => $tenant->id]);
-        $transfer = new StockTransfer(['tenant_id' => $tenant->id]);
+        $user->branches()->attach([$branch->id, $destination->id]);
+        $movement = new StockMovement(['tenant_id' => $tenant->id, 'branch_id' => $branch->id]);
+        $opname = new StockOpname([
+            'tenant_id' => $tenant->id,
+            'location_type' => 'outlet',
+            'location_id' => $branch->id,
+        ]);
+        $transfer = new StockTransfer([
+            'tenant_id' => $tenant->id,
+            'source_branch_id' => $branch->id,
+            'destination_branch_id' => $destination->id,
+        ]);
 
         $this->assertFalse($user->can('viewAny', StockMovement::class));
         $this->assertFalse($user->can('viewAny', StockOpname::class));
