@@ -68,7 +68,7 @@ class StockOpnamesTable
                                     ->label('Stok Fisik')
                                     ->numeric()
                                     ->minValue(0)
-                                    ->required(),
+                                    ->placeholder('Belum dihitung'),
                                 TextInput::make('notes')
                                     ->label('Catatan')
                                     ->maxLength(255),
@@ -92,6 +92,7 @@ class StockOpnamesTable
                     ])
                     ->action(function (StockOpname $record, array $data): void {
                         $counts = collect($data['items'] ?? [])
+                            ->filter(fn (array $line): bool => filled($line['physical_qty'] ?? null))
                             ->mapWithKeys(fn (array $line): array => [
                                 $line['id'] => [
                                     'physical_qty' => $line['physical_qty'] ?? '',
