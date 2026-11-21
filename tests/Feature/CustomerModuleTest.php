@@ -237,6 +237,7 @@ class CustomerModuleTest extends TestCase
         $manager->branches()->attach($assignedBranch);
 
         $this->grantPermission($tenant, 'branch_manager', 'customers.view');
+        $this->grantPermission($tenant, 'branch_manager', 'customers.manage');
         $this->grantPermission($tenant, 'branch_manager', 'orders.view');
 
         $customer = $this->createCustomer($tenant, 'Customer Branch History');
