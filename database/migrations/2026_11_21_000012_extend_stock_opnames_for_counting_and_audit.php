@@ -35,8 +35,8 @@ return new class extends Migration
                 'decimal_places_snapshot',
                 'counted_at',
             ]);
-            $table->decimal('physical_qty', 18, 4)->default(0)->change();
-            $table->decimal('difference_qty', 18, 4)->default(0)->change();
+            $table->decimal('physical_qty', 18, 4)->nullable(false)->change();
+            $table->decimal('difference_qty', 18, 4)->nullable(false)->change();
         });
 
         Schema::table('stock_opnames', function (Blueprint $table) {
