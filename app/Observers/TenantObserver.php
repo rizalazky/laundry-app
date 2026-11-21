@@ -7,8 +7,12 @@ use App\Models\Tenant;
 
 class TenantObserver
 {
+    public function __construct(
+        private EnsureDefaultChartOfAccounts $ensureDefaultChartOfAccounts,
+    ) {}
+
     public function created(Tenant $tenant): void
     {
-        app(EnsureDefaultChartOfAccounts::class)->handle($tenant);
+        $this->ensureDefaultChartOfAccounts->handle($tenant);
     }
 }
