@@ -106,6 +106,7 @@ class RecordFinancialSettlement
             'settled_at' => $settledAt->format('Y-m-d H:i:s'),
             'edc_machine_id' => $edcMachineId,
             'reference_number' => $referenceNumber,
+            'idempotency_key' => $idempotencyKey,
         ], JSON_THROW_ON_ERROR));
 
         return app(TenantScopedIdempotency::class)->execute(
@@ -115,155 +116,155 @@ class RecordFinancialSettlement
             idempotencyKey: $idempotencyKey,
             payloadHash: $payloadHash,
             callback: function () use (
-            $tenantId,
-            $branchId,
-            $sourceType,
-            $targetBankId,
-            $gross,
-            $mdr,
-            $net,
-            $settledAt,
-            $edcMachineId,
-            $referenceNumber,
-            $createdBy,
-            $idempotencyKey,
-            $payloadHash,
-        ): CashSettlement {
-            $branch = Branch::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->whereKey($branchId)
-                ->first();
-
-            if ($branch === null) {
-                throw new DomainException('Cabang tidak ditemukan pada tenant ini.');
-            }
-
-            $expectedWorkshop = $sourceType === CashSettlement::SOURCE_WORKSHOP_CASH;
-
-            if ($sourceType !== CashSettlement::SOURCE_EDC && (bool) $branch->is_workshop !== $expectedWorkshop) {
-                throw new DomainException('Jenis setoran kas tidak sesuai dengan tipe cabang.');
-            }
-
-            if ($sourceType === CashSettlement::SOURCE_EDC && $branch->is_workshop) {
-                throw new DomainException('Settlement EDC hanya dapat dicatat untuk cabang outlet.');
-            }
-
-            $bank = BankAccount::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->where('is_active', true)
-                ->whereKey($targetBankId)
-                ->first();
-
-            if ($bank === null) {
-                throw new DomainException('Rekening bank tidak ditemukan, nonaktif, atau bukan milik tenant ini.');
-            }
-
-            $machine = null;
-
-            if ($sourceType === CashSettlement::SOURCE_EDC) {
-                $machine = EdcMachine::withoutGlobalScope('tenant')
+                $tenantId,
+                $branchId,
+                $sourceType,
+                $targetBankId,
+                $gross,
+                $mdr,
+                $net,
+                $settledAt,
+                $edcMachineId,
+                $referenceNumber,
+                $createdBy,
+                $idempotencyKey,
+                $payloadHash,
+            ): CashSettlement {
+                $branch = Branch::withoutGlobalScope('tenant')
                     ->where('tenant_id', $tenantId)
-                    ->where('branch_id', $branchId)
-                    ->where('bank_account_id', $targetBankId)
-                    ->where('is_active', true)
-                    ->whereKey($edcMachineId)
+                    ->whereKey($branchId)
                     ->first();
 
-                if ($machine === null) {
-                    throw new DomainException('Mesin EDC harus aktif, terdaftar pada cabang ini, dan terhubung ke rekening tujuan.');
+                if ($branch === null) {
+                    throw new DomainException('Cabang tidak ditemukan pada tenant ini.');
                 }
-            }
 
-            $accounts = ChartOfAccount::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->where('is_active', true)
-                ->whereIn('code', [
-                    $sourceType === CashSettlement::SOURCE_EDC ? '1030' : '1000',
-                    '5500',
-                ])
-                ->get()
-                ->keyBy('code');
+                $expectedWorkshop = $sourceType === CashSettlement::SOURCE_WORKSHOP_CASH;
 
-            $bankAccount = ChartOfAccount::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->where('is_active', true)
-                ->whereKey($bank->coa_id)
-                ->first();
+                if ($sourceType !== CashSettlement::SOURCE_EDC && (bool) $branch->is_workshop !== $expectedWorkshop) {
+                    throw new DomainException('Jenis setoran kas tidak sesuai dengan tipe cabang.');
+                }
 
-            $clearingCode = $sourceType === CashSettlement::SOURCE_EDC ? '1030' : '1000';
+                if ($sourceType === CashSettlement::SOURCE_EDC && $branch->is_workshop) {
+                    throw new DomainException('Settlement EDC hanya dapat dicatat untuk cabang outlet.');
+                }
 
-            $clearingAccount = $accounts->get($clearingCode);
-            $mdrAccount = $accounts->get('5500');
+                $bank = BankAccount::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true)
+                    ->whereKey($targetBankId)
+                    ->first();
 
-            if ($clearingAccount === null || $bankAccount === null
-                || $bankAccount->code === $clearingCode || $bankAccount->code === '5500'
-                || $clearingAccount->account_type !== 'asset'
-                || $bankAccount->account_type !== 'asset') {
-                throw new DomainException('Akun Kas/EDC Clearing dan rekening bank harus tersedia, aktif, serta bertipe aset.');
-            }
+                if ($bank === null) {
+                    throw new DomainException('Rekening bank tidak ditemukan, nonaktif, atau bukan milik tenant ini.');
+                }
 
-            if ($sourceType === CashSettlement::SOURCE_EDC
-                && (! $clearingAccount->is_system || $clearingAccount->name !== 'Piutang Settlement EDC')) {
-                throw new DomainException('Kode akun 1030 sudah digunakan oleh akun lain. Perbaiki konflik kode akun EDC Clearing sebelum mencatat settlement.');
-            }
+                $machine = null;
 
-            if (! $mdr->isZero() && ($mdrAccount === null || $mdrAccount->account_type !== 'expense')) {
-                throw new DomainException('Akun Beban MDR (5500) harus tersedia, aktif, dan bertipe beban.');
-            }
+                if ($sourceType === CashSettlement::SOURCE_EDC) {
+                    $machine = EdcMachine::withoutGlobalScope('tenant')
+                        ->where('tenant_id', $tenantId)
+                        ->where('branch_id', $branchId)
+                        ->where('bank_account_id', $targetBankId)
+                        ->where('is_active', true)
+                        ->whereKey($edcMachineId)
+                        ->first();
 
-            $settlement = CashSettlement::query()->create([
-                'tenant_id' => $tenantId,
-                'branch_id' => $branchId,
-                'source_type' => $sourceType,
-                'amount' => (string) $gross,
-                'gross_amount' => (string) $gross,
-                'mdr_amount' => (string) $mdr,
-                'net_amount' => (string) $net,
-                'edc_machine_id' => $machine?->getKey(),
-                'target_bank_id' => $bank->getKey(),
-                'reference_number' => $referenceNumber,
-                'idempotency_key' => $idempotencyKey,
-                'payload_hash' => $payloadHash,
-                'settled_at' => $settledAt,
-                'created_by' => $createdBy ?? Auth::id(),
-            ]);
+                    if ($machine === null) {
+                        throw new DomainException('Mesin EDC harus aktif, terdaftar pada cabang ini, dan terhubung ke rekening tujuan.');
+                    }
+                }
 
-            $entries = [
-                [
-                    'account_code' => $bankAccount->code,
-                    'debit' => (string) $net,
-                    'credit' => '0.00',
-                ],
-            ];
+                $accounts = ChartOfAccount::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true)
+                    ->whereIn('code', [
+                        $sourceType === CashSettlement::SOURCE_EDC ? '1030' : '1000',
+                        '5500',
+                    ])
+                    ->get()
+                    ->keyBy('code');
 
-            if ($sourceType === CashSettlement::SOURCE_EDC && ! $mdr->isZero()) {
-                $entries[] = [
-                    'account_code' => '5500',
-                    'debit' => (string) $mdr,
-                    'credit' => '0.00',
+                $bankAccount = ChartOfAccount::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true)
+                    ->whereKey($bank->coa_id)
+                    ->first();
+
+                $clearingCode = $sourceType === CashSettlement::SOURCE_EDC ? '1030' : '1000';
+
+                $clearingAccount = $accounts->get($clearingCode);
+                $mdrAccount = $accounts->get('5500');
+
+                if ($clearingAccount === null || $bankAccount === null
+                    || $bankAccount->code === $clearingCode || $bankAccount->code === '5500'
+                    || $clearingAccount->account_type !== 'asset'
+                    || $bankAccount->account_type !== 'asset') {
+                    throw new DomainException('Akun Kas/EDC Clearing dan rekening bank harus tersedia, aktif, serta bertipe aset.');
+                }
+
+                if ($sourceType === CashSettlement::SOURCE_EDC
+                    && (! $clearingAccount->is_system || $clearingAccount->name !== 'Piutang Settlement EDC')) {
+                    throw new DomainException('Kode akun 1030 sudah digunakan oleh akun lain. Perbaiki konflik kode akun EDC Clearing sebelum mencatat settlement.');
+                }
+
+                if (! $mdr->isZero() && ($mdrAccount === null || $mdrAccount->account_type !== 'expense')) {
+                    throw new DomainException('Akun Beban MDR (5500) harus tersedia, aktif, dan bertipe beban.');
+                }
+
+                $settlement = CashSettlement::query()->create([
+                    'tenant_id' => $tenantId,
+                    'branch_id' => $branchId,
+                    'source_type' => $sourceType,
+                    'amount' => (string) $gross,
+                    'gross_amount' => (string) $gross,
+                    'mdr_amount' => (string) $mdr,
+                    'net_amount' => (string) $net,
+                    'edc_machine_id' => $machine?->getKey(),
+                    'target_bank_id' => $bank->getKey(),
+                    'reference_number' => $referenceNumber,
+                    'idempotency_key' => $idempotencyKey,
+                    'payload_hash' => $payloadHash,
+                    'settled_at' => $settledAt,
+                    'created_by' => $createdBy ?? Auth::id(),
+                ]);
+
+                $entries = [
+                    [
+                        'account_code' => $bankAccount->code,
+                        'debit' => (string) $net,
+                        'credit' => '0.00',
+                    ],
                 ];
-            }
 
-            $entries[] = [
-                'account_code' => $clearingCode,
-                'debit' => '0.00',
-                'credit' => (string) $gross,
-            ];
+                if ($sourceType === CashSettlement::SOURCE_EDC && ! $mdr->isZero()) {
+                    $entries[] = [
+                        'account_code' => '5500',
+                        'debit' => (string) $mdr,
+                        'credit' => '0.00',
+                    ];
+                }
 
-            app(CreateJournal::class)->handle(
-                tenantId: $tenantId,
-                branchId: $branchId,
-                journalDate: $settledAt,
-                referenceType: 'cash_settlement',
-                referenceId: $settlement->getKey(),
-                description: $sourceType === CashSettlement::SOURCE_EDC
-                    ? 'Settlement EDC '.($machine?->terminal_name ?? '')
-                    : 'Setoran kas '.($expectedWorkshop ? 'workshop' : 'outlet'),
-                entries: $entries,
-                createdBy: $createdBy ?? Auth::id(),
-            );
+                $entries[] = [
+                    'account_code' => $clearingCode,
+                    'debit' => '0.00',
+                    'credit' => (string) $gross,
+                ];
 
-            return $settlement;
+                app(CreateJournal::class)->handle(
+                    tenantId: $tenantId,
+                    branchId: $branchId,
+                    journalDate: $settledAt,
+                    referenceType: 'cash_settlement',
+                    referenceId: $settlement->getKey(),
+                    description: $sourceType === CashSettlement::SOURCE_EDC
+                        ? 'Settlement EDC '.($machine?->terminal_name ?? '')
+                        : 'Setoran kas '.($expectedWorkshop ? 'workshop' : 'outlet'),
+                    entries: $entries,
+                    createdBy: $createdBy ?? Auth::id(),
+                );
+
+                return $settlement;
         })->load(['branch', 'edcMachine', 'targetBank']);
     }
 
