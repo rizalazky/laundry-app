@@ -39,7 +39,10 @@ return new class extends Migration
                 ->on('employee_loans')
                 ->restrictOnDelete();
 
-            $table->index(['tenant_id', 'employee_loan_id', 'paid_at']);
+            $table->index(
+                ['tenant_id', 'employee_loan_id', 'paid_at'],
+                'emp_loan_repay_lookup_idx'
+            );
         });
     }
 
