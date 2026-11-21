@@ -60,6 +60,15 @@ class AccountingReportsTest extends TestCase
         $otherBranch = Branch::factory()->for($tenant)->create();
         $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
         $manager->branches()->attach($branch);
+        $reportsPermission = Permission::query()->firstOrCreate(
+            ['slug' => 'reports.view'],
+            ['name' => 'Lihat Laporan', 'group' => 'Laporan'],
+        );
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $reportsPermission->id,
+        ]);
 
         $this->postJournal($tenant->id, $branch->id, '2026-01-10 09:00:00', 'Jurnal cabang sendiri', [
             ['account_code' => '1000', 'debit' => '100000', 'credit' => '0'],
