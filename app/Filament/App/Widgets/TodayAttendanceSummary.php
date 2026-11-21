@@ -17,6 +17,13 @@ class TodayAttendanceSummary extends StatsOverviewWidget
 
     protected static ?int $sort = 1;
 
+    protected GetTodayAttendanceSummary $attendanceSummary;
+
+    public function boot(GetTodayAttendanceSummary $attendanceSummary): void
+    {
+        $this->attendanceSummary = $attendanceSummary;
+    }
+
     public static function canView(): bool
     {
         $user = Auth::user();
@@ -35,7 +42,7 @@ class TodayAttendanceSummary extends StatsOverviewWidget
             return [];
         }
 
-        $summary = app(GetTodayAttendanceSummary::class)->handle($user);
+        $summary = $this->attendanceSummary->handle($user);
 
         return [
             Stat::make('Hadir Hari Ini', $summary['present'])
