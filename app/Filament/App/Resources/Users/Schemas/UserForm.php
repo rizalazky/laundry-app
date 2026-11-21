@@ -32,6 +32,12 @@ class UserForm
                             ->required()
                             ->unique(ignoreRecord: true),
 
+                        TextInput::make('phone_whatsapp')
+                            ->label('Nomor WhatsApp')
+                            ->tel()
+                            ->maxLength(25)
+                            ->placeholder('Contoh: 628123456789'),
+
                         TextInput::make('password')
                             ->label('Password')
                             ->password()

@@ -19,7 +19,13 @@ class UsersTable
                     ->sortable(),
 
                 TextColumn::make('email')
+                    ->label('Email Login')
                     ->searchable(),
+
+                TextColumn::make('phone_whatsapp')
+                    ->label('WhatsApp')
+                    ->searchable()
+                    ->placeholder('—'),
 
                 TextColumn::make('role')
                     ->label('Role')
