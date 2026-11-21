@@ -13,7 +13,7 @@ class BankTransfer extends Model
 
     protected $fillable = [
         'tenant_id', 'branch_id', 'source_bank_id', 'destination_bank_id',
-        'amount', 'reference_number', 'transferred_at', 'created_by',
+        'amount', 'reference_number', 'idempotency_key', 'payload_hash', 'transferred_at', 'created_by',
     ];
 
     protected function casts(): array
