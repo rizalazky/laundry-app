@@ -34,6 +34,10 @@ class CreateJournal
             throw new DomainException('Tipe dan ID referensi jurnal harus diisi bersamaan.');
         }
 
+        if ($referenceType !== null && (blank($referenceType) || $referenceId < 1)) {
+            throw new DomainException('Referensi jurnal tidak valid.');
+        }
+
         if (blank($description)) {
             throw new DomainException('Deskripsi jurnal wajib diisi.');
         }
@@ -141,7 +145,7 @@ class CreateJournal
                         ->all();
 
                     $sameHeader = $existing->branch_id === $branchId
-                        && $existing->journal_date->equalTo($journalDate)
+                        && $existing->journal_date->format('Y-m-d H:i:s') === $journalDate->format('Y-m-d H:i:s')
                         && $existing->description === $description;
 
                     if ($sameHeader && $actualEntries === $expectedEntries) {
