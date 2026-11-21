@@ -58,8 +58,7 @@ class RecordStockMovement
 
             try {
                 $inputQuantity = BigDecimal::of((string) $quantity)
-                    ->toScale($precision, RoundingMode::UNNECESSARY)
-                    ->toScale(4, RoundingMode::UNNECESSARY);
+                    ->toScale($precision, RoundingMode::UNNECESSARY);
             } catch (\Throwable) {
                 throw ValidationException::withMessages([
                     'quantity' => "Jumlah hanya boleh menggunakan maksimal {$precision} angka desimal.",
