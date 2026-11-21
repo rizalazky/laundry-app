@@ -33,12 +33,38 @@ class TenantOwnedChildModelIsolationTest extends TestCase
         $foreignTenant = Tenant::factory()->create();
         $ownCustomer = Customer::factory()->for($tenant)->create();
         $foreignCustomer = Customer::factory()->for($foreignTenant)->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $service = Service::factory()->for($tenant)->create();
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+        ]);
+        $order->items()->create([
+            'service_id' => $service->id,
+            'service_name' => $service->name,
+            'unit' => $service->unit,
+            'quantity' => 1,
+            'unit_price' => 10000,
+            'subtotal' => 10000,
+        ]);
+        OrderStatusLog::query()->create([
+            'order_id' => $order->id,
+            'to_status' => OrderStatus::Received,
+        ]);
+        InvoiceSequence::query()->create([
+            'branch_id' => $branch->id,
+            'sequence_date' => today(),
+            'last_number' => 1,
+        ]);
         $tenantlessCashier = User::factory()->withRole('cashier')->create(['tenant_id' => null]);
         $superAdmin = User::factory()->withRole('super_admin')->create(['tenant_id' => null]);
 
         $this->actingAs($tenantlessCashier);
 
         $this->assertSame([], Customer::query()->pluck('id')->all());
+        $this->assertSame([], OrderItem::query()->pluck('id')->all());
+        $this->assertSame([], OrderStatusLog::query()->pluck('id')->all());
+        $this->assertSame([], InvoiceSequence::query()->pluck('id')->all());
 
         try {
             Customer::query()->create([
