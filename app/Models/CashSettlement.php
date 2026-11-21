@@ -17,7 +17,7 @@ class CashSettlement extends Model
 
     protected $fillable = [
         'tenant_id', 'branch_id', 'source_type', 'amount', 'gross_amount', 'mdr_amount',
-        'net_amount', 'edc_machine_id', 'target_bank_id', 'reference_number', 'settled_at', 'created_by',
+        'net_amount', 'edc_machine_id', 'target_bank_id', 'reference_number', 'idempotency_key', 'payload_hash', 'settled_at', 'created_by',
     ];
 
     protected function casts(): array
