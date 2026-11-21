@@ -5,13 +5,17 @@ namespace App\Actions\Attendance;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 
 class ClockIn
 {
-    public function __construct(private AttendanceActionAuthorization $authorization) {}
+    public function __construct(
+        private AttendanceActionAuthorization $authorization,
+        private ActivityLogger $activityLogger,
+    ) {}
 
     /**
      * @throws DomainException
@@ -33,13 +37,20 @@ class ClockIn
                 throw new DomainException('Anda masih memiliki presensi masuk yang belum ditutup.');
             }
 
-            return Attendance::query()->create([
+            $attendance = Attendance::query()->create([
                 'tenant_id' => $actor->tenant_id,
                 'branch_id' => $authorizedBranch->getKey(),
                 'user_id' => $actor->getKey(),
                 'clock_in' => $clockInAt ?? now(),
                 'status' => 'present',
             ]);
+
+            $this->activityLogger->record($actor, 'attendance.clocked_in', $attendance, [
+                'branch_id' => $authorizedBranch->getKey(),
+                'clock_in' => $attendance->clock_in?->toISOString(),
+            ]);
+
+            return $attendance;
         });
     }
 }
