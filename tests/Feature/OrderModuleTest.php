@@ -14,6 +14,8 @@ use App\Filament\App\Resources\Orders\Pages\ViewOrder;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
@@ -49,6 +51,25 @@ class OrderModuleTest extends TestCase
     {
         $user = User::factory()->for($this->tenant)->withRole($role)->create();
         $user->branches()->attach($branch ?? $this->branch);
+
+        $permissionSlugs = ['orders.view'];
+
+        if (in_array($role, ['branch_manager', 'cashier'], true)) {
+            $permissionSlugs[] = 'orders.create';
+        }
+
+        foreach ($permissionSlugs as $slug) {
+            $permission = Permission::query()->firstOrCreate(
+                ['slug' => $slug],
+                ['name' => $slug, 'group' => 'Pesanan'],
+            );
+
+            RolePermission::query()->firstOrCreate([
+                'tenant_id' => $this->tenant->id,
+                'role' => $role,
+                'permission_id' => $permission->id,
+            ]);
+        }
 
         return $user;
     }
