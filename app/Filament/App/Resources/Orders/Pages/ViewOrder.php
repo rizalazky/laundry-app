@@ -179,9 +179,15 @@ class ViewOrder extends ViewRecord
                 Textarea::make('note')->label('Catatan')->rows(2)->maxLength(500),
             ])
             ->action(function (array $data, Order $record): void {
+                $targetStatus = OrderStatus::from($data['status']);
+
+                if ($targetStatus === OrderStatus::Cancelled) {
+                    abort_unless(Auth::user()->can('cancel', $record), 403);
+                }
+
                 $this->runLedgerAction(fn () => app(ChangeOrderStatus::class)->handle(
                     order: $record,
-                    to: OrderStatus::from($data['status']),
+                    to: $targetStatus,
                     user: Auth::user(),
                     note: $data['note'] ?? null,
                     workerId: isset($data['worker_id']) ? (int) $data['worker_id'] : null,
