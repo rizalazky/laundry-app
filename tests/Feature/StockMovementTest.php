@@ -221,7 +221,7 @@ class StockMovementTest extends TestCase
                 'unit_cost' => '1000',
             ])
             ->call('create')
-            ->assertHasFormErrors(['quantity']);
+            ->assertHasErrors(['quantity']);
 
         $this->assertDatabaseCount('stock_movements', 0);
     }
