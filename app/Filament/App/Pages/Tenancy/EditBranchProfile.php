@@ -88,6 +88,11 @@ class EditBranchProfile extends EditTenantProfile
         $workshopIds = $data['workshop_ids'] ?? [];
         unset($data['workshop_ids']);
 
+        if (Auth::user()?->role !== 'tenant_owner') {
+            unset($data['is_workshop']);
+            $workshopIds = [];
+        }
+
         $wasWorkshop = (bool) $record->is_workshop;
         $willBeWorkshop = (bool) ($data['is_workshop'] ?? $wasWorkshop);
 
