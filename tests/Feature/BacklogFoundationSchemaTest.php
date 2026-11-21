@@ -57,13 +57,13 @@ class BacklogFoundationSchemaTest extends TestCase
             'tenant_id' => $tenantB, 'code' => 'B-01', 'name' => 'Branch B',
             'is_workshop' => false, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
-        $coaB = DB::table('chart_of_accounts')->insertGetId([
+        $coaA = DB::table('chart_of_accounts')->insertGetId([
             'tenant_id' => $tenantA, 'code' => '1000', 'name' => 'Cash',
             'account_type' => 'asset', 'is_system' => false, 'is_active' => true,
             'created_at' => now(), 'updated_at' => now(),
         ]);
-        $bankB = DB::table('bank_accounts')->insertGetId([
-            'tenant_id' => $tenantA, 'coa_id' => $coaB, 'bank_name' => 'Bank A',
+        $bankA = DB::table('bank_accounts')->insertGetId([
+            'tenant_id' => $tenantA, 'coa_id' => $coaA, 'bank_name' => 'Bank A',
             'account_number' => '123456', 'holder_name' => 'Tenant B',
             'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
@@ -71,7 +71,7 @@ class BacklogFoundationSchemaTest extends TestCase
         $this->expectException(QueryException::class);
 
         DB::table('edc_machines')->insert([
-            'tenant_id' => $tenantA, 'branch_id' => $branchB, 'bank_account_id' => $bankB,
+            'tenant_id' => $tenantA, 'branch_id' => $branchB, 'bank_account_id' => $bankA,
             'terminal_name' => 'EDC A', 'mdr_percent' => 1.5, 'is_active' => true,
             'created_at' => now(), 'updated_at' => now(),
         ]);
