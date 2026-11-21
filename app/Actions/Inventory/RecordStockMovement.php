@@ -1,18 +1,18 @@
 <?php
 
-namespace App\\Actions\\Inventory;
+namespace App\Actions\Inventory;
 
-use App\\Actions\\Orders\\OrderActionAuthorization;
-use App\\Enums\\StockMovementType;
-use App\\Models\\Branch;
-use App\\Models\\InventoryItem;
-use App\\Models\\LocationStock;
-use App\\Models\\StockMovement;
-use App\\Models\\Supplier;
-use App\\Models\\User;
-use Brick\\Math\\BigDecimal;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
+use App\Actions\Orders\OrderActionAuthorization;
+use App\Enums\StockMovementType;
+use App\Models\Branch;
+use App\Models\InventoryItem;
+use App\Models\LocationStock;
+use App\Models\StockMovement;
+use App\Models\Supplier;
+use App\Models\User;
+use Brick\Math\BigDecimal;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class RecordStockMovement
 {
@@ -96,7 +96,7 @@ class RecordStockMovement
                     ]);
                 }
 
-                if (! preg_match('/^\\d+(?:\\.(\\d+))?$/D', $purchaseQuantityString, $purchaseMatches)
+                if (! preg_match('/^\d+(?:\.(\d+))?$/D', $purchaseQuantityString, $purchaseMatches)
                     || BigDecimal::of($purchaseQuantityString)->isLessThanOrEqualTo(0)) {
                     throw ValidationException::withMessages([
                         'purchase_quantity' => 'Jumlah pembelian harus berupa angka positif.',
@@ -111,7 +111,7 @@ class RecordStockMovement
                 }
 
                 $expectedFactor = BigDecimal::of((string) $item->purchase_unit_conversion_factor);
-                if (! preg_match('/^\\d+(?:\\.\\d{1,6})?$/D', $conversionFactorString)
+                if (! preg_match('/^\d+(?:\.\d{1,6})?$/D', $conversionFactorString)
                     || ! BigDecimal::of($conversionFactorString)->isEqualTo($expectedFactor)
                     || BigDecimal::of($conversionFactorString)->isLessThanOrEqualTo(0)) {
                     throw ValidationException::withMessages([
@@ -133,7 +133,7 @@ class RecordStockMovement
             }
 
             $unitCostString = trim((string) $unitCost);
-            if (! preg_match('/^\\d+(?:\\.\\d{1,2})?$/D', $unitCostString)) {
+            if (! preg_match('/^\d+(?:\.\d{1,2})?$/D', $unitCostString)) {
                 throw ValidationException::withMessages([
                     'unit_cost' => 'Harga per satuan harus berupa angka non-negatif dengan maksimal dua desimal.',
                 ]);
@@ -142,7 +142,7 @@ class RecordStockMovement
             $precision = min((int) $item->baseUnit->decimal_places, 4);
             $quantityString = trim((string) $quantity);
 
-            if (! preg_match('/^-?\\d+(?:\\.(\\d+))?$/D', $quantityString, $matches)) {
+            if (! preg_match('/^-?\d+(?:\.(\d+))?$/D', $quantityString, $matches)) {
                 throw ValidationException::withMessages([
                     'quantity' => 'Jumlah mutasi harus berupa angka yang valid.',
                 ]);
