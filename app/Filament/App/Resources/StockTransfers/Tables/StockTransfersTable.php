@@ -38,7 +38,7 @@ class StockTransfersTable
                     ->icon('heroicon-o-truck')
                     ->color('info')
                     ->requiresConfirmation()
-                    ->visible(fn (StockTransfer $record): bool => $record->status === 'requested')
+                    ->visible(fn (StockTransfer $record): bool => $record->status === 'requested' && Auth::user()?->hasPermissionTo('stock.manage') === true)
                     ->action(fn (StockTransfer $record) => app(ManageStockTransfer::class)->ship(Auth::user(), $record)),
 
                 Action::make('receive')
@@ -46,7 +46,7 @@ class StockTransfersTable
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->visible(fn (StockTransfer $record): bool => $record->status === 'shipped')
+                    ->visible(fn (StockTransfer $record): bool => $record->status === 'shipped' && Auth::user()?->hasPermissionTo('stock.manage') === true)
                     ->action(fn (StockTransfer $record) => app(ManageStockTransfer::class)->receive(Auth::user(), $record)),
             ]);
     }
