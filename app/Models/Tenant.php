@@ -45,6 +45,16 @@ class Tenant extends Model
         return $this->hasMany(Customer::class);
     }
 
+    public function suppliers(): HasMany
+    {
+        return $this->hasMany(Supplier::class);
+    }
+
+    public function inventoryItems(): HasMany
+    {
+        return $this->hasMany(InventoryItem::class);
+    }
+
     public function hasActiveSubscription(): bool
     {
         if (! $this->is_active) {
