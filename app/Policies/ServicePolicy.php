@@ -13,7 +13,8 @@ class ServicePolicy
     {
         return $user->is_active
             && $user->tenant_id !== null
-            && in_array($user->role, self::TENANT_ROLES, true);
+            && in_array($user->role, self::TENANT_ROLES, true)
+            && $user->hasPermissionTo('services.view');
     }
 
     public function view(User $user, Service $service): bool
@@ -23,12 +24,14 @@ class ServicePolicy
 
     public function create(User $user): bool
     {
-        return $this->isOwner($user);
+        return $this->isOwner($user) && $user->hasPermissionTo('services.manage');
     }
 
     public function update(User $user, Service $service): bool
     {
-        return $this->isOwner($user) && $this->isInSameTenant($user, $service);
+        return $this->isOwner($user)
+            && $user->hasPermissionTo('services.manage')
+            && $this->isInSameTenant($user, $service);
     }
 
     public function delete(User $user, Service $service): bool
