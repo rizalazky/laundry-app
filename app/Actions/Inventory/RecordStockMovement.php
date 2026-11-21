@@ -56,13 +56,23 @@ class RecordStockMovement
 
             $precision = min((int) $item->baseUnit->decimal_places, 4);
 
-            $inputQuantity = BigDecimal::of((string) $quantity)->stripTrailingZeros();
+            $quantityString = trim((string) $quantity);
 
-            if ($inputQuantity->getScale() > $precision) {
+            if (! preg_match('/^-?\\d+(?:\\.(\\d+))?$/D', $quantityString, $matches)) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Jumlah mutasi harus berupa angka yang valid.',
+                ]);
+            }
+
+            $fraction = rtrim($matches[1] ?? '', '0');
+
+            if (strlen($fraction) > $precision) {
                 throw ValidationException::withMessages([
                     'quantity' => "Jumlah hanya boleh menggunakan maksimal {$precision} angka desimal.",
                 ]);
             }
+
+            $inputQuantity = BigDecimal::of($quantityString);
 
             if ($type === StockMovementType::Adjustment) {
                 if ($inputQuantity->isZero()) {
