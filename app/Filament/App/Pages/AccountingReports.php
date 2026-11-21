@@ -1,15 +1,15 @@
 <?php
 
-namespace App\\Filament\\App\\Pages;
+namespace App\Filament\App\Pages;
 
-use App\\Actions\\Accounting\\GenerateFinancialReports;
-use App\\Models\\Branch;
-use App\\Models\\ChartOfAccount;
-use Carbon\\CarbonImmutable;
+use App\Actions\Accounting\GenerateFinancialReports;
+use App\Models\Branch;
+use App\Models\ChartOfAccount;
+use Carbon\CarbonImmutable;
 use DomainException;
-use Filament\\Facades\\Filament;
-use Filament\\Pages\\Page;
-use Illuminate\\Support\\Facades\\Auth;
+use Filament\Facades\Filament;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 use BackedEnum;
 
@@ -131,7 +131,7 @@ class AccountingReports extends Page
             };
         } catch (DomainException $exception) {
             return ['error' => $exception->getMessage()];
-        } catch (\\InvalidArgumentException) {
+        } catch (\InvalidArgumentException) {
             return ['error' => 'Pilih tanggal laporan yang valid.'];
         }
     }
@@ -144,7 +144,7 @@ class AccountingReports extends Page
         [$whole, $fraction] = array_pad(explode('.', $value, 2), 2, '00');
         $fraction = str_pad(substr($fraction, 0, 2), 2, '0');
 
-        $whole = preg_replace('/\\B(?=(\\d{3})+(?!\\d))/', '.', $whole) ?? $whole;
+        $whole = preg_replace('/\B(?=(\d{3})+(?!\d))/', '.', $whole) ?? $whole;
 
         return ($negative ? '-' : '').'Rp '.$whole.','.$fraction;
     }
