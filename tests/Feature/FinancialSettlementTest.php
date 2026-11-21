@@ -340,6 +340,31 @@ class FinancialSettlementTest extends TestCase
         $this->assertDatabaseCount('journals', 1);
     }
 
+    public function test_identical_bank_statement_reference_retry_returns_existing_record_and_journal(): void
+    {
+        [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
+        $action = app(RecordFinancialSettlement::class);
+        $arguments = [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'sourceType' => CashSettlement::SOURCE_EDC,
+            'targetBankId' => $bank->id,
+            'grossAmount' => '100000.00',
+            'mdrAmount' => '1500.00',
+            'netAmount' => '98500.00',
+            'settledAt' => now()->startOfSecond(),
+            'edcMachineId' => $machine->id,
+            'referenceNumber' => 'BANK-STMT-EDC-RETRY-REF-001',
+        ];
+
+        $first = $action->handle(...$arguments);
+        $retry = $action->handle(...$arguments);
+
+        $this->assertSame($first->id, $retry->id);
+        $this->assertDatabaseCount('cash_settlements', 1);
+        $this->assertDatabaseCount('journals', 1);
+    }
+
     public function test_settlement_rejects_same_reference_with_conflicting_payload(): void
     {
         [$tenant, $branch, $bank, $machine] = $this->makeEdcSetup();
