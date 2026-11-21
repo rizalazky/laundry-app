@@ -2,15 +2,23 @@
 
 namespace App\Filament\App\Resources\EmployeeLoans;
 
+use App\Actions\EmployeeLoans\RecordEmployeeLoanRepayment;
 use App\Filament\App\Resources\EmployeeLoans\Pages\ListEmployeeLoans;
 use App\Models\EmployeeLoan;
 use App\Models\User;
 use BackedEnum;
+use DomainException;
+use Filament\Actions\Action;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
@@ -81,7 +89,7 @@ class EmployeeLoanResource extends Resource
 
         $query = parent::getEloquentQuery()
             ->where('tenant_id', $actor?->tenant_id)
-            ->with(['user', 'creator'])
+            ->with(['user', 'creator', 'repayments.recorder'])
             ->withCount('repayments');
 
         if ($actor?->role === 'branch_manager') {
@@ -124,8 +132,13 @@ class EmployeeLoanResource extends Resource
                     ->sortable(),
 
                 TextColumn::make('repayments_count')
-                    ->label('Jumlah Cicilan')
-                    ->counts('repayments'),
+                    ->label('Jumlah Cicilan'),
+
+                TextColumn::make('repayments.amount')
+                    ->label('Riwayat Nominal Cicilan')
+                    ->formatStateUsing(fn ($state): string => 'Rp '.number_format((float) $state, 0, ',', '.'))
+                    ->listWithLineBreaks()
+                    ->limitList(3),
 
                 TextColumn::make('status')
                     ->label('Status')
@@ -137,6 +150,53 @@ class EmployeeLoanResource extends Resource
                     ->label('Tanggal Kasbon')
                     ->dateTime('d M Y H:i')
                     ->sortable(),
+            ])
+            ->recordActions([
+                Action::make('recordRepayment')
+                    ->label('Catat Cicilan')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('success')
+                    ->visible(fn (EmployeeLoan $record): bool => static::canManage() && $record->status === 'active')
+                    ->schema([
+                        TextInput::make('amount')
+                            ->label('Nominal Pembayaran')
+                            ->numeric()
+                            ->minValue(0.01)
+                            ->maxValue(9999999999999.99)
+                            ->prefix('Rp')
+                            ->required(),
+
+                        DateTimePicker::make('paid_at')
+                            ->label('Tanggal Pembayaran')
+                            ->default(now())
+                            ->required(),
+
+                        Textarea::make('notes')
+                            ->label('Catatan')
+                            ->rows(2),
+                    ])
+                    ->action(function (EmployeeLoan $record, array $data): void {
+                        try {
+                            app(RecordEmployeeLoanRepayment::class)->handle(
+                                Auth::user(),
+                                (int) $record->getKey(),
+                                $data['amount'],
+                                Carbon::parse($data['paid_at']),
+                                $data['notes'] ?? null,
+                            );
+
+                            Notification::make()
+                                ->title('Cicilan kasbon berhasil dicatat.')
+                                ->success()
+                                ->send();
+                        } catch (DomainException $exception) {
+                            Notification::make()
+                                ->title('Pembayaran gagal dicatat.')
+                                ->body($exception->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
             ]);
     }
 
