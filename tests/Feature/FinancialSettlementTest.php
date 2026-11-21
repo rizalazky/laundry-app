@@ -174,7 +174,7 @@ class FinancialSettlementTest extends TestCase
             'tenant_id' => $tenant->id,
             'coa_id' => $bankCoa->id,
             'bank_name' => 'Bank Test',
-            'account_number' => '1234567890',
+            'account_number' => $accountNumber,
             'holder_name' => 'Laundry Test',
             'is_active' => true,
         ]);
