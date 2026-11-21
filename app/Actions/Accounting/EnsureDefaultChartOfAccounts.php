@@ -2,14 +2,14 @@
 
 namespace App\Actions\Accounting;
 
-use App\Models\ChartOfAccount;
 use App\Models\Tenant;
+use Illuminate\Support\Facades\DB;
 
 class EnsureDefaultChartOfAccounts
 {
     /**
-     * These are starter accounts for a laundry business. Tenants may add
-     * accounts later; existing account names and settings are never overwritten.
+     * Starter accounts for a laundry business. Tenants may add accounts later;
+     * existing account names and settings are never overwritten.
      *
      * @var list<array{code: string, name: string, account_type: string}>
      */
@@ -38,20 +38,21 @@ class EnsureDefaultChartOfAccounts
     public function handle(Tenant|int $tenant): void
     {
         $tenantId = $tenant instanceof Tenant ? $tenant->getKey() : $tenant;
+        $now = now();
 
         foreach (self::DEFAULT_ACCOUNTS as $account) {
-            ChartOfAccount::withoutGlobalScope('tenant')->firstOrCreate(
-                [
-                    'tenant_id' => $tenantId,
-                    'code' => $account['code'],
-                ],
-                [
-                    'name' => $account['name'],
-                    'account_type' => $account['account_type'],
-                    'is_system' => true,
-                    'is_active' => true,
-                ],
-            );
+            // Query Builder intentionally bypasses BelongsToTenant's saving hook:
+            // this observer runs while a tenant is being created by a platform admin.
+            DB::table('chart_of_accounts')->insertOrIgnore([
+                'tenant_id' => $tenantId,
+                'code' => $account['code'],
+                'name' => $account['name'],
+                'account_type' => $account['account_type'],
+                'is_system' => true,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
         }
     }
 }
