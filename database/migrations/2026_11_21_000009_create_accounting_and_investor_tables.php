@@ -68,7 +68,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['tenant_id', 'source_type', 'settled_at']);
-            $table->foreign(['branch_id', 'tenant_id'], 'cash_settlements_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->nullOnDelete();
+            $table->foreign(['branch_id', 'tenant_id'], 'cash_settlements_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->restrictOnDelete();
             $table->foreign(['target_bank_id', 'tenant_id'], 'cash_settlements_bank_tenant_foreign')->references(['id', 'tenant_id'])->on('bank_accounts')->restrictOnDelete();
         });
 
