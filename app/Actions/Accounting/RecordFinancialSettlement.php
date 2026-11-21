@@ -226,7 +226,7 @@ class RecordFinancialSettlement
         try {
             return BigDecimal::of((string) $grossAmount)
                 ->multipliedBy(BigDecimal::of((string) $mdrPercent))
-                ->dividedBy('100', 2, RoundingMode::HALF_UP)
+                ->dividedBy('100', 2, RoundingMode::HalfUp)
                 ->toScale(2)
                 ->__toString();
         } catch (NumberFormatException|RoundingNecessaryException) {
