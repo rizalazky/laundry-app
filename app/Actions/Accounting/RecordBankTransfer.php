@@ -97,6 +97,10 @@ class RecordBankTransfer
             $sourceAccount = $accounts->get($banks->get($sourceBankId)->coa_id);
             $destinationAccount = $accounts->get($banks->get($destinationBankId)->coa_id);
 
+            if ($sourceAccount->account_type !== 'asset' || $destinationAccount->account_type !== 'asset') {
+                throw new DomainException('Akun COA rekening sumber dan tujuan harus bertipe aset.');
+            }
+
             if ($sourceAccount->getKey() === $destinationAccount->getKey()) {
                 throw new DomainException('Rekening sumber dan tujuan harus menggunakan akun COA yang berbeda.');
             }
