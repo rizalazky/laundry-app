@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('cash_settlements', function (Blueprint $table) {
+        Schema::table('edc_machines', function (Blueprint $table) {\n            $table->unique(['id', 'tenant_id'], 'edc_machines_id_tenant_unique');\n        });\n\n        Schema::table('cash_settlements', function (Blueprint $table) {
             $table->decimal('gross_amount', 15, 2)->default(0)->after('amount');
             $table->decimal('mdr_amount', 15, 2)->default(0)->after('gross_amount');
             $table->decimal('net_amount', 15, 2)->default(0)->after('mdr_amount');
