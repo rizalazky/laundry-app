@@ -2,7 +2,7 @@
 
 namespace App\Actions\Inventory;
 
-use App\Actions\Orders\OrderActionAuthorization;
+use App\Actions\Inventory\InventoryActionAuthorization;
 use App\Enums\StockMovementType;
 use App\Models\Branch;
 use App\Models\InventoryItem;
@@ -17,11 +17,11 @@ use Illuminate\Validation\ValidationException;
 
 class ManageStockOpname
 {
-    public function __construct(private OrderActionAuthorization $authorization) {}
+    public function __construct(private InventoryActionAuthorization $authorization) {}
 
     public function create(User $user, Branch $branch, ?string $opnameDate = null, ?string $notes = null): StockOpname
     {
-        $branch = $this->authorization->authorizeBranch($user, $branch, ['tenant_owner']);
+        $branch = $this->authorization->authorizeBranch($user, $branch, 'stock.manage');
 
         return DB::transaction(function () use ($user, $branch, $opnameDate, $notes): StockOpname {
             $items = InventoryItem::query()
