@@ -99,6 +99,40 @@ class StockTransferTest extends TestCase
         $this->assertDatabaseCount('stock_movements', 0);
     }
 
+    public function test_soft_deleted_item_still_returns_insufficient_stock_validation_when_shipping(): void
+    {
+        [$tenant, $source, $destination, $owner, $item] = $this->context();
+        LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $source->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '2.0000',
+        ]);
+
+        $service = app(ManageStockTransfer::class);
+        $transfer = $service->request($owner, $source, $destination, [
+            ['inventory_item_id' => $item->id, 'quantity' => '5'],
+        ]);
+
+        $item->delete();
+
+        try {
+            $service->ship($owner, $transfer);
+            $this->fail('Expected insufficient stock validation for a soft-deleted item.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('stock', $exception->errors());
+            $this->assertStringContainsString('Barang #'.$item->id, $exception->errors()['stock'][0]);
+        }
+
+        $this->assertDatabaseHas('location_stocks', [
+            'branch_id' => $source->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '2.0000',
+        ]);
+        $this->assertDatabaseHas('stock_transfers', ['id' => $transfer->id, 'status' => 'requested']);
+        $this->assertDatabaseCount('stock_movements', 0);
+    }
+
     public function test_transfer_cannot_be_shipped_twice(): void
     {
         [, $source, $destination, $owner, $item] = $this->context();
