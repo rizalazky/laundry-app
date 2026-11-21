@@ -34,8 +34,16 @@ class InventoryItemsTable
                         default => $state,
                     }),
 
-                TextColumn::make('unit')
-                    ->label('Satuan'),
+                TextColumn::make('baseUnit.name')
+                    ->label('Satuan Dasar'),
+
+                TextColumn::make('purchaseUnit.name')
+                    ->label('Satuan Pembelian'),
+
+                TextColumn::make('purchase_unit_conversion_factor')
+                    ->label('Konversi')
+                    ->numeric(decimalPlaces: 6)
+                    ->toggleable(),
 
                 TextColumn::make('min_stock')
                     ->label('Minimum Stok')
