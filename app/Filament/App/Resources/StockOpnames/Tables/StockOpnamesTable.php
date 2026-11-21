@@ -1,17 +1,17 @@
 <?php
 
-namespace App\Filament\App\Resources\StockOpnames\Tables;
+namespace App\\Filament\\App\\Resources\\StockOpnames\\Tables;
 
-use App\Actions\Inventory\ManageStockOpname;
-use App\Models\StockOpname;
-use Filament\Actions\Action;
-use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\TextInput;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
+use App\\Actions\\Inventory\\ManageStockOpname;
+use App\\Models\\StockOpname;
+use Filament\\Actions\\Action;
+use Filament\\Forms\\Components\\Hidden;
+use Filament\\Forms\\Components\\Repeater;
+use Filament\\Forms\\Components\\TextInput;
+use Filament\\Tables\\Columns\\TextColumn;
+use Filament\\Tables\\Filters\\SelectFilter;
+use Filament\\Tables\\Table;
+use Illuminate\\Support\\Facades\\Auth;
 
 class StockOpnamesTable
 {
@@ -56,6 +56,10 @@ class StockOpnamesTable
                                     ->label('SKU')
                                     ->disabled()
                                     ->dehydrated(false),
+                                TextInput::make('unit_snapshot')
+                                    ->label('Satuan')
+                                    ->disabled()
+                                    ->dehydrated(false),
                                 TextInput::make('system_qty')
                                     ->label('Stok Sistem')
                                     ->disabled()
@@ -69,7 +73,7 @@ class StockOpnamesTable
                                     ->label('Catatan')
                                     ->maxLength(255),
                             ])
-                            ->columns(5)
+                            ->columns(6)
                             ->reorderable(false)
                             ->addable(false)
                             ->deletable(false)
@@ -80,6 +84,7 @@ class StockOpnamesTable
                             'id' => $line->id,
                             'item_name_snapshot' => $line->item_name_snapshot,
                             'item_sku_snapshot' => $line->item_sku_snapshot,
+                            'unit_snapshot' => $line->unit_snapshot,
                             'system_qty' => $line->system_qty,
                             'physical_qty' => $line->physical_qty,
                             'notes' => $line->notes,
@@ -116,12 +121,13 @@ class StockOpnamesTable
                             ->label('Hasil Opname')
                             ->schema([
                                 TextInput::make('item_name_snapshot')->label('Barang')->disabled()->dehydrated(false),
+                                TextInput::make('unit_snapshot')->label('Satuan')->disabled()->dehydrated(false),
                                 TextInput::make('system_qty')->label('Stok Sistem')->disabled()->dehydrated(false),
                                 TextInput::make('physical_qty')->label('Stok Fisik')->disabled()->dehydrated(false),
                                 TextInput::make('difference_qty')->label('Selisih')->disabled()->dehydrated(false),
                                 TextInput::make('notes')->label('Catatan')->disabled()->dehydrated(false),
                             ])
-                            ->columns(5)
+                            ->columns(6)
                             ->addable(false)
                             ->deletable(false)
                             ->reorderable(false),
@@ -129,6 +135,7 @@ class StockOpnamesTable
                     ->fillForm(fn (StockOpname $record): array => [
                         'items' => $record->items()->orderBy('id')->get()->map(fn ($line): array => [
                             'item_name_snapshot' => $line->item_name_snapshot,
+                            'unit_snapshot' => $line->unit_snapshot,
                             'system_qty' => $line->system_qty,
                             'physical_qty' => $line->physical_qty ?? 'Belum dihitung',
                             'difference_qty' => $line->difference_qty ?? '—',
