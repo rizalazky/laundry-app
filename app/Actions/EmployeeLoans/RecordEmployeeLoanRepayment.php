@@ -40,15 +40,11 @@ class RecordEmployeeLoanRepayment
                 throw new DomainException('Kasbon ini sudah lunas dan tidak menerima pembayaran lagi.');
             }
 
-            if (! is_numeric($amount) || (float) $amount <= 0 || (float) $amount > 9999999999999.99) {
-                throw new DomainException('Nominal pembayaran tidak valid.');
-            }
-
-            $paymentInCents = (int) round((float) $amount * 100);
-            $remainingInCents = (int) round((float) $loan->remaining_amount * 100);
+            $paymentInCents = $this->toCents($amount);
+            $remainingInCents = $this->toCents($loan->remaining_amount);
 
             if ($paymentInCents <= 0 || $paymentInCents > $remainingInCents) {
-                throw new DomainException('Pembayaran tidak boleh melebihi sisa kasbon.');
+                throw new DomainException('Pembayaran harus lebih dari nol dan tidak boleh melebihi sisa kasbon.');
             }
 
             $newRemainingInCents = $remainingInCents - $paymentInCents;
@@ -57,17 +53,36 @@ class RecordEmployeeLoanRepayment
                 'tenant_id' => $actor->tenant_id,
                 'employee_loan_id' => $loan->getKey(),
                 'recorded_by' => $actor->getKey(),
-                'amount' => number_format($paymentInCents / 100, 2, '.', ''),
+                'amount' => $this->fromCents($paymentInCents),
                 'paid_at' => $paidAt ?? now(),
                 'notes' => $notes,
             ]);
 
             $loan->forceFill([
-                'remaining_amount' => number_format($newRemainingInCents / 100, 2, '.', ''),
+                'remaining_amount' => $this->fromCents($newRemainingInCents),
                 'status' => $newRemainingInCents === 0 ? 'paid' : 'active',
             ])->save();
 
             return $repayment;
         });
+    }
+
+    private function toCents(string|int|float $amount): int
+    {
+        $value = trim((string) $amount);
+
+        if (! preg_match('/^(\d{1,13})(?:\.(\d{1,2}))?$/', $value, $matches)) {
+            throw new DomainException('Nominal pembayaran harus berupa angka dengan maksimal dua angka desimal.');
+        }
+
+        $whole = (int) $matches[1];
+        $fraction = (int) str_pad($matches[2] ?? '', 2, '0');
+
+        return ($whole * 100) + $fraction;
+    }
+
+    private function fromCents(int $amount): string
+    {
+        return intdiv($amount, 100).'.'.str_pad((string) ($amount % 100), 2, '0', STR_PAD_LEFT);
     }
 }
