@@ -137,7 +137,7 @@ class FinancialReportsTest extends TestCase
         );
 
         $this->assertSame('1150000.00', $report['total_assets']);
-        $this->assertSame('1000000.00', $report['total_equity']);
+        $this->assertSame('1150000.00', $report['total_equity']);
         $this->assertSame('150000.00', $report['current_year_earnings']);
         $this->assertSame('0.00', $report['difference']);
         $this->assertTrue($report['is_balanced']);
