@@ -19,13 +19,14 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['tenant_id', 'code']);
+            $table->unique(['id', 'tenant_id'], 'chart_of_accounts_id_tenant_unique');
             $table->index(['tenant_id', 'account_type']);
         });
 
         Schema::create('bank_accounts', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('coa_id')->constrained('chart_of_accounts')->restrictOnDelete();
+            $table->unsignedBigInteger('coa_id');
             $table->string('bank_name');
             $table->string('account_number', 100);
             $table->string('holder_name');
@@ -33,34 +34,42 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['tenant_id', 'account_number']);
+            $table->unique(['id', 'tenant_id'], 'bank_accounts_id_tenant_unique');
             $table->index(['tenant_id', 'is_active']);
+            $table->foreign(['coa_id', 'tenant_id'], 'bank_accounts_coa_tenant_foreign')->references(['id', 'tenant_id'])->on('chart_of_accounts')->restrictOnDelete();
         });
 
         Schema::create('edc_machines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
-            $table->foreignId('bank_account_id')->constrained()->restrictOnDelete();
+            $table->unsignedBigInteger('branch_id');
+            $table->unsignedBigInteger('bank_account_id');
             $table->string('terminal_name');
             $table->decimal('mdr_percent', 5, 2)->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
             $table->index(['tenant_id', 'branch_id', 'is_active']);
+            $table->unique(['id', 'tenant_id'], 'investors_id_tenant_unique');
+            $table->foreign(['branch_id', 'tenant_id'], 'investors_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
+            $table->foreign(['branch_id', 'tenant_id'], 'edc_machines_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
+            $table->foreign(['bank_account_id', 'tenant_id'], 'edc_machines_bank_tenant_foreign')->references(['id', 'tenant_id'])->on('bank_accounts')->restrictOnDelete();
         });
 
         Schema::create('cash_settlements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('branch_id')->nullable()->constrained('branches')->nullOnDelete();
+            $table->unsignedBigInteger('branch_id')->nullable();
             $table->string('source_type', 30);
             $table->decimal('amount', 15, 2);
-            $table->foreignId('target_bank_id')->constrained('bank_accounts')->restrictOnDelete();
+            $table->unsignedBigInteger('target_bank_id');
             $table->timestamp('settled_at');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
 
             $table->index(['tenant_id', 'source_type', 'settled_at']);
+            $table->foreign(['branch_id', 'tenant_id'], 'cash_settlements_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->nullOnDelete();
+            $table->foreign(['target_bank_id', 'tenant_id'], 'cash_settlements_bank_tenant_foreign')->references(['id', 'tenant_id'])->on('bank_accounts')->restrictOnDelete();
         });
 
         Schema::create('expenses', function (Blueprint $table) {
@@ -68,7 +77,7 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->string('location_type', 20);
             $table->unsignedBigInteger('location_id')->nullable();
-            $table->foreignId('coa_id')->constrained('chart_of_accounts')->restrictOnDelete();
+            $table->unsignedBigInteger('coa_id');
             $table->decimal('amount', 15, 2);
             $table->text('description');
             $table->timestamp('spent_at');
@@ -77,12 +86,13 @@ return new class extends Migration
 
             $table->index(['tenant_id', 'spent_at']);
             $table->index(['tenant_id', 'location_type', 'location_id']);
+            $table->foreign(['coa_id', 'tenant_id'], 'expenses_coa_tenant_foreign')->references(['id', 'tenant_id'])->on('chart_of_accounts')->restrictOnDelete();
         });
 
         Schema::create('capital_movements', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('coa_id')->constrained('chart_of_accounts')->restrictOnDelete();
+            $table->unsignedBigInteger('coa_id');
             $table->string('type', 30);
             $table->decimal('amount', 15, 2);
             $table->text('notes')->nullable();
@@ -91,12 +101,13 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['tenant_id', 'type', 'transacted_at']);
+            $table->foreign(['coa_id', 'tenant_id'], 'capital_movements_coa_tenant_foreign')->references(['id', 'tenant_id'])->on('chart_of_accounts')->restrictOnDelete();
         });
 
         Schema::create('journals', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('branch_id')->nullable()->constrained('branches')->nullOnDelete();
+            $table->unsignedBigInteger('branch_id')->nullable();
             $table->timestamp('journal_date');
             $table->string('reference_type', 100)->nullable();
             $table->unsignedBigInteger('reference_id')->nullable();
@@ -106,23 +117,28 @@ return new class extends Migration
 
             $table->index(['tenant_id', 'journal_date'], 'journals_tenant_date_index');
             $table->index(['tenant_id', 'reference_type', 'reference_id'], 'journals_tenant_reference_index');
+            $table->unique(['id', 'tenant_id'], 'journals_id_tenant_unique');
+            $table->foreign(['branch_id', 'tenant_id'], 'journals_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->nullOnDelete();
         });
 
         Schema::create('journal_entries', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('journal_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('coa_id')->constrained('chart_of_accounts')->restrictOnDelete();
+            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('journal_id');
+            $table->unsignedBigInteger('coa_id');
             $table->decimal('debit', 15, 2)->default(0);
             $table->decimal('credit', 15, 2)->default(0);
             $table->timestamps();
 
             $table->index(['journal_id', 'coa_id']);
+            $table->foreign(['journal_id', 'tenant_id'], 'journal_entries_journal_tenant_foreign')->references(['id', 'tenant_id'])->on('journals')->cascadeOnDelete();
+            $table->foreign(['coa_id', 'tenant_id'], 'journal_entries_coa_tenant_foreign')->references(['id', 'tenant_id'])->on('chart_of_accounts')->restrictOnDelete();
         });
 
         Schema::create('investors', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
+            $table->unsignedBigInteger('branch_id');
             $table->string('name');
             $table->decimal('capital_amount', 15, 2);
             $table->decimal('share_percent', 5, 2);
@@ -130,12 +146,16 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['tenant_id', 'branch_id', 'is_active']);
+            $table->unique(['id', 'tenant_id'], 'investors_id_tenant_unique');
+            $table->foreign(['branch_id', 'tenant_id'], 'investors_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
+            $table->foreign(['branch_id', 'tenant_id'], 'edc_machines_branch_tenant_foreign')->references(['id', 'tenant_id'])->on('branches')->cascadeOnDelete();
+            $table->foreign(['bank_account_id', 'tenant_id'], 'edc_machines_bank_tenant_foreign')->references(['id', 'tenant_id'])->on('bank_accounts')->restrictOnDelete();
         });
 
         Schema::create('profit_sharings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('investor_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('investor_id');
             $table->string('period_month', 7);
             $table->decimal('net_profit_base', 15, 2);
             $table->decimal('payout_amount', 15, 2);
@@ -145,6 +165,7 @@ return new class extends Migration
 
             $table->unique(['investor_id', 'period_month']);
             $table->index(['tenant_id', 'period_month', 'status']);
+            $table->foreign(['investor_id', 'tenant_id'], 'profit_sharings_investor_tenant_foreign')->references(['id', 'tenant_id'])->on('investors')->cascadeOnDelete();
         });
 
         Schema::create('tenant_reset_logs', function (Blueprint $table) {
