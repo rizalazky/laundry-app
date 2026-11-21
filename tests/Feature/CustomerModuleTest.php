@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Order;
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -183,6 +185,18 @@ class CustomerModuleTest extends TestCase
         $otherBranch = $this->createBranch($tenant, 'DGO');
         $manager = $this->createUser($tenant, 'branch_manager');
         $manager->branches()->attach($assignedBranch);
+
+        $orderViewPermission = Permission::query()->firstOrCreate(
+            ['slug' => 'orders.view'],
+            ['name' => 'Lihat Order', 'group' => 'Pesanan'],
+        );
+
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $orderViewPermission->id,
+        ]);
+
         $customer = $this->createCustomer($tenant, 'Customer Branch History');
 
         Order::factory()->create([
