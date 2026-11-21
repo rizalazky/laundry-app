@@ -209,6 +209,61 @@ class StockMovementTest extends TestCase
         );
     }
 
+    public function test_filament_purchase_form_converts_purchase_unit_quantity_and_cost(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $purchaseUnit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'box',
+            'name' => 'Dus',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+        $item->update([
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_conversion_factor' => 5,
+        ]);
+        $supplier = Supplier::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Supplier Form Test',
+        ]);
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        Livewire::test(CreateStockMovement::class)
+            ->fillForm([
+                'inventory_item_id' => $item->id,
+                'movement_type' => StockMovementType::Purchase->value,
+                'supplier_id' => $supplier->id,
+                'quantity' => '2',
+                'unit_cost' => '100000',
+                'notes' => 'Pembelian stok',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('stock_movements', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'supplier_id' => $supplier->id,
+            'movement_type' => 'purchase',
+            'purchase_quantity' => '2.0000',
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_name_snapshot' => 'Dus',
+            'purchase_conversion_factor' => '5.000000',
+            'quantity' => '10.0000',
+            'unit_cost' => '20000.00',
+        ]);
+        $this->assertDatabaseHas('location_stocks', [
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '10.0000',
+        ]);
+    }
+
     public function test_actor_cannot_record_movement_for_another_tenants_branch(): void
     {
         [, , $owner] = $this->makeInventoryContext();
