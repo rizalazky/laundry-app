@@ -65,7 +65,6 @@ class StockMovementForm
                         ->label(fn (Get $get): string => $get('movement_type') === StockMovementType::Purchase->value ? 'Jumlah Pembelian' : 'Jumlah')
                         ->numeric()
                         ->step('0.0001')
-                        ->minValue(0.0001)
                         ->required()
                         ->helperText(fn (Get $get): string => self::quantityHelp($get, $tenantId)),
 
