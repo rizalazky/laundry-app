@@ -34,7 +34,7 @@ class TenantOwnedChildModelIsolationTest extends TestCase
         $foreignBranch = Branch::factory()->for($foreignTenant)->create();
         $service = Service::factory()->for($tenant)->create();
         $foreignService = Service::factory()->for($foreignTenant)->create();
-        $permission = Permission::factory()->create();
+        $permission = Permission::query()->create(['name' => 'Lihat Pesanan', 'slug' => 'orders.view', 'group' => 'Pesanan']);
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
 
         $ownPrice = BranchServicePrice::query()->create([
@@ -138,7 +138,6 @@ class TenantOwnedChildModelIsolationTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $foreignTenant = Tenant::factory()->create();
-        $branch = Branch::factory()->for($tenant)->create();
         $foreignBranch = Branch::factory()->for($foreignTenant)->create();
         $foreignService = Service::factory()->for($foreignTenant)->create();
         $foreignOrder = Order::factory()->create([
@@ -233,7 +232,7 @@ class TenantOwnedChildModelIsolationTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $foreignTenant = Tenant::factory()->create();
-        $permission = Permission::factory()->create();
+        $permission = Permission::query()->create(['name' => 'Lihat Pesanan', 'slug' => 'orders.view', 'group' => 'Pesanan']);
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
 
