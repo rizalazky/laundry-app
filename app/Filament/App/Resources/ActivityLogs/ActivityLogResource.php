@@ -66,16 +66,15 @@ class ActivityLogResource extends Resource
             ->whereIn('branch_id', $managedBranchIds)
             ->select('attendances.id');
 
-        return $query->where(function (Builder $logs) use ($visibleStaffIds, $visibleAttendanceIds): void {
-            $logs
-                ->whereIn('user_id', $visibleStaffIds)
-                ->orWhere(function (Builder $subjects) use ($visibleStaffIds): void {
-                    $subjects
+        return $query->where(function (Builder $subjects) use ($visibleStaffIds, $visibleAttendanceIds): void {
+            $subjects
+                ->where(function (Builder $staff) use ($visibleStaffIds): void {
+                    $staff
                         ->where('subject_type', User::class)
                         ->whereIn('subject_id', $visibleStaffIds);
                 })
-                ->orWhere(function (Builder $subjects) use ($visibleAttendanceIds): void {
-                    $subjects
+                ->orWhere(function (Builder $attendance) use ($visibleAttendanceIds): void {
+                    $attendance
                         ->where('subject_type', Attendance::class)
                         ->whereIn('subject_id', $visibleAttendanceIds);
                 });
