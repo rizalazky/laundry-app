@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\Tenant;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -27,6 +29,12 @@ class RolePermissionService
      */
     public function sync(Tenant $tenant, string $role, array $permissionIds): void
     {
+        $actorTenantId = Auth::user()?->tenant_id;
+
+        if ($actorTenantId !== null && (int) $actorTenantId !== (int) $tenant->getKey()) {
+            throw new AuthorizationException('Tenant lain tidak dapat mengubah matriks hak akses.');
+        }
+
         if (! in_array($role, self::CONFIGURABLE_ROLES, true)) {
             throw ValidationException::withMessages([
                 'role' => 'Role ini tidak dapat dikonfigurasi melalui matriks izin tenant.',
