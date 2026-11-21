@@ -13,6 +13,7 @@ use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Actions\Accounting\TenantScopedIdempotency;
 
 class RecordBankTransfer
 {
@@ -33,6 +34,7 @@ class RecordBankTransfer
         ?int $branchId = null,
         ?string $referenceNumber = null,
         ?int $createdBy = null,
+        ?string $idempotencyKey = null,
     ): BankTransfer {
         $authenticatedTenantId = Auth::user()?->tenant_id;
 
@@ -54,7 +56,39 @@ class RecordBankTransfer
             throw new DomainException('Nominal transfer harus lebih besar dari nol.');
         }
 
-        return DB::transaction(function () use (
+        $referenceNumber = $referenceNumber !== null ? trim($referenceNumber) : null;
+        $idempotencyKey = $idempotencyKey !== null ? trim($idempotencyKey) : null;
+        $referenceNumber = $referenceNumber === '' ? null : $referenceNumber;
+        $idempotencyKey = $idempotencyKey === '' ? null : $idempotencyKey;
+
+        if ($referenceNumber !== null && strlen($referenceNumber) > 100) {
+            throw new DomainException('Reference number maksimal 100 karakter.');
+        }
+
+        if ($idempotencyKey !== null && strlen($idempotencyKey) > 128) {
+            throw new DomainException('Idempotency key maksimal 128 karakter.');
+        }
+
+        if ($referenceNumber === null && $idempotencyKey === null) {
+            throw new DomainException('Reference number atau idempotency key wajib diisi untuk mencegah pencatatan ganda.');
+        }
+
+        $payloadHash = hash('sha256', json_encode([
+            'branch_id' => $branchId,
+            'source_bank_id' => $sourceBankId,
+            'destination_bank_id' => $destinationBankId,
+            'amount' => (string) $transferAmount,
+            'transferred_at' => $transferredAt->format('Y-m-d H:i:s'),
+            'reference_number' => $referenceNumber,
+        ], JSON_THROW_ON_ERROR));
+
+        return app(TenantScopedIdempotency::class)->execute(
+            modelClass: BankTransfer::class,
+            tenantId: $tenantId,
+            referenceNumber: $referenceNumber,
+            idempotencyKey: $idempotencyKey,
+            payloadHash: $payloadHash,
+            callback: function () use (
             $tenantId,
             $sourceBankId,
             $destinationBankId,
@@ -63,6 +97,8 @@ class RecordBankTransfer
             $branchId,
             $referenceNumber,
             $createdBy,
+            $idempotencyKey,
+            $payloadHash,
         ): BankTransfer {
             if ($branchId !== null && ! Branch::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)->whereKey($branchId)->exists()) {
@@ -112,6 +148,8 @@ class RecordBankTransfer
                 'destination_bank_id' => $destinationBankId,
                 'amount' => (string) $transferAmount,
                 'reference_number' => $referenceNumber,
+                'idempotency_key' => $idempotencyKey,
+                'payload_hash' => $payloadHash,
                 'transferred_at' => $transferredAt,
                 'created_by' => $createdBy ?? Auth::id(),
             ]);
@@ -138,7 +176,7 @@ class RecordBankTransfer
                 createdBy: $createdBy ?? Auth::id(),
             );
 
-            return $transfer->load(['branch', 'sourceBank', 'destinationBank']);
-        });
+            return $transfer;
+        })->load(['branch', 'sourceBank', 'destinationBank']);
     }
 }
