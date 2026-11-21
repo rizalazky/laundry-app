@@ -131,11 +131,12 @@ class CreateJournal
                         ->where('tenant_id', $tenantId)
                         ->where('reference_type', $referenceType)
                         ->where('reference_id', $referenceId)
-                        ->with('entries')
                         ->lockForUpdate()
                         ->first();
     
                     if ($existing !== null) {
+                        $this->loadEntriesForCurrentRead($existing);
+
                         if ($this->matchesExistingJournal(
                             $existing,
                             $branchId,
