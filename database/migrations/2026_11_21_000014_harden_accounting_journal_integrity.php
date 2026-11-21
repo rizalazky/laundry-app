@@ -9,6 +9,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('journals', function (Blueprint $table) {
+            // The unique index also serves the existing reference lookup pattern.
+            // Replace the non-unique index instead of maintaining both.
+            $table->dropIndex('journals_tenant_reference_index');
+
             // A source transaction may produce at most one journal per tenant.
             // Null references remain available for manually entered journals.
             $table->unique(
@@ -34,6 +38,10 @@ return new class extends Migration
 
         Schema::table('journals', function (Blueprint $table) {
             $table->dropUnique('journals_tenant_reference_unique');
+            $table->index(
+                ['tenant_id', 'reference_type', 'reference_id'],
+                'journals_tenant_reference_index',
+            );
         });
     }
 };
