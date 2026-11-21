@@ -58,6 +58,24 @@ class BranchPermissionEnforcementTest extends TestCase
         $this->assertTrue($gate->allows('update', $branch));
     }
 
+    public function test_branch_manager_cannot_change_branch_type_through_hidden_form_payload(): void
+    {
+        [, $branch, $manager] = $this->context();
+        $this->grantPermission($manager, 'branches.view');
+        $this->grantPermission($manager, 'branches.manage');
+        $this->actingAs($manager);
+
+        $page = new EditBranchProfile();
+        $method = new \ReflectionMethod(EditBranchProfile::class, 'handleRecordUpdate');
+        $method->invoke($page, $branch, [
+            'name' => 'Updated Branch',
+            'is_workshop' => true,
+        ]);
+
+        $this->assertSame('Updated Branch', $branch->fresh()->name);
+        $this->assertFalse($branch->fresh()->is_workshop);
+    }
+
     public function test_branch_manager_cannot_create_a_branch_even_with_manage_permission(): void
     {
         [, , $manager] = $this->context();
