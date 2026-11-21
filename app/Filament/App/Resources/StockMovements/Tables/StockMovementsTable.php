@@ -3,9 +3,11 @@
 namespace App\Filament\App\Resources\StockMovements\Tables;
 
 use App\Enums\StockMovementType;
+use App\Models\Branch;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class StockMovementsTable
 {
@@ -19,6 +21,10 @@ class StockMovementsTable
                     ->dateTime('d M Y H:i')
                     ->sortable(),
 
+                TextColumn::make('branch.name')
+                    ->label('Lokasi')
+                    ->sortable(),
+
                 TextColumn::make('inventoryItem.name')
                     ->label('Barang')
                     ->description(fn ($record): ?string => $record->inventoryItem?->sku)
@@ -29,15 +35,32 @@ class StockMovementsTable
                     ->badge()
                     ->formatStateUsing(fn (StockMovementType $state): string => $state->label())
                     ->color(fn (StockMovementType $state): string => match ($state) {
-                        StockMovementType::In => 'success',
-                        StockMovementType::Out => 'warning',
+                        StockMovementType::In, StockMovementType::Purchase => 'success',
+                        StockMovementType::Out, StockMovementType::Usage => 'warning',
                         StockMovementType::Adjustment => 'info',
                     }),
 
+                TextColumn::make('supplier_name_snapshot')
+                    ->label('Supplier')
+                    ->placeholder('—')
+                    ->toggleable(),
+
+                TextColumn::make('purchase_quantity')
+                    ->label('Jumlah Dibeli')
+                    ->numeric(decimalPlaces: 4)
+                    ->suffix(fn ($record): string => $record->purchase_unit_name_snapshot ? ' '.$record->purchase_unit_name_snapshot : '')
+                    ->placeholder('—')
+                    ->toggleable(),
+
                 TextColumn::make('quantity')
-                    ->label('Perubahan')
+                    ->label('Perubahan Stok')
                     ->numeric(decimalPlaces: 4)
                     ->suffix(fn ($record): string => ' '.($record->inventoryItem?->baseUnit?->code ?? $record->inventoryItem?->unit ?? '')),
+
+                TextColumn::make('unit_cost')
+                    ->label('Biaya / Satuan Dasar')
+                    ->money('IDR')
+                    ->toggleable(),
 
                 TextColumn::make('stock_before')
                     ->label('Stok Sebelum')
@@ -56,6 +79,13 @@ class StockMovementsTable
                     ->label('Jenis Mutasi')
                     ->options(collect(StockMovementType::cases())
                         ->mapWithKeys(fn (StockMovementType $type): array => [$type->value => $type->label()])
+                        ->all()),
+                SelectFilter::make('branch_id')
+                    ->label('Lokasi')
+                    ->options(fn (): array => Branch::query()
+                        ->where('tenant_id', Auth::user()?->tenant_id)
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
                         ->all()),
             ]);
     }

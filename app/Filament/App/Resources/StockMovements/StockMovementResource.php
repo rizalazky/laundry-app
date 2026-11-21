@@ -8,7 +8,6 @@ use App\Filament\App\Resources\StockMovements\Schemas\StockMovementForm;
 use App\Filament\App\Resources\StockMovements\Tables\StockMovementsTable;
 use App\Models\StockMovement;
 use BackedEnum;
-use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
@@ -31,10 +30,7 @@ class StockMovementResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('tenant_id', Auth::user()?->tenant_id)
-            ->when(
-                Filament::getTenant(),
-                fn (Builder $query, $branch) => $query->where('branch_id', $branch->getKey()),
-            );
+            ->with(['branch', 'inventoryItem.baseUnit', 'supplier', 'createdBy']);
     }
 
     public static function form(Schema $schema): Schema

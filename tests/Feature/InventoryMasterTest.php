@@ -6,6 +6,7 @@ use App\Filament\App\Resources\InventoryItems\Pages\CreateInventoryItem;
 use App\Filament\App\Resources\Suppliers\Pages\CreateSupplier;
 use App\Models\InventoryItem;
 use App\Models\InventoryUnit;
+use App\Models\LocationStock;
 use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\User;
@@ -70,6 +71,50 @@ class InventoryMasterTest extends TestCase
             ->assertOk()
             ->assertSee('Detergen')
             ->assertDontSee('Detergen Tenant Lain');
+    }
+
+    public function test_inventory_item_table_displays_stock_for_the_active_branch_only(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = $tenant->branches()->create(['code' => 'PUSAT', 'name' => 'Pusat', 'is_active' => true]);
+        $otherBranch = $tenant->branches()->create(['code' => 'DAGO', 'name' => 'Dago', 'is_active' => true]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $unit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'liter',
+            'name' => 'Liter',
+            'decimal_places' => 2,
+            'is_active' => true,
+        ]);
+        $item = InventoryItem::query()->create([
+            'tenant_id' => $tenant->id,
+            'sku' => 'DET-LOC-001',
+            'name' => 'Detergen Cabang',
+            'unit' => 'Liter',
+            'base_unit_id' => $unit->id,
+            'purchase_unit_id' => $unit->id,
+            'purchase_unit_conversion_factor' => 1,
+            'item_category' => 'raw_material',
+            'min_stock' => 5,
+        ]);
+        LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '4.2500',
+        ]);
+        LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $otherBranch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '20.0000',
+        ]);
+
+        $this->actingAs($owner)
+            ->get('/app/'.$branch->code.'/inventory-items')
+            ->assertOk()
+            ->assertSee('4.2500')
+            ->assertDontSee('20.0000');
     }
 
     public function test_owner_can_create_supplier_and_inventory_item_from_filament_forms(): void

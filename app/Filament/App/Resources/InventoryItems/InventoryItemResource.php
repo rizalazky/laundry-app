@@ -9,6 +9,7 @@ use App\Filament\App\Resources\InventoryItems\Schemas\InventoryItemForm;
 use App\Filament\App\Resources\InventoryItems\Tables\InventoryItemsTable;
 use App\Models\InventoryItem;
 use BackedEnum;
+use Filament\Facades\Filament;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
@@ -21,7 +22,7 @@ class InventoryItemResource extends Resource
     protected static ?string $model = InventoryItem::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
-    protected static UnitEnum|string|null $navigationGroup = 'Master Data';
+    protected static UnitEnum|string|null $navigationGroup = 'Inventori';
     protected static ?string $recordTitleAttribute = 'name';
     protected static ?string $navigationLabel = 'Barang Inventori';
     protected static ?string $modelLabel = 'Barang Inventori';
@@ -29,8 +30,14 @@ class InventoryItemResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        $branchId = Filament::getTenant()?->getKey();
+
         return parent::getEloquentQuery()
-            ->where('tenant_id', Auth::user()?->tenant_id);
+            ->where('tenant_id', Auth::user()?->tenant_id)
+            ->with(['baseUnit', 'purchaseUnit'])
+            ->withSum([
+                'locationStocks as current_stock' => fn (Builder $query) => $query->where('branch_id', $branchId),
+            ], 'quantity');
     }
 
     public static function form(Schema $schema): Schema

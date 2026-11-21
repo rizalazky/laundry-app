@@ -21,7 +21,7 @@ class SupplierResource extends Resource
     protected static ?string $model = Supplier::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-truck';
-    protected static UnitEnum|string|null $navigationGroup = 'Master Data';
+    protected static UnitEnum|string|null $navigationGroup = 'Inventori';
     protected static ?string $recordTitleAttribute = 'name';
     protected static ?string $navigationLabel = 'Supplier';
     protected static ?string $modelLabel = 'Supplier';

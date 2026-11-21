@@ -17,6 +17,12 @@ class StockMovement extends Model
         'tenant_id',
         'branch_id',
         'inventory_item_id',
+        'supplier_id',
+        'supplier_name_snapshot',
+        'purchase_quantity',
+        'purchase_unit_id',
+        'purchase_unit_name_snapshot',
+        'purchase_conversion_factor',
         'movement_type',
         'quantity',
         'stock_before',
@@ -34,6 +40,8 @@ class StockMovement extends Model
             'quantity' => 'decimal:4',
             'stock_before' => 'decimal:4',
             'stock_after' => 'decimal:4',
+            'purchase_quantity' => 'decimal:4',
+            'purchase_conversion_factor' => 'decimal:6',
             'unit_cost' => 'decimal:2',
             'created_at' => 'datetime',
         ];
@@ -47,6 +55,16 @@ class StockMovement extends Model
     public function inventoryItem(): BelongsTo
     {
         return $this->belongsTo(InventoryItem::class);
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function purchaseUnit(): BelongsTo
+    {
+        return $this->belongsTo(InventoryUnit::class, 'purchase_unit_id');
     }
 
     public function createdBy(): BelongsTo

@@ -3,15 +3,19 @@
 namespace Tests\Feature;
 
 use App\Actions\Inventory\RecordStockMovement;
+use App\Filament\App\Resources\StockMovements\Pages\CreateStockMovement;
 use App\Enums\StockMovementType;
 use App\Models\Branch;
 use App\Models\InventoryItem;
 use App\Models\InventoryUnit;
 use App\Models\LocationStock;
 use App\Models\StockMovement;
+use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -107,6 +111,246 @@ class StockMovementTest extends TestCase
             StockMovementType::Adjustment,
             '-0.0001',
         );
+    }
+
+    public function test_supplier_purchase_converts_purchase_units_and_records_supplier_audit_details(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $purchaseUnit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'jerigen',
+            'name' => 'Jerigen',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+        $item->update([
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_conversion_factor' => 5,
+        ]);
+        $supplier = Supplier::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Supplier Bahan',
+        ]);
+
+        $movement = app(RecordStockMovement::class)->handle(
+            branch: $branch,
+            user: $owner,
+            inventoryItemId: $item->id,
+            movementType: StockMovementType::Purchase,
+            quantity: '10',
+            unitCost: '2000',
+            supplierId: $supplier->id,
+            purchaseQuantity: '2',
+            purchaseUnitId: $purchaseUnit->id,
+            purchaseUnitNameSnapshot: $purchaseUnit->name,
+            purchaseConversionFactor: '5.000000',
+        );
+
+        $this->assertSame(StockMovementType::Purchase, $movement->movement_type);
+        $this->assertSame('10.0000', $movement->quantity);
+        $this->assertSame('2000.00', $movement->unit_cost);
+        $this->assertSame($supplier->id, $movement->supplier_id);
+        $this->assertSame('Supplier Bahan', $movement->supplier_name_snapshot);
+        $this->assertSame('2.0000', $movement->purchase_quantity);
+        $this->assertSame('Jerigen', $movement->purchase_unit_name_snapshot);
+        $this->assertSame('5.000000', $movement->purchase_conversion_factor);
+        $this->assertDatabaseHas('location_stocks', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '10.0000',
+        ]);
+    }
+
+    public function test_purchase_can_replenish_an_item_using_its_existing_inactive_purchase_unit(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $purchaseUnit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'pail',
+            'name' => 'Pail',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+        $item->update([
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_conversion_factor' => 5,
+        ]);
+        $purchaseUnit->update(['is_active' => false]);
+        $supplier = Supplier::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Supplier Lama',
+        ]);
+
+        $movement = app(RecordStockMovement::class)->handle(
+            branch: $branch,
+            user: $owner,
+            inventoryItemId: $item->id,
+            movementType: StockMovementType::Purchase,
+            quantity: '5',
+            supplierId: $supplier->id,
+            purchaseQuantity: '1',
+            purchaseUnitId: $purchaseUnit->id,
+            purchaseUnitNameSnapshot: $purchaseUnit->name,
+            purchaseConversionFactor: '5',
+        );
+
+        $this->assertSame('5.0000', $movement->quantity);
+        $this->assertSame('Pail', $movement->purchase_unit_name_snapshot);
+    }
+
+    public function test_filament_purchase_form_rejects_conversions_that_exceed_stock_precision(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $item->update(['purchase_unit_conversion_factor' => '0.000010']);
+        $supplier = Supplier::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Supplier Presisi',
+        ]);
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        Livewire::test(CreateStockMovement::class)
+            ->fillForm([
+                'inventory_item_id' => $item->id,
+                'movement_type' => StockMovementType::Purchase->value,
+                'supplier_id' => $supplier->id,
+                'quantity' => '1',
+                'unit_cost' => '1000',
+            ])
+            ->call('create')
+            ->assertHasErrors(['quantity']);
+
+        $this->assertDatabaseCount('stock_movements', 0);
+    }
+
+    public function test_usage_movement_decreases_stock_and_keeps_a_positive_input_quantity(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '8.0000',
+        ]);
+
+        $movement = app(RecordStockMovement::class)->handle(
+            $branch,
+            $owner,
+            $item->id,
+            StockMovementType::Usage,
+            '2.5',
+        );
+
+        $this->assertSame('-2.5000', $movement->quantity);
+        $this->assertSame('5.5000', $movement->stock_after);
+        $this->assertDatabaseHas('location_stocks', [
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '5.5000',
+        ]);
+    }
+
+    public function test_purchase_rejects_supplier_from_another_tenant(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $otherTenant = Tenant::factory()->create();
+        $foreignSupplier = Supplier::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'name' => 'Supplier Asing',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(RecordStockMovement::class)->handle(
+            branch: $branch,
+            user: $owner,
+            inventoryItemId: $item->id,
+            movementType: StockMovementType::Purchase,
+            quantity: '1',
+            supplierId: $foreignSupplier->id,
+            purchaseQuantity: '1',
+            purchaseUnitId: $item->purchase_unit_id,
+            purchaseUnitNameSnapshot: 'Kilogram',
+            purchaseConversionFactor: '1.000000',
+        );
+    }
+
+    public function test_filament_purchase_form_converts_purchase_unit_quantity_and_cost(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $purchaseUnit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'box',
+            'name' => 'Dus',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+        $item->update([
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_conversion_factor' => 5,
+        ]);
+        $supplier = Supplier::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Supplier Form Test',
+        ]);
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        Livewire::test(CreateStockMovement::class)
+            ->fillForm([
+                'inventory_item_id' => $item->id,
+                'movement_type' => StockMovementType::Purchase->value,
+                'supplier_id' => $supplier->id,
+                'quantity' => '2',
+                'unit_cost' => '100000',
+                'notes' => 'Pembelian stok',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('stock_movements', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'supplier_id' => $supplier->id,
+            'supplier_name_snapshot' => 'Supplier Form Test',
+            'movement_type' => 'purchase',
+            'purchase_quantity' => '2.0000',
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_name_snapshot' => 'Dus',
+            'purchase_conversion_factor' => '5.000000',
+            'quantity' => '10.0000',
+            'unit_cost' => '20000.00',
+        ]);
+        $this->assertDatabaseHas('location_stocks', [
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '10.0000',
+        ]);
+    }
+
+    public function test_inventory_history_includes_all_branches_in_the_same_tenant(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $otherBranch = Branch::factory()->for($tenant)->create();
+        $service = app(RecordStockMovement::class);
+
+        $service->handle($branch, $owner, $item->id, StockMovementType::In, '5');
+        $service->handle($otherBranch, $owner, $item->id, StockMovementType::In, '3');
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $this->get('/app/'.$branch->code.'/stock-movements')
+            ->assertOk()
+            ->assertSee('5.0000')
+            ->assertSee('3.0000');
     }
 
     public function test_actor_cannot_record_movement_for_another_tenants_branch(): void
