@@ -2,10 +2,12 @@
 
 namespace App\Filament\App\Resources\Users\Tables;
 
-use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class UsersTable
 {
@@ -47,7 +49,26 @@ class UsersTable
                     ->label('Aktif')
                     ->boolean(),
             ])
-            ->filters([])
+            ->filters([
+                SelectFilter::make('role')
+                    ->label('Jabatan')
+                    ->options(fn (): array => Auth::user()?->role === 'tenant_owner'
+                        ? [
+                            'branch_manager' => 'Branch Manager',
+                            'cashier' => 'Kasir',
+                            'operator' => 'Operator Produksi',
+                        ]
+                        : [
+                            'cashier' => 'Kasir',
+                            'operator' => 'Operator Produksi',
+                        ]),
+
+                TernaryFilter::make('is_active')
+                    ->label('Status Akun')
+                    ->placeholder('Semua status')
+                    ->trueLabel('Aktif')
+                    ->falseLabel('Nonaktif'),
+            ])
             ->recordActions([
                 EditAction::make(),
             ]);
