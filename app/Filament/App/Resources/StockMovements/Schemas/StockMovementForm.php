@@ -1,17 +1,17 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\StockMovements\\Schemas;
+namespace App\Filament\App\Resources\StockMovements\Schemas;
 
-use App\\Enums\\StockMovementType;
-use App\\Models\\InventoryItem;
-use App\\Models\\Supplier;
-use Filament\\Forms\\Components\\Select;
-use Filament\\Forms\\Components\\Textarea;
-use Filament\\Forms\\Components\\TextInput;
-use Filament\\Forms\\Components\\Utilities\\Get;
-use Filament\\Schemas\\Components\\Section;
-use Filament\\Schemas\\Schema;
-use Illuminate\\Support\\Facades\\Auth;
+use App\Enums\StockMovementType;
+use App\Models\InventoryItem;
+use App\Models\Supplier;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Utilities\Get;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Auth;
 
 class StockMovementForm
 {
