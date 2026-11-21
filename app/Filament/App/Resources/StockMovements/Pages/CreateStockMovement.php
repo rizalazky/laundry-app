@@ -1,21 +1,21 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\StockMovements\\Pages;
+namespace App\Filament\App\Resources\StockMovements\Pages;
 
-use App\\Actions\\Inventory\\RecordStockMovement;
-use App\\Enums\\StockMovementType;
-use App\\Filament\\App\\Resources\\StockMovements\\StockMovementResource;
-use App\\Models\\Branch;
-use App\\Models\\InventoryItem;
-use App\\Models\\StockMovement;
-use App\\Models\\User;
-use Brick\\Math\\BigDecimal;
-use Brick\\Math\\RoundingMode;
-use Filament\\Facades\\Filament;
-use Filament\\Resources\\Pages\\CreateRecord;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Validation\\ValidationException;
+use App\Actions\Inventory\RecordStockMovement;
+use App\Enums\StockMovementType;
+use App\Filament\App\Resources\StockMovements\StockMovementResource;
+use App\Models\Branch;
+use App\Models\InventoryItem;
+use App\Models\StockMovement;
+use App\Models\User;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
+use Filament\Facades\Filament;
+use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreateStockMovement extends CreateRecord
 {
