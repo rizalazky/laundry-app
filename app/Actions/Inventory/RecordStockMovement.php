@@ -90,7 +90,7 @@ class RecordStockMovement
                     ]);
                 }
 
-                if ($purchaseUnit === null || ! $purchaseUnit->is_active || (int) $purchaseUnit->getKey() !== (int) $purchaseUnitId) {
+                if ($purchaseUnit === null || (int) $purchaseUnit->getKey() !== (int) $purchaseUnitId) {
                     throw ValidationException::withMessages([
                         'purchase_unit_id' => 'Satuan pembelian tidak sesuai dengan pengaturan barang.',
                     ]);
