@@ -63,6 +63,7 @@ class AppPanelProvider extends PanelProvider
             ->login()
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->sidebarWidth('17rem');
     }
 }
