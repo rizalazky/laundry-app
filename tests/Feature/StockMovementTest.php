@@ -150,6 +150,7 @@ class StockMovementTest extends TestCase
         $this->assertSame('10.0000', $movement->quantity);
         $this->assertSame('2000.00', $movement->unit_cost);
         $this->assertSame($supplier->id, $movement->supplier_id);
+        $this->assertSame('Supplier Bahan', $movement->supplier_name_snapshot);
         $this->assertSame('2.0000', $movement->purchase_quantity);
         $this->assertSame('Jerigen', $movement->purchase_unit_name_snapshot);
         $this->assertSame('5.000000', $movement->purchase_conversion_factor);
