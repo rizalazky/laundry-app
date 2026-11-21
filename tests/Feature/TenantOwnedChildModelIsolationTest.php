@@ -26,6 +26,41 @@ class TenantOwnedChildModelIsolationTest extends TestCase
 {
     use RefreshDatabase;
 
+
+    public function test_tenantless_authenticated_users_fail_closed_while_super_admin_can_query_all_tenants(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $ownCustomer = Customer::factory()->for($tenant)->create();
+        $foreignCustomer = Customer::factory()->for($foreignTenant)->create();
+        $tenantlessCashier = User::factory()->withRole('cashier')->create(['tenant_id' => null]);
+        $superAdmin = User::factory()->withRole('super_admin')->create(['tenant_id' => null]);
+
+        $this->actingAs($tenantlessCashier);
+
+        $this->assertSame([], Customer::query()->pluck('id')->all());
+
+        try {
+            Customer::query()->create([
+                'tenant_id' => $tenant->id,
+                'name' => 'Tenantless user attempt',
+                'phone' => '081234567890',
+            ]);
+            $this->fail('An authenticated user without a tenant must not create tenant-owned records.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseMissing('customers', [
+                'name' => 'Tenantless user attempt',
+            ]);
+        }
+
+        $this->actingAs($superAdmin);
+
+        $this->assertEqualsCanonicalizing(
+            [$ownCustomer->id, $foreignCustomer->id],
+            Customer::query()->pluck('id')->all(),
+        );
+    }
+
     public function test_tenant_owned_models_scope_queries_and_override_forged_tenant_ids(): void
     {
         $tenant = Tenant::factory()->create();
