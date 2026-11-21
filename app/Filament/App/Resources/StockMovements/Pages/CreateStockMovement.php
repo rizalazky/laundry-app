@@ -11,6 +11,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
+use Brick\Math\Exception\RoundingNecessaryException;
 use Filament\Facades\Filament;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -56,7 +57,16 @@ class CreateStockMovement extends CreateRecord
             }
 
             $factor = BigDecimal::of((string) $item->purchase_unit_conversion_factor);
-            $quantity = (string) BigDecimal::of($quantity)->multipliedBy($factor)->toScale(4);
+
+            try {
+                $convertedQuantity = BigDecimal::of($quantity)->multipliedBy($factor)->toScale(4);
+            } catch (RoundingNecessaryException) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Hasil konversi melebihi presisi stok (maksimal 4 angka desimal). Sesuaikan jumlah pembelian atau faktor konversi.',
+                ]);
+            }
+
+            $quantity = (string) $convertedQuantity;
             $unitCost = (string) BigDecimal::of($unitCost)->dividedBy($factor, 2, RoundingMode::HalfUp);
 
             $purchaseDetails = [
