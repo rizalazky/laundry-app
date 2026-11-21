@@ -10,8 +10,8 @@ use Brick\Math\Exception\NumberFormatException;
 use Brick\Math\Exception\RoundingNecessaryException;
 use Carbon\CarbonInterface;
 use DomainException;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class CreateJournal
@@ -98,80 +98,80 @@ class CreateJournal
 
         try {
             return DB::transaction(function () use (
-            $tenantId,
-            $branchId,
-            $journalDate,
-            $referenceType,
-            $referenceId,
-            $description,
-            $normalizedEntries,
-            $createdBy,
-        ): Journal {
-            $accounts = ChartOfAccount::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->where('is_active', true)
-                ->whereIn('code', array_keys($normalizedEntries))
-                ->get()
-                ->keyBy('code');
-
-            if ($accounts->count() !== count($normalizedEntries)) {
-                throw new DomainException('Satu atau lebih akun tidak ditemukan, nonaktif, atau bukan milik tenant ini.');
-            }
-
-            $expectedEntries = [];
-
-            foreach ($normalizedEntries as $code => $amounts) {
-                $expectedEntries[$accounts->get($code)->getKey()] = $amounts;
-            }
-
-            ksort($expectedEntries);
-
-            if ($referenceType !== null) {
-                $existing = Journal::withoutGlobalScope('tenant')
+                $tenantId,
+                $branchId,
+                $journalDate,
+                $referenceType,
+                $referenceId,
+                $description,
+                $normalizedEntries,
+                $createdBy,
+            ): Journal {
+                $accounts = ChartOfAccount::withoutGlobalScope('tenant')
                     ->where('tenant_id', $tenantId)
-                    ->where('reference_type', $referenceType)
-                    ->where('reference_id', $referenceId)
-                    ->with('entries')
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($existing !== null) {
-                    if ($this->matchesExistingJournal(
-                        $existing,
-                        $branchId,
-                        $journalDate,
-                        $description,
-                        $expectedEntries,
-                    )) {
-                        return $existing;
-                    }
-
-                    throw new DomainException('Referensi jurnal sudah digunakan dengan isi yang berbeda.');
+                    ->where('is_active', true)
+                    ->whereIn('code', array_keys($normalizedEntries))
+                    ->get()
+                    ->keyBy('code');
+    
+                if ($accounts->count() !== count($normalizedEntries)) {
+                    throw new DomainException('Satu atau lebih akun tidak ditemukan, nonaktif, atau bukan milik tenant ini.');
                 }
-            }
-
-            $journal = Journal::query()->create([
-                'tenant_id' => $tenantId,
-                'branch_id' => $branchId,
-                'journal_date' => $journalDate,
-                'reference_type' => $referenceType,
-                'reference_id' => $referenceId,
-                'description' => $description,
-                'created_by' => $createdBy,
-            ]);
-
-            foreach ($normalizedEntries as $code => $amounts) {
-                JournalEntry::query()->create([
+    
+                $expectedEntries = [];
+    
+                foreach ($normalizedEntries as $code => $amounts) {
+                    $expectedEntries[$accounts->get($code)->getKey()] = $amounts;
+                }
+    
+                ksort($expectedEntries);
+    
+                if ($referenceType !== null) {
+                    $existing = Journal::withoutGlobalScope('tenant')
+                        ->where('tenant_id', $tenantId)
+                        ->where('reference_type', $referenceType)
+                        ->where('reference_id', $referenceId)
+                        ->with('entries')
+                        ->lockForUpdate()
+                        ->first();
+    
+                    if ($existing !== null) {
+                        if ($this->matchesExistingJournal(
+                            $existing,
+                            $branchId,
+                            $journalDate,
+                            $description,
+                            $expectedEntries,
+                        )) {
+                            return $existing;
+                        }
+    
+                        throw new DomainException('Referensi jurnal sudah digunakan dengan isi yang berbeda.');
+                    }
+                }
+    
+                $journal = Journal::query()->create([
                     'tenant_id' => $tenantId,
-                    'journal_id' => $journal->getKey(),
-                    'coa_id' => $accounts->get($code)->getKey(),
-                    'debit' => $amounts['debit'],
-                    'credit' => $amounts['credit'],
+                    'branch_id' => $branchId,
+                    'journal_date' => $journalDate,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'description' => $description,
+                    'created_by' => $createdBy,
                 ]);
-            }
-
-            return $journal->load('entries');
-            });
+    
+                foreach ($normalizedEntries as $code => $amounts) {
+                    JournalEntry::query()->create([
+                        'tenant_id' => $tenantId,
+                        'journal_id' => $journal->getKey(),
+                        'coa_id' => $accounts->get($code)->getKey(),
+                        'debit' => $amounts['debit'],
+                        'credit' => $amounts['credit'],
+                    ]);
+                }
+    
+                return $journal->load('entries');
+                });
         } catch (QueryException $exception) {
             // A concurrent request may insert the same source reference after our
             // initial lookup. The unique constraint wins; reload its committed row
