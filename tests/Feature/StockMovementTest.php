@@ -492,7 +492,8 @@ class StockMovementTest extends TestCase
             ->assertOk()
             ->assertSee('Detergen')
             ->assertDontSee('Barang Rahasia Tenant Lain')
-            ->assertDontSee('SECRET-001');
+            ->assertDontSee('SECRET-001')
+            ->assertDontSee('99.0000');
     }
 
     public function test_non_owner_cannot_read_stock_movement_history(): void
