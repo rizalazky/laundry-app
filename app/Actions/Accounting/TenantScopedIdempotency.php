@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Actions\\Accounting;
+namespace App\Actions\Accounting;
 
 use DomainException;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Closure;
 
 /**
