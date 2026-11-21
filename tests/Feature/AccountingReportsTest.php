@@ -5,12 +5,15 @@ namespace Tests\Feature;
 use App\Actions\Accounting\CreateJournal;
 use App\Filament\App\Pages\AccountingReports;
 use App\Models\Branch;
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AccountingReportsTest extends TestCase
@@ -91,6 +94,57 @@ class AccountingReportsTest extends TestCase
         $this->actingAs($inactiveOwner);
 
         $this->assertFalse(AccountingReports::canAccess());
+    }
+
+    public static function configurableStaffRoles(): array
+    {
+        return [
+            'cashier' => ['cashier'],
+            'operator' => ['operator'],
+            'branch manager' => ['branch_manager'],
+        ];
+    }
+
+    #[DataProvider('configurableStaffRoles')]
+    public function test_staff_without_reports_view_permission_cannot_access_accounting_reports(string $role): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->for($tenant)->withRole($role)->create();
+
+        $this->actingAs($user);
+
+        $this->assertFalse(AccountingReports::canAccess());
+    }
+
+    #[DataProvider('configurableStaffRoles')]
+    public function test_staff_with_reports_view_permission_can_access_accounting_reports(string $role): void
+    {
+        $tenant = Tenant::factory()->create();
+        $user = User::factory()->for($tenant)->withRole($role)->create();
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'reports.view'],
+            ['name' => 'Lihat Laporan', 'group' => 'Laporan'],
+        );
+
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => $role,
+            'permission_id' => $permission->id,
+        ]);
+
+        $this->actingAs($user);
+
+        $this->assertTrue(AccountingReports::canAccess());
+    }
+
+    public function test_tenant_owner_retains_accounting_reports_access_without_matrix_assignment(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        $this->assertTrue(AccountingReports::canAccess());
     }
 
     /**
