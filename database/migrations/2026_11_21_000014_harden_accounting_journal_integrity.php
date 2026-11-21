@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -11,7 +12,7 @@ return new class extends Migration
         // Existing deployments may contain duplicate source references because
         // the original schema only had a non-unique index. Never delete or merge
         // accounting journals automatically: their entries require reconciliation.
-        $duplicates = \Illuminate\\Support\\Facades\\DB::table('journals')
+        $duplicates = DB::table('journals')
             ->select('tenant_id', 'reference_type', 'reference_id')
             ->selectRaw('COUNT(*) as duplicate_count')
             ->whereNotNull('reference_type')
@@ -22,7 +23,7 @@ return new class extends Migration
 
         if ($duplicates->isNotEmpty()) {
             $details = $duplicates->map(function ($duplicate) {
-                $journalIds = \Illuminate\\Support\\Facades\\DB::table('journals')
+                $journalIds = DB::table('journals')
                     ->where('tenant_id', $duplicate->tenant_id)
                     ->where('reference_type', $duplicate->reference_type)
                     ->where('reference_id', $duplicate->reference_id)
