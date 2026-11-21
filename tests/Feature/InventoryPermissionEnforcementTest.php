@@ -2,8 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Inventory\ManageStockOpname;
+use App\Actions\Inventory\ManageStockTransfer;
+use App\Actions\Inventory\RecordStockMovement;
+use App\Enums\StockMovementType;
+use App\Models\Branch;
 use App\Models\InventoryItem;
 use App\Models\InventoryUnit;
+use App\Models\LocationStock;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\StockMovement;
@@ -13,6 +19,7 @@ use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use DomainException;
 use Tests\TestCase;
 
 class InventoryPermissionEnforcementTest extends TestCase
@@ -185,4 +192,96 @@ class InventoryPermissionEnforcementTest extends TestCase
             'permission_id' => $permission->id,
         ]);
     }
+    public function test_staff_with_stock_manage_can_run_stock_workflows_on_assigned_branches(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $source = Branch::factory()->for($tenant)->create();
+        $destination = Branch::factory()->for($tenant)->create();
+        $staff = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $staff->branches()->attach([$source->id, $destination->id]);
+
+        $unit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'kg',
+            'name' => 'Kilogram',
+            'decimal_places' => 2,
+            'is_active' => true,
+        ]);
+        $item = InventoryItem::query()->create([
+            'tenant_id' => $tenant->id,
+            'sku' => 'CHEM-001',
+            'name' => 'Detergen',
+            'unit' => 'Kilogram',
+            'base_unit_id' => $unit->id,
+            'purchase_unit_id' => $unit->id,
+            'purchase_unit_conversion_factor' => 1,
+            'item_category' => 'raw_material',
+        ]);
+
+        $this->grantPermission($tenant, 'branch_manager', 'stock.manage', 'Inventori');
+
+        app(RecordStockMovement::class)->handle(
+            $source,
+            $staff,
+            $item->id,
+            StockMovementType::In,
+            '10',
+        );
+
+        $this->assertDatabaseHas('location_stocks', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $source->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '10.0000',
+        ]);
+
+        $opnameService = app(ManageStockOpname::class);
+        $opname = $opnameService->create($staff, $source);
+        $line = $opname->items->sole();
+        $opnameService->recordCounts($staff, $opname, [
+            $line->id => ['physical_qty' => '9'],
+        ]);
+        $opnameService->finalize($staff, $opname->fresh());
+
+        $this->assertDatabaseHas('stock_opnames', [
+            'id' => $opname->id,
+            'status' => 'completed',
+            'finalized_by' => $staff->id,
+        ]);
+
+        LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $source->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '9.0000',
+        ]);
+
+        $transferService = app(ManageStockTransfer::class);
+        $transfer = $transferService->request($staff, $source, $destination, [
+            ['inventory_item_id' => $item->id, 'quantity' => '2'],
+        ]);
+        $transferService->ship($staff, $transfer);
+        $transferService->receive($staff, $transfer->fresh());
+
+        $this->assertDatabaseHas('stock_transfers', [
+            'id' => $transfer->id,
+            'status' => 'received',
+        ]);
+
+        $unassignedBranch = Branch::factory()->for($tenant)->create();
+
+        try {
+            app(RecordStockMovement::class)->handle(
+                $unassignedBranch,
+                $staff,
+                $item->id,
+                StockMovementType::In,
+                '1',
+            );
+            $this->fail('Expected branch authorization to reject an unassigned branch.');
+        } catch (DomainException $exception) {
+            $this->assertStringContainsString('akses ke cabang', $exception->getMessage());
+        }
+    }
+
 }
