@@ -1,32 +1,24 @@
 <?php
 
-namespace App\\Models;
+namespace App\Models;
 
-use App\\Models\\Concerns\\BelongsToTenant;
-use Illuminate\\Database\\Eloquent\\Factories\\HasFactory;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Database\\Eloquent\\Relations\\BelongsTo;
-use Illuminate\\Database\\Eloquent\\Relations\\HasMany;
+use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EdcMachine extends Model
 {
     use BelongsToTenant, HasFactory;
 
     protected $fillable = [
-        'tenant_id',
-        'branch_id',
-        'bank_account_id',
-        'terminal_name',
-        'mdr_percent',
-        'is_active',
+        'tenant_id', 'branch_id', 'bank_account_id', 'terminal_name', 'mdr_percent', 'is_active',
     ];
 
     protected function casts(): array
     {
-        return [
-            'mdr_percent' => 'decimal:2',
-            'is_active' => 'boolean',
-        ];
+        return ['mdr_percent' => 'decimal:2', 'is_active' => 'boolean'];
     }
 
     public function branch(): BelongsTo
