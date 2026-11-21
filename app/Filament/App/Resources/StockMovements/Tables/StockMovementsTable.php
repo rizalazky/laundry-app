@@ -21,6 +21,10 @@ class StockMovementsTable
                     ->dateTime('d M Y H:i')
                     ->sortable(),
 
+                TextColumn::make('branch.name')
+                    ->label('Lokasi')
+                    ->sortable(),
+
                 TextColumn::make('inventoryItem.name')
                     ->label('Barang')
                     ->description(fn ($record): ?string => $record->inventoryItem?->sku)
