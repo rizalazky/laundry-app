@@ -56,6 +56,16 @@ class OrderModuleTest extends TestCase
 
         if (in_array($role, ['branch_manager', 'cashier'], true)) {
             $permissionSlugs[] = 'orders.create';
+            $permissionSlugs[] = 'orders.payment';
+        }
+
+        if (in_array($role, ['branch_manager', 'cashier', 'operator'], true)) {
+            $permissionSlugs[] = 'orders.update';
+        }
+
+        if ($role === 'branch_manager') {
+            $permissionSlugs[] = 'orders.refund';
+            $permissionSlugs[] = 'orders.cancel';
         }
 
         foreach ($permissionSlugs as $slug) {
