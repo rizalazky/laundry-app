@@ -14,6 +14,7 @@ return new class extends Migration
 
         Schema::table('stock_movements', function (Blueprint $table): void {
             $table->unsignedBigInteger('supplier_id')->nullable()->after('inventory_item_id');
+            $table->string('supplier_name_snapshot')->nullable()->after('supplier_id');
             $table->decimal('purchase_quantity', 18, 4)->nullable()->after('supplier_id');
             $table->unsignedBigInteger('purchase_unit_id')->nullable()->after('purchase_quantity');
             $table->string('purchase_unit_name_snapshot', 100)->nullable()->after('purchase_unit_id');
@@ -35,6 +36,7 @@ return new class extends Migration
             $table->dropIndex('stock_movements_tenant_supplier_created_index');
             $table->dropColumn([
                 'supplier_id',
+                'supplier_name_snapshot',
                 'purchase_quantity',
                 'purchase_unit_id',
                 'purchase_unit_name_snapshot',
