@@ -5,13 +5,17 @@ namespace App\Actions\Attendance;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 
 class ClockOut
 {
-    public function __construct(private AttendanceActionAuthorization $authorization) {}
+    public function __construct(
+        private AttendanceActionAuthorization $authorization,
+        private ActivityLogger $activityLogger,
+    ) {}
 
     /**
      * @throws DomainException
@@ -42,8 +46,15 @@ class ClockOut
             }
 
             $attendance->forceFill(['clock_out' => $clockOutAt])->save();
+            $attendance->refresh();
 
-            return $attendance->refresh();
+            $this->activityLogger->record($actor, 'attendance.clocked_out', $attendance, [
+                'branch_id' => $authorizedBranch->getKey(),
+                'clock_in' => $attendance->clock_in?->toISOString(),
+                'clock_out' => $attendance->clock_out?->toISOString(),
+            ]);
+
+            return $attendance;
         });
     }
 }
