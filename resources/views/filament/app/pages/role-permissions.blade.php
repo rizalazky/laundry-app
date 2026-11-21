@@ -67,24 +67,18 @@
                             </div>
                         </x-slot>
 
-                        <div class="-mx-4 divide-y divide-gray-100 dark:divide-white/5 sm:-mx-6">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: .75rem;">
                             @foreach ($permissions as $permission)
                                 <label
                                     wire:key="permission-{{ $permission->id }}"
-                                    class="flex cursor-pointer items-start gap-3 px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-white/5 sm:px-6"
+                                    style="display: flex; align-items: center; gap: .75rem; width: 100%; min-width: 0; padding: .875rem 1rem; border: 1px solid rgb(229 231 235); border-radius: .625rem; cursor: pointer;"
                                 >
                                     <x-filament::input.checkbox
                                         wire:model="selectedPermissions"
                                         value="{{ $permission->id }}"
-                                        class="mt-0.5"
                                     />
-                                    <span class="min-w-0 flex-1">
-                                        <span class="block text-sm font-medium text-gray-900 dark:text-white">
-                                            {{ $permission->name }}
-                                        </span>
-                                        <span class="mt-0.5 block break-all text-xs text-gray-500 dark:text-gray-400">
-                                            {{ $permission->slug }}
-                                        </span>
+                                    <span style="min-width: 0; font-size: .875rem; line-height: 1.35rem; font-weight: 500; color: inherit;">
+                                        {{ $permission->name }}
                                     </span>
                                 </label>
                             @endforeach
