@@ -72,6 +72,11 @@ class ManageStockTransfer
                     throw ValidationException::withMessages(['items' => 'Jumlah melebihi presisi satuan dasar barang.']);
                 }
 
+                $unitCost = (string) ($row['unit_cost'] ?? '0');
+                if (! preg_match('/^\\d+(?:\\.\\d{1,2})?$/D', $unitCost)) {
+                    throw ValidationException::withMessages(['items' => 'Biaya per satuan harus berupa angka non-negatif dengan maksimal dua desimal.']);
+                }
+
                 $seen[$item->id] = true;
                 StockTransferItem::query()->withoutGlobalScope('tenant')->create([
                     'tenant_id' => $source->tenant_id,
@@ -147,6 +152,7 @@ class ManageStockTransfer
                     'quantity' => (string) $delta,
                     'stock_before' => (string) $before,
                     'stock_after' => (string) $after,
+                    'unit_cost' => (string) $line->unit_cost,
                     'notes' => $locked->reference.' — '.($deductSource ? 'Pengiriman ke ' : 'Penerimaan dari ').($deductSource ? $locked->destinationBranch->name : $locked->sourceBranch->name),
                     'created_by' => $user->getKey(),
                     'created_at' => now(),
