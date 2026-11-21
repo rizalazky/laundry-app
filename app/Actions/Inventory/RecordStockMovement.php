@@ -124,7 +124,7 @@ class RecordStockMovement
                     'supplier_name_snapshot' => $supplier->name,
                     'purchase_quantity' => $purchaseQuantityString,
                     'purchase_unit_id' => $purchaseUnit->getKey(),
-                    'purchase_unit_name_snapshot' => $purchaseUnitNameSnapshot ?: $purchaseUnit->name,
+                    'purchase_unit_name_snapshot' => $purchaseUnit->name,
                     'purchase_conversion_factor' => $conversionFactorString,
                 ];
             } elseif ($supplierId !== null || $purchaseQuantity !== null || $purchaseUnitId !== null) {
