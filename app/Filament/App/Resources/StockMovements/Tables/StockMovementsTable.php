@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Filament\App\Resources\StockMovements\Tables;
+namespace App\\Filament\\App\\Resources\\StockMovements\\Tables;
 
-use App\Enums\StockMovementType;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
+use App\\Enums\\StockMovementType;
+use Filament\\Tables\\Columns\\TextColumn;
+use Filament\\Tables\\Filters\\SelectFilter;
+use Filament\\Tables\\Table;
 
 class StockMovementsTable
 {
@@ -29,15 +29,32 @@ class StockMovementsTable
                     ->badge()
                     ->formatStateUsing(fn (StockMovementType $state): string => $state->label())
                     ->color(fn (StockMovementType $state): string => match ($state) {
-                        StockMovementType::In => 'success',
-                        StockMovementType::Out => 'warning',
+                        StockMovementType::In, StockMovementType::Purchase => 'success',
+                        StockMovementType::Out, StockMovementType::Usage => 'warning',
                         StockMovementType::Adjustment => 'info',
                     }),
 
+                TextColumn::make('supplier.name')
+                    ->label('Supplier')
+                    ->placeholder('—')
+                    ->toggleable(),
+
+                TextColumn::make('purchase_quantity')
+                    ->label('Jumlah Dibeli')
+                    ->numeric(decimalPlaces: 4)
+                    ->suffix(fn ($record): string => $record->purchase_unit_name_snapshot ? ' '.$record->purchase_unit_name_snapshot : '')
+                    ->placeholder('—')
+                    ->toggleable(),
+
                 TextColumn::make('quantity')
-                    ->label('Perubahan')
+                    ->label('Perubahan Stok')
                     ->numeric(decimalPlaces: 4)
                     ->suffix(fn ($record): string => ' '.($record->inventoryItem?->baseUnit?->code ?? $record->inventoryItem?->unit ?? '')),
+
+                TextColumn::make('unit_cost')
+                    ->label('Biaya / Satuan Dasar')
+                    ->money('IDR')
+                    ->toggleable(),
 
                 TextColumn::make('stock_before')
                     ->label('Stok Sebelum')
