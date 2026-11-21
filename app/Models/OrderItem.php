@@ -6,8 +6,8 @@ use App\Enums\ServiceUnit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
 
 class OrderItem extends Model
@@ -37,17 +37,29 @@ class OrderItem extends Model
     protected static function booted(): void
     {
         static::addGlobalScope('tenant', function (Builder $builder): void {
-            $tenantId = Auth::user()?->tenant_id;
+            $user = Auth::user();
 
-            if ($tenantId !== null) {
-                $builder->whereHas('order', fn (Builder $orders) => $orders->where('tenant_id', $tenantId));
+            if ($user === null || $user->role === 'super_admin') {
+                return;
             }
+
+            if ($user->tenant_id === null) {
+                $builder->whereRaw('1 = 0');
+
+                return;
+            }
+
+            $builder->whereHas('order', fn (Builder $orders) => $orders->where('tenant_id', $user->tenant_id));
         });
 
         static::creating(function (OrderItem $orderItem): void {
-            $tenantId = Auth::user()?->tenant_id;
+            $user = Auth::user();
 
-            if ($tenantId !== null && ! Order::query()->whereKey($orderItem->order_id)->exists()) {
+            if (
+                $user !== null
+                && $user->role !== 'super_admin'
+                && ($user->tenant_id === null || ! Order::query()->whereKey($orderItem->order_id)->exists())
+            ) {
                 throw (new ModelNotFoundException())->setModel(Order::class, [$orderItem->order_id]);
             }
         });
