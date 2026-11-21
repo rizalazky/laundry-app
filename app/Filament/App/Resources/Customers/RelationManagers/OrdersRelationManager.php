@@ -1,16 +1,16 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\Customers\\RelationManagers;
+namespace App\Filament\App\Resources\Customers\RelationManagers;
 
-use App\\Enums\\OrderStatus;
-use App\\Enums\\PaymentStatus;
-use App\\Models\\Order;
-use Filament\\Facades\\Filament;
-use Filament\\Resources\\RelationManagers\\RelationManager;
-use Filament\\Tables\\Columns\\TextColumn;
-use Filament\\Tables\\Table;
-use Illuminate\\Database\\Eloquent\\Builder;
-use Illuminate\\Support\\Facades\\Auth;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
+use App\Models\Order;
+use Filament\Facades\Filament;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class OrdersRelationManager extends RelationManager
 {
