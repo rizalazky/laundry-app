@@ -9,7 +9,6 @@ use App\Enums\StockMovementType;
 use App\Models\Branch;
 use App\Models\InventoryItem;
 use App\Models\InventoryUnit;
-use App\Models\LocationStock;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\StockMovement;
@@ -247,13 +246,6 @@ class InventoryPermissionEnforcementTest extends TestCase
             'id' => $opname->id,
             'status' => 'completed',
             'finalized_by' => $staff->id,
-        ]);
-
-        LocationStock::query()->create([
-            'tenant_id' => $tenant->id,
-            'branch_id' => $source->id,
-            'inventory_item_id' => $item->id,
-            'quantity' => '9.0000',
         ]);
 
         $transferService = app(ManageStockTransfer::class);
