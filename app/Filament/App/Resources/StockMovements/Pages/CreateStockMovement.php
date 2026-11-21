@@ -57,7 +57,7 @@ class CreateStockMovement extends CreateRecord
 
             $factor = BigDecimal::of((string) $item->purchase_unit_conversion_factor);
             $quantity = (string) BigDecimal::of($quantity)->multipliedBy($factor)->toScale(4);
-            $unitCost = (string) BigDecimal::of($unitCost)->dividedBy($factor, 2, RoundingMode::HALF_UP);
+            $unitCost = (string) BigDecimal::of($unitCost)->dividedBy($factor, 2, RoundingMode::HalfUp);
 
             $purchaseDetails = [
                 'supplierId' => (int) ($data['supplier_id'] ?? 0),
