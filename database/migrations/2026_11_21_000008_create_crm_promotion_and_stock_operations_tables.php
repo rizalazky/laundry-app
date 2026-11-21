@@ -202,5 +202,12 @@ return new class extends Migration
         Schema::dropIfExists('promos');
         Schema::dropIfExists('customer_memberships');
         Schema::dropIfExists('member_tiers');
+
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropUnique('orders_id_tenant_unique');
+        });
+        Schema::table('customers', function (Blueprint $table) {
+            $table->dropUnique('customers_id_tenant_unique');
+        });
     }
 };
