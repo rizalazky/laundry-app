@@ -90,7 +90,7 @@ class FinancialSettlementTest extends TestCase
             ['1000' => ['debit' => '0.00', 'credit' => '250000.00'], '1010' => ['debit' => '250000.00', 'credit' => '0.00']],
             $journal->entries->mapWithKeys(fn ($entry) => [
                 $entry->account->code => ['debit' => $entry->debit, 'credit' => $entry->credit],
-            ])->all(),
+            ])->sortKeys()->all(),
         );
     }
 
@@ -202,7 +202,7 @@ class FinancialSettlementTest extends TestCase
             ],
             $journal->entries->mapWithKeys(fn ($entry) => [
                 $entry->account->code => ['debit' => $entry->debit, 'credit' => $entry->credit],
-            ])->all(),
+            ])->sortKeys()->all(),
         );
     }
 
