@@ -125,7 +125,7 @@ class StockTransferTest extends TestCase
         $otherTenant = Tenant::factory()->create();
         $otherBranch = Branch::factory()->for($otherTenant)->create();
 
-        $this->expectException(\\DomainException::class);
+        $this->expectException(\DomainException::class);
 
         app(ManageStockTransfer::class)->request($owner, $source, $otherBranch, [
             ['inventory_item_id' => $item->id, 'quantity' => '1'],
