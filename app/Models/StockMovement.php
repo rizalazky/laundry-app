@@ -21,6 +21,7 @@ class StockMovement extends Model
         'quantity',
         'stock_before',
         'stock_after',
+        'unit_cost',
         'notes',
         'created_by',
         'created_at',
@@ -33,6 +34,7 @@ class StockMovement extends Model
             'quantity' => 'decimal:4',
             'stock_before' => 'decimal:4',
             'stock_after' => 'decimal:4',
+            'unit_cost' => 'decimal:2',
             'created_at' => 'datetime',
         ];
     }
