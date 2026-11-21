@@ -109,6 +109,106 @@ class StockMovementTest extends TestCase
         );
     }
 
+    public function test_supplier_purchase_converts_purchase_units_and_records_supplier_audit_details(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $purchaseUnit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'jerigen',
+            'name' => 'Jerigen',
+            'decimal_places' => 0,
+            'is_active' => true,
+        ]);
+        $item->update([
+            'purchase_unit_id' => $purchaseUnit->id,
+            'purchase_unit_conversion_factor' => 5,
+        ]);
+        $supplier = Supplier::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Supplier Bahan',
+        ]);
+
+        $movement = app(RecordStockMovement::class)->handle(
+            branch: $branch,
+            user: $owner,
+            inventoryItemId: $item->id,
+            movementType: StockMovementType::Purchase,
+            quantity: '10',
+            unitCost: '2000',
+            supplierId: $supplier->id,
+            purchaseQuantity: '2',
+            purchaseUnitId: $purchaseUnit->id,
+            purchaseUnitNameSnapshot: $purchaseUnit->name,
+            purchaseConversionFactor: '5.000000',
+        );
+
+        $this->assertSame(StockMovementType::Purchase, $movement->movement_type);
+        $this->assertSame('10.0000', $movement->quantity);
+        $this->assertSame('2000.00', $movement->unit_cost);
+        $this->assertSame($supplier->id, $movement->supplier_id);
+        $this->assertSame('2.0000', $movement->purchase_quantity);
+        $this->assertSame('Jerigen', $movement->purchase_unit_name_snapshot);
+        $this->assertSame('5.000000', $movement->purchase_conversion_factor);
+        $this->assertDatabaseHas('location_stocks', [
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '10.0000',
+        ]);
+    }
+
+    public function test_usage_movement_decreases_stock_and_keeps_a_positive_input_quantity(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '8.0000',
+        ]);
+
+        $movement = app(RecordStockMovement::class)->handle(
+            $branch,
+            $owner,
+            $item->id,
+            StockMovementType::Usage,
+            '2.5',
+        );
+
+        $this->assertSame('-2.5000', $movement->quantity);
+        $this->assertSame('5.5000', $movement->stock_after);
+        $this->assertDatabaseHas('location_stocks', [
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '5.5000',
+        ]);
+    }
+
+    public function test_purchase_rejects_supplier_from_another_tenant(): void
+    {
+        [$tenant, $branch, $owner, $item] = $this->makeInventoryContext();
+        $otherTenant = Tenant::factory()->create();
+        $foreignSupplier = Supplier::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'name' => 'Supplier Asing',
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        app(RecordStockMovement::class)->handle(
+            branch: $branch,
+            user: $owner,
+            inventoryItemId: $item->id,
+            movementType: StockMovementType::Purchase,
+            quantity: '1',
+            supplierId: $foreignSupplier->id,
+            purchaseQuantity: '1',
+            purchaseUnitId: $item->purchase_unit_id,
+            purchaseUnitNameSnapshot: 'Kilogram',
+            purchaseConversionFactor: '1.000000',
+        );
+    }
+
     public function test_actor_cannot_record_movement_for_another_tenants_branch(): void
     {
         [, , $owner] = $this->makeInventoryContext();
