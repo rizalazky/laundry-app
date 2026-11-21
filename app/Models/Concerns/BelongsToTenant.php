@@ -21,8 +21,8 @@ trait BelongsToTenant
             }
         });
 
-        static::creating(function (Model $model) {
-            if (empty($model->tenant_id) && Auth::hasUser() && Auth::user()->tenant_id !== null) {
+        static::saving(function (Model $model) {
+            if (Auth::hasUser() && Auth::user()->tenant_id !== null) {
                 $model->tenant_id = Auth::user()->tenant_id;
             }
         });
