@@ -11,6 +11,7 @@ use Filament\Pages\Tenancy\RegisterTenant;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class RegisterBranch extends RegisterTenant
@@ -23,12 +24,13 @@ class RegisterBranch extends RegisterTenant
     public static function canView(): bool
     {
         $user = Auth::user();
+        $tenant = $user?->tenant;
 
-        if (! $user || $user->role !== 'tenant_owner' || ! $user->tenant) {
+        if ($user === null || $tenant === null || ! Gate::forUser($user)->allows('create', Branch::class)) {
             return false;
         }
 
-        return $user->tenant->branches()->count() < $user->tenant->max_branches;
+        return $tenant->branches()->count() < $tenant->max_branches;
     }
 
     public function form(Schema $schema): Schema
@@ -69,6 +71,8 @@ class RegisterBranch extends RegisterTenant
 
     protected function handleRegistration(array $data): Branch
     {
+        Gate::authorize('create', Branch::class);
+
         $user = Auth::user();
 
         return DB::transaction(function () use ($user, $data): Branch {
