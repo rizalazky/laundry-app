@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Filament\App\Resources\InventoryItems\Tables;
+namespace App\\Filament\\App\\Resources\\InventoryItems\\Tables;
 
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Table;
+use Filament\\Actions\\DeleteAction;
+use Filament\\Actions\\DeleteBulkAction;
+use Filament\\Actions\\EditAction;
+use Filament\\Tables\\Columns\\TextColumn;
+use Filament\\Tables\\Filters\\SelectFilter;
+use Filament\\Tables\\Table;
 
 class InventoryItemsTable
 {
@@ -34,11 +34,20 @@ class InventoryItemsTable
                         default => $state,
                     }),
 
+                TextColumn::make('current_stock')
+                    ->label('Stok Cabang Aktif')
+                    ->numeric(decimalPlaces: 4)
+                    ->suffix(fn ($record): string => ' '.($record->baseUnit?->code ?? $record->unit ?? ''))
+                    ->color(fn ($record): string => (float) ($record->current_stock ?? 0) <= (float) $record->min_stock ? 'danger' : 'success')
+                    ->sortable(),
+
                 TextColumn::make('baseUnit.name')
-                    ->label('Satuan Dasar'),
+                    ->label('Satuan Dasar')
+                    ->toggleable(),
 
                 TextColumn::make('purchaseUnit.name')
-                    ->label('Satuan Pembelian'),
+                    ->label('Satuan Pembelian')
+                    ->toggleable(),
 
                 TextColumn::make('purchase_unit_conversion_factor')
                     ->label('Konversi')
