@@ -441,7 +441,7 @@ class FinancialSettlementTest extends TestCase
             'destinationBankId' => $destination->id,
             'amount' => '75000.00',
             'transferredAt' => now()->startOfSecond(),
-            'referenceNumber' => 'BANK-TRANSFER-RETRY-001',
+            'referenceNumber' => null,
             'idempotencyKey' => 'bank-transfer-key-001',
         ];
 
@@ -473,7 +473,8 @@ class FinancialSettlementTest extends TestCase
             'destinationBankId' => $destination->id,
             'amount' => '75000.00',
             'transferredAt' => now()->startOfSecond(),
-            'referenceNumber' => 'BANK-TRANSFER-CONFLICT-001',
+            'referenceNumber' => null,
+            'idempotencyKey' => 'bank-transfer-conflict-key-001',
         ];
 
         $action->handle(...$arguments);
