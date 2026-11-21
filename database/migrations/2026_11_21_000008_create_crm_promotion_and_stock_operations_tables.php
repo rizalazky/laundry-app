@@ -76,7 +76,7 @@ return new class extends Migration
 
             $table->unique(['tenant_id', 'code']);
             $table->index(['tenant_id', 'is_active', 'expires_at']);
-            $table->foreign(['promo_id', 'tenant_id'], 'vouchers_promo_tenant_foreign')->references(['id', 'tenant_id'])->on('promos')->nullOnDelete();
+            $table->foreign(['promo_id', 'tenant_id'], 'vouchers_promo_tenant_foreign')->references(['id', 'tenant_id'])->on('promos')->restrictOnDelete();
         });
 
         Schema::create('point_logs', function (Blueprint $table) {
@@ -92,7 +92,7 @@ return new class extends Migration
             $table->index(['tenant_id', 'customer_id', 'created_at']);
             $table->index(['tenant_id', 'transaction_id']);
             $table->foreign(['customer_id', 'tenant_id'], 'point_logs_customer_tenant_foreign')->references(['id', 'tenant_id'])->on('customers')->cascadeOnDelete();
-            $table->foreign(['transaction_id', 'tenant_id'], 'point_logs_order_tenant_foreign')->references(['id', 'tenant_id'])->on('orders')->nullOnDelete();
+            $table->foreign(['transaction_id', 'tenant_id'], 'point_logs_order_tenant_foreign')->references(['id', 'tenant_id'])->on('orders')->restrictOnDelete();
         });
 
         Schema::create('point_rewards', function (Blueprint $table) {
@@ -169,6 +169,7 @@ return new class extends Migration
 
             $table->index(['tenant_id', 'location_type', 'location_id', 'opname_date'], 'stock_opnames_tenant_location_date_index');
             $table->index(['tenant_id', 'status']);
+            $table->unique(['id', 'tenant_id'], 'stock_opnames_id_tenant_unique');
         });
 
         Schema::create('stock_opname_items', function (Blueprint $table) {
