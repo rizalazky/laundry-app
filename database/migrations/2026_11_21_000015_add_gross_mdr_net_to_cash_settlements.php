@@ -9,7 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('edc_machines', function (Blueprint $table) {\n            $table->unique(['id', 'tenant_id'], 'edc_machines_id_tenant_unique');\n        });\n\n        Schema::table('cash_settlements', function (Blueprint $table) {
+        Schema::table('edc_machines', function (Blueprint $table) {
+            $table->unique(['id', 'tenant_id'], 'edc_machines_id_tenant_unique');
+        });
+
+        Schema::table('cash_settlements', function (Blueprint $table) {
             $table->decimal('gross_amount', 15, 2)->default(0)->after('amount');
             $table->decimal('mdr_amount', 15, 2)->default(0)->after('gross_amount');
             $table->decimal('net_amount', 15, 2)->default(0)->after('mdr_amount');
@@ -24,8 +28,7 @@ return new class extends Migration
             $table->index(['tenant_id', 'target_bank_id', 'settled_at'], 'cash_settlements_bank_date_index');
         });
 
-        // Preserve the meaning of historical settlements: before gross/MDR/net
-        // were separated, amount represented the recorded settlement amount.
+        // Preserve historical settlement values before gross/MDR/net were separated.
         DB::table('cash_settlements')->update([
             'gross_amount' => DB::raw('amount'),
             'mdr_amount' => 0,
@@ -41,6 +44,10 @@ return new class extends Migration
             $table->dropColumn([
                 'gross_amount', 'mdr_amount', 'net_amount', 'edc_machine_id', 'reference_number',
             ]);
+        });
+
+        Schema::table('edc_machines', function (Blueprint $table) {
+            $table->dropUnique('edc_machines_id_tenant_unique');
         });
     }
 };
