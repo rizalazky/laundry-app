@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\Tenant;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -146,4 +147,62 @@ class CustomerModuleTest extends TestCase
             'email' => null,
         ]);
     }
+
+    public function test_customer_order_history_shows_orders_from_all_tenant_branches_to_owner(): void
+    {
+        $tenant = $this->createTenant('laundry-history-owner');
+        $central = $this->createBranch($tenant, 'PUSAT');
+        $branch = $this->createBranch($tenant, 'DGO');
+        $owner = $this->createUser($tenant, 'tenant_owner');
+        $customer = $this->createCustomer($tenant, 'Customer History');
+
+        Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $central->id,
+            'customer_id' => $customer->id,
+            'invoice_no' => 'INV-CENTRAL-001',
+        ]);
+        Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'customer_id' => $customer->id,
+            'invoice_no' => 'INV-BRANCH-001',
+        ]);
+
+        $this->actingAs($owner)
+            ->get('/app/' . $central->code . '/customers/' . $customer->id . '/edit')
+            ->assertOk()
+            ->assertSee('INV-CENTRAL-001')
+            ->assertSee('INV-BRANCH-001');
+    }
+
+    public function test_customer_order_history_only_shows_orders_from_branches_assigned_to_staff(): void
+    {
+        $tenant = $this->createTenant('laundry-history-staff');
+        $assignedBranch = $this->createBranch($tenant, 'PUSAT');
+        $otherBranch = $this->createBranch($tenant, 'DGO');
+        $manager = $this->createUser($tenant, 'branch_manager');
+        $manager->branches()->attach($assignedBranch);
+        $customer = $this->createCustomer($tenant, 'Customer Branch History');
+
+        Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $assignedBranch->id,
+            'customer_id' => $customer->id,
+            'invoice_no' => 'INV-ASSIGNED-001',
+        ]);
+        Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $otherBranch->id,
+            'customer_id' => $customer->id,
+            'invoice_no' => 'INV-UNASSIGNED-001',
+        ]);
+
+        $this->actingAs($manager)
+            ->get('/app/' . $assignedBranch->code . '/customers/' . $customer->id . '/edit')
+            ->assertOk()
+            ->assertSee('INV-ASSIGNED-001')
+            ->assertDontSee('INV-UNASSIGNED-001');
+    }
+
 }
