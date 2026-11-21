@@ -155,12 +155,23 @@ class RecordFinancialSettlement
 
             $clearingCode = $sourceType === CashSettlement::SOURCE_EDC ? '1030' : '1000';
 
-            if (! $accounts->has($clearingCode) || $bankAccount === null || $bankAccount->code === $clearingCode || $bankAccount->code === '5500') {
-                throw new DomainException('Akun Kas/EDC Clearing atau akun rekening bank belum tersedia atau nonaktif.');
+            $clearingAccount = $accounts->get($clearingCode);
+            $mdrAccount = $accounts->get('5500');
+
+            if ($clearingAccount === null || $bankAccount === null
+                || $bankAccount->code === $clearingCode || $bankAccount->code === '5500'
+                || $clearingAccount->account_type !== 'asset'
+                || $bankAccount->account_type !== 'asset') {
+                throw new DomainException('Akun Kas/EDC Clearing dan rekening bank harus tersedia, aktif, serta bertipe aset.');
             }
 
-            if (! $mdr->isZero() && ! $accounts->has('5500')) {
-                throw new DomainException('Akun Beban MDR (5500) belum tersedia atau nonaktif.');
+            if ($sourceType === CashSettlement::SOURCE_EDC
+                && (! $clearingAccount->is_system || $clearingAccount->name !== 'Piutang Settlement EDC')) {
+                throw new DomainException('Kode akun 1030 sudah digunakan oleh akun lain. Perbaiki konflik kode akun EDC Clearing sebelum mencatat settlement.');
+            }
+
+            if (! $mdr->isZero() && ($mdrAccount === null || $mdrAccount->account_type !== 'expense')) {
+                throw new DomainException('Akun Beban MDR (5500) harus tersedia, aktif, dan bertipe beban.');
             }
 
             $settlement = CashSettlement::query()->create([
