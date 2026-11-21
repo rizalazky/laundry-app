@@ -11,6 +11,7 @@ use Brick\Math\Exception\RoundingNecessaryException;
 use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class CreateJournal
@@ -95,7 +96,8 @@ class CreateJournal
             throw new DomainException('Total debit dan kredit harus sama dan lebih besar dari nol.');
         }
 
-        return DB::transaction(function () use (
+        try {
+            return DB::transaction(function () use (
             $tenantId,
             $branchId,
             $journalDate,
@@ -134,21 +136,13 @@ class CreateJournal
                     ->first();
 
                 if ($existing !== null) {
-                    $actualEntries = $existing->entries
-                        ->mapWithKeys(fn (JournalEntry $entry): array => [
-                            $entry->coa_id => [
-                                'debit' => $entry->debit,
-                                'credit' => $entry->credit,
-                            ],
-                        ])
-                        ->sortKeys()
-                        ->all();
-
-                    $sameHeader = $existing->branch_id === $branchId
-                        && $existing->journal_date->format('Y-m-d H:i:s') === $journalDate->format('Y-m-d H:i:s')
-                        && $existing->description === $description;
-
-                    if ($sameHeader && $actualEntries === $expectedEntries) {
+                    if ($this->matchesExistingJournal(
+                        $existing,
+                        $branchId,
+                        $journalDate,
+                        $description,
+                        $expectedEntries,
+                    )) {
                         return $existing;
                     }
 
@@ -177,6 +171,85 @@ class CreateJournal
             }
 
             return $journal->load('entries');
-        });
+            });
+        } catch (QueryException $exception) {
+            // A concurrent request may insert the same source reference after our
+            // initial lookup. The unique constraint wins; reload its committed row
+            // and treat the conflict as an idempotent retry only for an identical
+            // payload. If no matching row exists, preserve the original DB error.
+            if ($referenceType === null || $referenceId === null) {
+                throw $exception;
+            }
+
+            $existing = Journal::withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenantId)
+                ->where('reference_type', $referenceType)
+                ->where('reference_id', $referenceId)
+                ->with('entries')
+                ->first();
+
+            if ($existing === null) {
+                throw $exception;
+            }
+
+            $accounts = ChartOfAccount::withoutGlobalScope('tenant')
+                ->where('tenant_id', $tenantId)
+                ->whereIn('code', array_keys($normalizedEntries))
+                ->get()
+                ->keyBy('code');
+
+            if ($accounts->count() !== count($normalizedEntries)) {
+                throw $exception;
+            }
+
+            $expectedEntries = [];
+
+            foreach ($normalizedEntries as $code => $amounts) {
+                $expectedEntries[$accounts->get($code)->getKey()] = $amounts;
+            }
+
+            ksort($expectedEntries);
+
+            if ($this->matchesExistingJournal(
+                $existing,
+                $branchId,
+                $journalDate,
+                $description,
+                $expectedEntries,
+            )) {
+                return $existing;
+            }
+
+            throw new DomainException(
+                'Referensi jurnal sudah digunakan dengan isi yang berbeda.',
+                previous: $exception,
+            );
+        }
+    }
+
+    /**
+     * @param  array<int, array{debit: string, credit: string}>  $expectedEntries
+     */
+    private function matchesExistingJournal(
+        Journal $existing,
+        ?int $branchId,
+        CarbonInterface $journalDate,
+        string $description,
+        array $expectedEntries,
+    ): bool {
+        $actualEntries = $existing->entries
+            ->mapWithKeys(fn (JournalEntry $entry): array => [
+                $entry->coa_id => [
+                    'debit' => $entry->debit,
+                    'credit' => $entry->credit,
+                ],
+            ])
+            ->sortKeys()
+            ->all();
+
+        return $existing->branch_id === $branchId
+            && $existing->journal_date->format('Y-m-d H:i:s') === $journalDate->format('Y-m-d H:i:s')
+            && $existing->description === $description
+            && $actualEntries === $expectedEntries;
     }
 }
