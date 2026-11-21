@@ -113,7 +113,7 @@ class RecordStockMovement
                 ->firstOrFail();
 
             $before = BigDecimal::of((string) $balance->quantity)->toScale(4);
-            $after = $before->plus($delta)->toScale(4, RoundingMode::UNNECESSARY);
+            $after = $before->plus($delta)->toScale(4);
 
             if ($after->isLessThan(0)) {
                 throw ValidationException::withMessages([
