@@ -328,7 +328,7 @@ class FinancialSettlementTest extends TestCase
             'netAmount' => '98500.00',
             'settledAt' => $settledAt,
             'edcMachineId' => $machine->id,
-            'referenceNumber' => 'BANK-STMT-EDC-RETRY-001',
+            'referenceNumber' => null,
             'idempotencyKey' => 'edc-retry-key-001',
         ];
 
