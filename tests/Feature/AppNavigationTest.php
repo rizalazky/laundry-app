@@ -3,6 +3,11 @@
 namespace Tests\Feature;
 
 use App\Filament\App\Pages\AccountingReports;
+use App\Filament\App\Pages\ManualJournal;
+use App\Filament\App\Resources\BankAccounts\BankAccountResource;
+use App\Filament\App\Resources\CashSettlements\CashSettlementResource;
+use App\Filament\App\Resources\ChartOfAccounts\ChartOfAccountResource;
+use App\Filament\App\Resources\EdcMachines\EdcMachineResource;
 use App\Filament\App\Pages\RolePermissions;
 use App\Filament\App\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\App\Resources\Attendances\AttendanceResource;
@@ -41,5 +46,10 @@ class AppNavigationTest extends TestCase
         $this->assertSame('Inventori & Distribusi', StockOpnameResource::getNavigationGroup());
 
         $this->assertSame('Keuangan & Laporan', AccountingReports::getNavigationGroup());
+        $this->assertSame('Keuangan & Laporan', ChartOfAccountResource::getNavigationGroup());
+        $this->assertSame('Keuangan & Laporan', BankAccountResource::getNavigationGroup());
+        $this->assertSame('Keuangan & Laporan', EdcMachineResource::getNavigationGroup());
+        $this->assertSame('Keuangan & Laporan', CashSettlementResource::getNavigationGroup());
+        $this->assertSame('Keuangan & Laporan', ManualJournal::getNavigationGroup());
     }
 }
