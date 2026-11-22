@@ -52,7 +52,10 @@ class OrderInfolist
                     ->columns(3)
                     ->schema([
                         TextEntry::make('subtotal')->label('Subtotal')->money('IDR', locale: 'id'),
-                        TextEntry::make('discount')->label('Diskon')->money('IDR', locale: 'id'),
+                        TextEntry::make('discount')->label('Total Diskon')->money('IDR', locale: 'id'),
+                        TextEntry::make('promo_name_snapshot')->label('Promo')->placeholder('—'),
+                        TextEntry::make('voucher_code_snapshot')->label('Kode Voucher')->placeholder('—'),
+                        TextEntry::make('promo_discount')->label('Diskon Promo')->money('IDR', locale: 'id'),
                         TextEntry::make('total')->label('Total')->money('IDR', locale: 'id')->weight('bold'),
                         TextEntry::make('paid_amount')->label('Sudah Dibayar')->money('IDR', locale: 'id'),
                         TextEntry::make('balance_due')
