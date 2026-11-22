@@ -15,15 +15,15 @@
             </div>
 
             <form wire:submit="scanOrder" class="flex flex-col gap-2 sm:flex-row">
-                <input
+                <x-filament::input
                     id="workshop-barcode"
                     type="text"
                     wire:model="barcode"
                     placeholder="Scan barcode / masukkan nomor nota..."
                     autocomplete="off"
                     autofocus
-                    class="min-h-12 w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                >
+                    class="text-base"
+                />
                 <x-filament::button type="submit" icon="heroicon-m-magnifying-glass" class="min-h-12">
                     Cari Nota
                 </x-filament::button>
@@ -35,20 +35,16 @@
 
         <div class="flex flex-wrap gap-2">
             @foreach ($this->queueStatusOptions() as $status => $label)
-                <button
+                <x-filament::button
                     type="button"
+                    :color="$selectedStatus === $status ? 'primary' : 'gray'"
+                    :outlined="$selectedStatus !== $status"
+                    size="sm"
                     wire:click="$set('selectedStatus', '{{ $status }}')"
-                    @class([
-                        'inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-medium transition',
-                        'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-400/10 dark:text-primary-300' => $selectedStatus === $status,
-                        'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300' => $selectedStatus !== $status,
-                    ])
                 >
                     {{ $label }}
-                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                        {{ $this->queueCounts()[$status] ?? 0 }}
-                    </span>
-                </button>
+                    <x-filament::badge color="gray">{{ $this->queueCounts()[$status] ?? 0 }}</x-filament::badge>
+                </x-filament::button>
             @endforeach
         </div>
 
@@ -60,7 +56,7 @@
                 </div>
 
                 @forelse ($this->queueOrders() as $order)
-                    <button
+                    <x-filament::button
                         type="button"
                         wire:key="workshop-order-{{ $order->id }}"
                         wire:click="selectOrder({{ $order->id }})"
@@ -84,7 +80,7 @@
                             <span>Masuk {{ $order->order_date?->format('d M H:i') }}</span>
                             <span>Estimasi {{ $order->due_at?->format('d M H:i') ?? '—' }}</span>
                         </div>
-                    </button>
+                    </x-filament::button>
                 @empty
                     <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
                         <x-filament::icon icon="heroicon-o-inbox" class="mx-auto h-8 w-8 text-gray-400" />
@@ -154,16 +150,12 @@
                                 @if (auth()->user()->role !== 'operator')
                                     <div>
                                         <label for="workshop-worker" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Petugas produksi</label>
-                                        <select
-                                            id="workshop-worker"
-                                            wire:model="workerId"
-                                            class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                        >
+                                        <x-filament::input.select id="workshop-worker" wire:model="workerId" class="text-sm">
                                             <option value="">Pilih petugas (opsional)</option>
                                             @foreach ($this->workerOptions() as $worker)
                                                 <option value="{{ $worker->id }}">{{ $worker->name }}</option>
                                             @endforeach
-                                        </select>
+                                        </x-filament::input.select>
                                     </div>
                                 @else
                                     <p class="text-sm text-gray-600 dark:text-gray-300">
@@ -173,25 +165,27 @@
 
                                 <div>
                                     <label for="workshop-machine" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Kode mesin (opsional)</label>
-                                    <input
+                                    <x-filament::input
                                         id="workshop-machine"
                                         type="text"
                                         wire:model="machineCode"
                                         maxlength="50"
                                         placeholder="Contoh: WASH-02"
-                                        class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                    >
+                                        class="text-sm"
+                                    />
                                 </div>
 
                                 <div>
                                     <label for="workshop-note" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan (opsional)</label>
-                                    <textarea
-                                        id="workshop-note"
-                                        wire:model="note"
-                                        rows="2"
-                                        maxlength="500"
-                                        class="w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                    ></textarea>
+                                    <x-filament::input.wrapper>
+                                        <textarea
+                                            id="workshop-note"
+                                            wire:model="note"
+                                            rows="2"
+                                            maxlength="500"
+                                            class="fi-input block w-full border-none bg-transparent px-3 py-2 text-sm text-gray-950 outline-none transition duration-75 placeholder:text-gray-400 focus:ring-0 disabled:text-gray-500 disabled:[-webkit-text-fill-color:theme(colors.gray.500)] dark:text-white dark:placeholder:text-gray-500 sm:text-sm"
+                                        ></textarea>
+                                    </x-filament::input.wrapper>
                                 </div>
 
                                 <div class="grid gap-2 sm:grid-cols-2">

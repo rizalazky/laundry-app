@@ -14,7 +14,13 @@ use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use DomainException;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
@@ -24,8 +30,10 @@ use Illuminate\Validation\ValidationException;
 use UnitEnum;
 use BackedEnum;
 
-class PointOfSale extends Page
+class PointOfSale extends Page implements HasForms
 {
+    use InteractsWithForms;
+
     protected string $view = 'filament.app.pages.point-of-sale';
 
     protected static ?string $slug = 'pos';
@@ -40,7 +48,7 @@ class PointOfSale extends Page
 
     protected static ?int $navigationSort = 9;
 
-    public string $customerSearch = '';
+    public array $customerForm = [];
 
     public ?int $customerId = null;
 
@@ -65,9 +73,91 @@ class PointOfSale extends Page
             && $user->hasPermissionTo('orders.create');
     }
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('cart')
+                ->label('Keranjang')
+                ->icon('heroicon-o-shopping-cart')
+                ->badge(fn (): int => count($this->cartLines()))
+                ->badgeColor('primary')
+                ->visible(fn (): bool => $this->selectedCustomer() !== null)
+                ->slideOver()
+                ->modalHeading('Keranjang Belanja')
+                ->modalDescription('Periksa layanan dan total transaksi sebelum melanjutkan pembayaran.')
+                ->modalContent(fn () => view('filament.app.pages.partials.pos-cart', [
+                    'livewire' => $this,
+                ]))
+                ->modalSubmitAction(false)
+                ->modalCancelAction(false)
+                ->extraAttributes(['class' => 'xl:hidden']),
+        ];
+    }
+
     public function mount(): void
     {
         abort_unless(static::canAccess(), 403);
+
+        $this->form->fill(['customerId' => null]);
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Select::make('customerId')
+                    ->label('Pelanggan')
+                    ->placeholder('Cari nama atau nomor HP pelanggan...')
+                    ->searchable()
+                    ->allowHtml()
+                    ->required()
+                    ->live()
+                    ->getSearchResultsUsing(function (string $search): array {
+                        $branch = $this->currentBranch();
+
+                        return Customer::query()
+                            ->where('tenant_id', $branch->tenant_id)
+                            ->where(function ($query) use ($search): void {
+                                $query->where('name', 'like', "%{$search}%")
+                                    ->orWhere('phone', 'like', "%{$search}%");
+                            })
+                            ->orderBy('name')
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn (Customer $customer): array => [
+                                $customer->getKey() => $this->customerOptionLabel($customer),
+                            ])
+                            ->all();
+                    })
+                    ->getOptionLabelUsing(function ($value): ?string {
+                        if (blank($value)) {
+                            return null;
+                        }
+
+                        $customer = Customer::query()
+                            ->where('tenant_id', $this->currentBranch()->tenant_id)
+                            ->find($value);
+
+                        return $customer ? $this->customerOptionLabel($customer) : null;
+                    })
+                    ->createOptionForm([
+                        TextInput::make('name')
+                            ->label('Nama Pelanggan')
+                            ->required()
+                            ->maxLength(255),
+                        TextInput::make('phone')
+                            ->label('Nomor HP / WhatsApp')
+                            ->tel()
+                            ->maxLength(25),
+                    ])
+                    ->createOptionAction(fn ($action) => $action
+                        ->label('Tambah pelanggan baru')
+                        ->modalHeading('Pelanggan Baru')
+                        ->modalSubmitActionLabel('Simpan Pelanggan'))
+                    ->createOptionUsing(fn (array $data): int => $this->createCustomerOption($data))
+                    ->afterStateUpdated(fn ($state) => $this->customerId = filled($state) ? (int) $state : null),
+            ])
+            ->statePath('customerForm');
     }
 
     public function currentBranchName(): string
@@ -87,26 +177,6 @@ class PointOfSale extends Page
             ->get();
     }
 
-    public function customerResults(): \Illuminate\Support\Collection
-    {
-        $branch = $this->currentBranch();
-        $search = trim($this->customerSearch);
-
-        if ($search === '') {
-            return collect();
-        }
-
-        return Customer::query()
-            ->where('tenant_id', $branch->tenant_id)
-            ->where(function ($query) use ($search): void {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
-            })
-            ->orderBy('name')
-            ->limit(8)
-            ->get(['id', 'name', 'phone']);
-    }
-
     public function selectedCustomer(): ?Customer
     {
         if ($this->customerId === null) {
@@ -118,6 +188,19 @@ class PointOfSale extends Page
             ->find($this->customerId);
     }
 
+    private function customerOptionLabel(Customer $customer): string
+    {
+        $name = e($customer->name);
+        $phone = e($customer->phone ?: 'Nomor HP belum diisi');
+
+        return <<<HTML
+            <div class="flex flex-col gap-0.5">
+                <span class="font-medium">{$name}</span>
+                <span class="text-xs text-gray-500">{$phone}</span>
+            </div>
+            HTML;
+    }
+
     public function selectCustomer(int $customerId): void
     {
         $customer = Customer::query()
@@ -125,17 +208,43 @@ class PointOfSale extends Page
             ->findOrFail($customerId);
 
         $this->customerId = (int) $customer->getKey();
-        $this->customerSearch = '';
+        $this->customerForm['customerId'] = $this->customerId;
+    }
+
+    public function createCustomerOption(array $data): int
+    {
+        $data = validator($data, [
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:25'],
+        ])->validate();
+
+        $customer = Customer::query()->create([
+            'tenant_id' => $this->currentBranch()->tenant_id,
+            'name' => $data['name'],
+            'phone' => $data['phone'] ?? null,
+        ]);
+
+        $this->customerId = (int) $customer->getKey();
+        $this->customerForm['customerId'] = $this->customerId;
+
+        return (int) $customer->getKey();
+    }
+
+    private function ensureCustomerSelected(): void
+    {
+        abort_if($this->selectedCustomer() === null, 403, 'Pilih pelanggan terlebih dahulu.');
     }
 
     public function clearCustomer(): void
     {
         $this->customerId = null;
-        $this->customerSearch = '';
+        $this->customerForm['customerId'] = null;
     }
 
     public function addToCart(int $serviceId): void
     {
+        $this->ensureCustomerSelected();
+
         $service = $this->availableService($serviceId);
         $key = (string) $service->getKey();
 
@@ -150,6 +259,8 @@ class PointOfSale extends Page
 
     public function updateQuantity(int $serviceId, mixed $quantity): void
     {
+        $this->ensureCustomerSelected();
+
         $service = $this->availableService($serviceId);
         $value = is_scalar($quantity) ? trim((string) $quantity) : '';
 
@@ -170,6 +281,8 @@ class PointOfSale extends Page
 
     public function removeFromCart(int $serviceId): void
     {
+        $this->ensureCustomerSelected();
+
         unset($this->cart[(string) $serviceId]);
     }
 
@@ -248,6 +361,8 @@ class PointOfSale extends Page
 
     public function openPaymentModal(): void
     {
+        $this->ensureCustomerSelected();
+
         if ($this->cart === []) {
             Notification::make()->title('Keranjang masih kosong')->warning()->send();
 
@@ -385,7 +500,7 @@ class PointOfSale extends Page
         $this->cart = [];
         $this->discount = '0';
         $this->customerId = null;
-        $this->customerSearch = '';
+        $this->customerForm = ['customerId' => null];
         $this->paymentLines = [];
         $this->paymentModalOpen = false;
 

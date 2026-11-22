@@ -76,6 +76,59 @@ class PointOfSaleTest extends TestCase
         return $user;
     }
 
+    public function test_pos_requires_a_customer_before_showing_the_service_catalog(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->assertSee('Pilih pelanggan terlebih dahulu')
+            ->assertDontSee('Cuci Kiloan')
+            ->call('selectCustomer', $this->customer->id)
+            ->assertSee('Cuci Kiloan')
+            ->assertDontSee('Pilih pelanggan terlebih dahulu');
+    }
+
+    public function test_cart_action_is_available_after_selecting_a_customer(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->assertDontSee('Keranjang')
+            ->call('selectCustomer', $this->customer->id)
+            ->assertSee('Keranjang');
+    }
+
+    public function test_quick_add_customer_callback_creates_and_selects_a_customer_for_the_current_tenant(): void
+    {
+        $this->actAsCashier();
+
+        $page = Livewire::test(PointOfSale::class)
+            ->call('createCustomerOption', [
+                'name' => 'Pelanggan Walk In',
+                'phone' => '081299988877',
+            ])
+            ->assertHasNoErrors()
+            ->assertSet('customerId', Customer::query()->where('name', 'Pelanggan Walk In')->value('id'))
+            ->assertSee('Cuci Kiloan');
+
+        $this->assertDatabaseHas('customers', [
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Pelanggan Walk In',
+            'phone' => '6281299988877',
+        ]);
+    }
+
+    public function test_cashier_cannot_add_services_before_selecting_a_customer(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('addToCart', $this->service->id)
+            ->assertForbidden();
+
+        $this->assertSame(0, Order::query()->count());
+    }
+
     public function test_touchscreen_pos_shows_only_active_services_from_the_current_tenant(): void
     {
         $inactive = Service::factory()->for($this->tenant)->inactive()->create(['name' => 'Layanan Nonaktif']);
@@ -84,7 +137,7 @@ class PointOfSaleTest extends TestCase
         $this->actAsCashier();
 
         Livewire::test(PointOfSale::class)
-            ->assertSee('Kasir Laundry')
+            ->call('selectCustomer', $this->customer->id)
             ->assertSee($this->service->name)
             ->assertDontSee($inactive->name)
             ->assertDontSee($foreign->name);
@@ -251,9 +304,9 @@ class PointOfSaleTest extends TestCase
         ]);
 
         Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
             ->call('addToCart', $this->service->id)
             ->assertSee('Rp 9.000')
-            ->call('selectCustomer', $this->customer->id)
             ->call('createOrder')
             ->assertHasNoErrors();
 
