@@ -1,10 +1,7 @@
 <x-filament-panels::page>
     <div class="space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Transaksi baru · {{ $this->currentBranchName() }}</p>
-                <h2 class="text-xl font-bold text-gray-950 dark:text-white">Kasir Laundry</h2>
-            </div>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Transaksi baru · {{ $this->currentBranchName() }}</p>
             <div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <x-filament::icon icon="heroicon-o-shopping-bag" class="h-5 w-5" />
                 {{ count($this->cartLines()) }} item di keranjang
@@ -26,41 +23,11 @@
             </div>
         @endif
 
+        @if ($this->selectedCustomer())
         <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_23rem]">
             <section class="space-y-4">
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                    <label for="pos-customer-search" class="mb-2 block text-sm font-semibold text-gray-800 dark:text-gray-200">Pelanggan</label>
-                    @if ($customer = $this->selectedCustomer())
-                        <div class="flex items-center justify-between gap-3 rounded-lg bg-primary-50 px-3 py-3 dark:bg-primary-400/10">
-                            <div>
-                                <p class="font-semibold text-gray-950 dark:text-white">{{ $customer->name }}</p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ $customer->phone ?: 'Tanpa nomor telepon' }}</p>
-                            </div>
-                            <button type="button" wire:click="clearCustomer" class="rounded-lg px-3 py-2 text-sm font-medium text-danger-600 hover:bg-danger-50 dark:hover:bg-danger-400/10">Ganti</button>
-                        </div>
-                    @else
-                        <input
-                            id="pos-customer-search"
-                            type="search"
-                            wire:model.live.debounce.300ms="customerSearch"
-                            placeholder="Cari nama atau nomor HP pelanggan..."
-                            autocomplete="off"
-                            class="min-h-12 w-full rounded-lg border-gray-300 text-base shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                        >
-                        @if ($this->customerResults()->isNotEmpty())
-                            <div class="mt-2 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 dark:divide-gray-700 dark:border-gray-700">
-                                @foreach ($this->customerResults() as $result)
-                                    <button type="button" wire:key="pos-customer-{{ $result->id }}" wire:click="selectCustomer({{ $result->id }})" class="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800">
-                                        <span class="font-medium text-gray-900 dark:text-white">{{ $result->name }}</span>
-                                        <span class="text-sm text-gray-500 dark:text-gray-400">{{ $result->phone }}</span>
-                                    </button>
-                                @endforeach
-                            </div>
-                        @elseif (mb_strlen(trim($customerSearch)) >= 2)
-                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Pelanggan tidak ditemukan.</p>
-                        @endif
-                    @endif
-                    @error('customerId') <p class="mt-2 text-sm text-danger-600">{{ $message }}</p> @enderror
+                    {{ $this->form }}
                 </div>
 
                 <div class="flex items-center justify-between gap-3">
@@ -145,6 +112,14 @@
                 </div>
             </aside>
         </div>
+
+        @else
+            <div class="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center dark:border-gray-700 dark:bg-gray-900">
+                <x-filament::icon icon="heroicon-o-user-circle" class="mx-auto h-10 w-10 text-gray-400" />
+                <h2 class="mt-3 text-base font-semibold text-gray-950 dark:text-white">Pilih pelanggan terlebih dahulu</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Katalog layanan dan keranjang akan muncul setelah pelanggan dipilih.</p>
+            </div>
+        @endif
 
         @if ($paymentModalOpen)
             <div class="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-gray-950/60 p-4" wire:key="pos-payment-modal">
