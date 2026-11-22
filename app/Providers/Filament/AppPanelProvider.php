@@ -9,6 +9,7 @@ use App\Filament\App\Pages\Tenancy\RegisterBranch;
 use App\Filament\Auth\EditUserProfile;
 use App\Http\Middleware\EnsureActiveSubscription;
 use App\Models\Branch;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -35,6 +36,9 @@ class AppPanelProvider extends PanelProvider
             ->tenantRegistration(RegisterBranch::class)
             ->tenantProfile(EditBranchProfile::class)
             ->profile(EditUserProfile::class)
+            ->multiFactorAuthentication([
+                AppAuthentication::make()->recoverable(),
+            ])
             ->tenantMenuItems([
                 'profile' => fn (\Filament\Actions\Action $action): \Filament\Actions\Action => $action
                     ->label('Pengaturan Cabang')
