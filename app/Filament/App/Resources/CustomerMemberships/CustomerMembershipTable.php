@@ -90,6 +90,7 @@ class CustomerMembershipTable
 
                         Select::make('member_tier_id')
                             ->label('Jenis Member')
+                            ->helperText('Harga ditampilkan sebagai informasi. Pembayaran membership belum diproses melalui menu ini.')
                             ->options(fn (): array => MemberTier::query()
                                 ->where('tenant_id', Auth::user()?->tenant_id)
                                 ->where('is_active', true)
