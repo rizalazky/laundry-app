@@ -1,15 +1,15 @@
 <?php
 
-namespace Tests\Feature;
+namespace Tests\\Feature;
 
-use App\Models\Branch;
-use App\Models\InventoryItem;
-use App\Models\InventoryUnit;
-use App\Models\LocationStock;
-use App\Models\Tenant;
-use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
+use App\\Models\\Branch;
+use App\\Models\\InventoryItem;
+use App\\Models\\InventoryUnit;
+use App\\Models\\LocationStock;
+use App\\Models\\Tenant;
+use Illuminate\\Database\\QueryException;
+use Illuminate\\Foundation\\Testing\\RefreshDatabase;
+use Tests\\TestCase;
 
 class InventoryStockFoundationTest extends TestCase
 {
@@ -159,5 +159,55 @@ class InventoryStockFoundationTest extends TestCase
             'inventory_item_id' => $item->id,
             'quantity' => 2,
         ]);
+    }
+
+    public function test_force_deleting_a_tenant_removes_location_stocks_before_branch_cascade(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $item = InventoryItem::query()->create([
+            'tenant_id' => $tenant->id,
+            'sku' => 'STOCK-001',
+            'name' => 'Detergen',
+            'unit' => 'liter',
+            'item_category' => 'raw_material',
+        ]);
+
+        $stock = LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '15.0000',
+        ]);
+
+        $tenant->forceDelete();
+
+        $this->assertDatabaseMissing('tenants', ['id' => $tenant->id]);
+        $this->assertDatabaseMissing('branches', ['id' => $branch->id]);
+        $this->assertDatabaseMissing('location_stocks', ['id' => $stock->id]);
+    }
+
+    public function test_force_deleting_a_branch_with_location_stock_remains_restricted(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $item = InventoryItem::query()->create([
+            'tenant_id' => $tenant->id,
+            'sku' => 'STOCK-002',
+            'name' => 'Pewangi',
+            'unit' => 'liter',
+            'item_category' => 'raw_material',
+        ]);
+
+        LocationStock::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'inventory_item_id' => $item->id,
+            'quantity' => '8.0000',
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        $branch->forceDelete();
     }
 }
