@@ -188,6 +188,32 @@ class PointOfSaleTest extends TestCase
             ->assertSee($order->invoice_no);
     }
 
+    public function test_opening_payment_from_mobile_cart_closes_the_cart_slide_over(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
+            ->call('openPaymentModal', 'fi-test-component-action-0')
+            ->assertSet('paymentModalOpen', true)
+            ->assertDispatched('close-modal');
+    }
+
+    public function test_payment_amount_field_uses_live_binding_and_remaining_balance_updates(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
+            ->call('openPaymentModal')
+            ->assertSee('wire:model.live.debounce.300ms="paymentLines.0.amount"', false)
+            ->set('paymentLines.0.amount', '3000')
+            ->assertSet('paymentLines.0.amount', '3000')
+            ->assertSee('Rp 4.000');
+    }
+
     public function test_cashier_can_create_a_partially_paid_order_when_enabled(): void
     {
         $this->actAsCashier();
