@@ -212,7 +212,7 @@ class GetBusinessPerformanceAnalytics
 
     private function money(string $amount): string
     {
-        return (string) BigDecimal::of($amount)->toScale(2, RoundingMode::HALF_UP);
+        return (string) BigDecimal::of($amount)->toScale(2, RoundingMode::HalfUp);
     }
 
     private function average(string $amount, int $count): string
@@ -221,11 +221,11 @@ class GetBusinessPerformanceAnalytics
             return '0.00';
         }
 
-        return (string) BigDecimal::of($amount)->dividedBy($count, 2, RoundingMode::HALF_UP);
+        return (string) BigDecimal::of($amount)->dividedBy($count, 2, RoundingMode::HalfUp);
     }
 
     private function quantity(string $amount): string
     {
-        return (string) BigDecimal::of($amount)->toScale(2, RoundingMode::HALF_UP);
+        return (string) BigDecimal::of($amount)->toScale(2, RoundingMode::HalfUp);
     }
 }
