@@ -40,10 +40,10 @@ class AppPanelProvider extends PanelProvider
                 AppAuthentication::make()->recoverable(),
             ])
             ->tenantMenuItems([
-                'profile' => fn (\\Filament\\Actions\\Action $action): \\Filament\\Actions\\Action => $action
+                'profile' => fn (\Filament\Actions\Action $action): \Filament\Actions\Action => $action
                     ->label('Pengaturan Cabang')
                     ->icon('heroicon-m-building-office-2'),
-                'register' => fn (\\Filament\\Actions\\Action $action): \\Filament\\Actions\\Action => $action
+                'register' => fn (\Filament\Actions\Action $action): \Filament\Actions\Action => $action
                     ->label('Tambah Cabang')
                     ->icon('heroicon-m-plus'),
             ])
@@ -63,13 +63,13 @@ class AppPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->viteTheme('resources/css/filament/app/theme.css')
-            ->discoverResources(in: app_path('Filament/App/Resources'), for: 'App\\\\Filament\\\\App\\\\Resources')
-            ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\\\\Filament\\\\App\\\\Pages')
+            ->discoverResources(in: app_path('Filament/App/Resources'), for: 'App\\Filament\\App\\Resources')
+            ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\\Filament\\App\\Pages')
             ->pages([
                 Dashboard::class,
                 GeneralSettings::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\\\\Filament\\\\App\\\\Widgets')
+            ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\\Filament\\App\\Widgets')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
