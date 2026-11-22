@@ -58,6 +58,8 @@ class PointOfSale extends Page implements HasForms
 
     public bool $paymentModalOpen = false;
 
+    public bool $paymentInCart = false;
+
     public array $paymentLines = [];
 
     public ?int $lastCreatedOrderId = null;
@@ -379,10 +381,7 @@ class PointOfSale extends Page implements HasForms
             ]];
 
         $this->paymentModalOpen = true;
-
-        if (filled($cartModalId)) {
-            $this->dispatch('close-modal', id: $cartModalId);
-        }
+        $this->paymentInCart = filled($cartModalId);
     }
 
     public function addPaymentLine(): void
@@ -403,6 +402,7 @@ class PointOfSale extends Page implements HasForms
     public function closePaymentModal(): void
     {
         $this->paymentModalOpen = false;
+        $this->paymentInCart = false;
     }
 
     public function createOrder(): void
