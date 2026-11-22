@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceUnit;
+use App\Actions\Accounting\PostOrderRevenue;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Order;
@@ -140,6 +141,8 @@ class CreateOrder
             ])->save();
 
             $order->items()->createMany($lines);
+
+            app(PostOrderRevenue::class)->handle($order);
 
             OrderStatusLog::query()->create([
                 'order_id' => $order->getKey(),
