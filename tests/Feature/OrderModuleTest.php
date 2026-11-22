@@ -441,6 +441,7 @@ class OrderModuleTest extends TestCase
             workerId: $foreignOperator->id,
         );
     }
+
     public function test_cashier_can_use_edc_debit_for_down_payment_and_edc_credit_for_later_payment(): void
     {
         $cashier = $this->staff('cashier');
@@ -483,5 +484,4 @@ class OrderModuleTest extends TestCase
             'amount' => '5000.00',
         ]);
     }
-
 }
