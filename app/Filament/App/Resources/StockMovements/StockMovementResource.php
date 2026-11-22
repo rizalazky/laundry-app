@@ -22,7 +22,6 @@ class StockMovementResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrows-right-left';
     protected static string|UnitEnum|null $navigationGroup = 'Inventori & Distribusi';
     protected static ?int $navigationSort = 40;
-    protected static UnitEnum|string|null $navigationGroup = 'Inventori';
     protected static ?string $recordTitleAttribute = 'id';
     protected static ?string $navigationLabel = 'Mutasi Stok';
     protected static ?string $modelLabel = 'Mutasi Stok';
