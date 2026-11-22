@@ -149,7 +149,7 @@ class OrderActionsTest extends TestCase
 
         $this->travelTo(now()->setDate(2026, 11, 19)->setTime(10, 0));
 
-        $this->assertSame('SMART-261119-0001', $this->createOrder()->invoice_no);
+        $this->assertSame('SMART-PUSAT-261119-0001', $this->createOrder()->invoice_no);
     }
 
     public function test_tenant_default_estimation_is_used_when_services_have_no_estimate(): void
