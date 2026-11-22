@@ -99,6 +99,14 @@ return [
         'password' => env('SEED_SUPER_ADMIN_PASSWORD'),
     ],
 
+    'seed_demo_tenant' => [
+        'enabled' => (bool) env('SEED_DEMO_TENANT', false),
+        'name' => env('SEED_DEMO_TENANT_NAME', 'Demo Laundry'),
+        'slug' => env('SEED_DEMO_TENANT_SLUG', 'demo-laundry'),
+        'owner_email' => env('SEED_DEMO_TENANT_OWNER_EMAIL', 'demo-owner@example.test'),
+        'owner_password' => env('SEED_DEMO_TENANT_OWNER_PASSWORD'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Encryption Key

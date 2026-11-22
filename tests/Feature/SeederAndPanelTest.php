@@ -7,6 +7,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Tests\TestCase;
 
 class SeederAndPanelTest extends TestCase
@@ -61,5 +62,70 @@ class SeederAndPanelTest extends TestCase
     public function test_app_panel_uses_branch_as_tenant_ownership_relationship(): void
     {
         $this->assertSame('branch', Filament::getPanel('app')->getTenantOwnershipRelationshipName());
+    }
+
+    public function test_demo_tenant_seeding_is_opt_in_and_idempotent(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+
+        $this->assertSame(0, Tenant::query()->count());
+
+        config([
+            'app.seed_demo_tenant.enabled' => true,
+            'app.seed_demo_tenant.name' => 'Demo Laundry',
+            'app.seed_demo_tenant.slug' => 'demo-laundry',
+            'app.seed_demo_tenant.owner_email' => 'demo-owner@example.test',
+            'app.seed_demo_tenant.owner_password' => 'a-strong-demo-password',
+        ]);
+
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(DatabaseSeeder::class);
+
+        $tenant = Tenant::query()->where('slug', 'demo-laundry')->firstOrFail();
+        $owner = User::query()->where('email', 'demo-owner@example.test')->firstOrFail();
+        $outlet = $tenant->branches()->where('is_workshop', false)->firstOrFail();
+        $workshop = $tenant->branches()->where('is_workshop', true)->firstOrFail();
+
+        $this->assertSame((int) $tenant->getKey(), (int) $owner->tenant_id);
+        $this->assertSame('tenant_owner', $owner->role);
+        $this->assertSame(2, $tenant->branches()->count());
+        $this->assertDatabaseHas('outlet_workshops', [
+            'tenant_id' => $tenant->getKey(),
+            'outlet_id' => $outlet->getKey(),
+            'workshop_id' => $workshop->getKey(),
+        ]);
+        $this->assertSame(1, Tenant::query()->where('slug', 'demo-laundry')->count());
+        $this->assertSame(1, User::query()->where('email', 'demo-owner@example.test')->count());
+    }
+
+    public function test_demo_tenant_seeder_does_not_reassign_an_existing_user(): void
+    {
+        $existingTenant = Tenant::factory()->create();
+        User::factory()->create([
+            'tenant_id' => $existingTenant->getKey(),
+            'email' => 'demo-owner@example.test',
+            'role' => 'cashier',
+        ]);
+
+        config([
+            'app.seed_demo_tenant.enabled' => true,
+            'app.seed_demo_tenant.name' => 'Demo Laundry',
+            'app.seed_demo_tenant.slug' => 'demo-laundry',
+            'app.seed_demo_tenant.owner_email' => 'demo-owner@example.test',
+            'app.seed_demo_tenant.owner_password' => 'a-strong-demo-password',
+        ]);
+
+        try {
+            $this->seed(DatabaseSeeder::class);
+            $this->fail('Expected demo seeding to reject an existing account from another tenant.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('different account scope', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'demo-owner@example.test',
+            'tenant_id' => $existingTenant->getKey(),
+            'role' => 'cashier',
+        ]);
     }
 }
