@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Observers;
+namespace App\Observers;
 
-use App\\Actions\\Accounting\\EnsureDefaultChartOfAccounts;
-use App\\Models\\Tenant;
-use Illuminate\\Support\\Facades\\DB;
+use App\Actions\Accounting\EnsureDefaultChartOfAccounts;
+use App\Models\Tenant;
+use Illuminate\Support\Facades\DB;
 
 class TenantObserver
 {
