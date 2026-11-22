@@ -19,7 +19,7 @@ class RegisterCustomerMembership
             ! $actor->is_active
             || $actor->tenant_id === null
             || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
-            || ! $actor->hasPermissionTo('customers.manage')
+            || ! $actor->hasPermissionTo('memberships.manage')
         ) {
             throw new AuthorizationException('Anda tidak memiliki izin untuk mendaftarkan membership pelanggan.');
         }
