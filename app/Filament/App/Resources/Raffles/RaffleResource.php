@@ -44,7 +44,7 @@ class RaffleResource extends Resource
 
     public static function canEdit($record): bool
     {
-        return static::canCreate() && $record->tickets()->doesntExist();
+        return static::canCreate();
     }
 
     public static function canDelete($record): bool
