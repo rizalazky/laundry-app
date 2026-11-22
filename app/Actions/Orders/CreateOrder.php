@@ -117,7 +117,7 @@ class CreateOrder
 
             $total = $subtotal->minus($discount);
             $orderDate = now();
-            $maxHours = $services->max('estimated_hours');
+            $maxHours = $services->max('estimated_hours') ?: $branch->tenant->getDefaultEstimationHours();
 
             $order = Order::query()->create([
                 'tenant_id' => $branch->tenant_id,
