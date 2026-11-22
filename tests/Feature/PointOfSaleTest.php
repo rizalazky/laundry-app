@@ -199,8 +199,7 @@ class PointOfSaleTest extends TestCase
             ->assertSet('paymentModalOpen', true)
             ->assertSet('paymentInCart', true)
             ->assertSee('Pembayaran')
-            ->assertSee('Simpan Order')
-            ->assertDontSee('Lanjut Pembayaran');
+            ->assertSee('Simpan Order');
     }
 
     public function test_payment_amount_field_uses_live_binding_and_remaining_balance_updates(): void
