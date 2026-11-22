@@ -180,6 +180,7 @@ class InventoryStockFoundationTest extends TestCase
             'quantity' => '15.0000',
         ]);
 
+        $tenant->delete();
         $tenant->forceDelete();
 
         $this->assertDatabaseMissing('tenants', ['id' => $tenant->id]);
