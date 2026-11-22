@@ -32,11 +32,13 @@ class RolePermissionService
         $actor = Auth::user();
 
         if (
-            $actor !== null
-            && $actor->role !== 'super_admin'
-            && ($actor->tenant_id === null || (int) $actor->tenant_id !== (int) $tenant->getKey())
+            $actor === null
+            || ! $actor->is_active
+            || $actor->role !== 'tenant_owner'
+            || $actor->tenant_id === null
+            || (int) $actor->tenant_id !== (int) $tenant->getKey()
         ) {
-            throw new AuthorizationException('Tenant lain tidak dapat mengubah matriks hak akses.');
+            throw new AuthorizationException('Hanya owner aktif yang dapat mengubah matriks hak akses tenant sendiri.');
         }
 
         if (! in_array($role, self::CONFIGURABLE_ROLES, true)) {
