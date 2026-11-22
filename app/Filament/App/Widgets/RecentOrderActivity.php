@@ -16,7 +16,7 @@ class RecentOrderActivity extends BaseWidget
 
     protected int|string|array $columnSpan = 'full';
 
-    protected ?string $heading = 'Aktivitas Pesanan Terkini';
+    protected static ?string $heading = 'Aktivitas Pesanan Terkini';
 
     public static function canView(): bool
     {
