@@ -13,6 +13,8 @@ class ReverseOrderRevenue
 {
     public function handle(Order $order, CarbonInterface $cancelledAt, ?int $createdBy = null): ?Journal
     {
+        app(EnsureDefaultChartOfAccounts::class)->handle((int) $order->tenant_id);
+
         $amount = BigDecimal::of((string) $order->total)->toScale(2);
 
         if ($amount->isLessThanOrEqualTo(0)) {
