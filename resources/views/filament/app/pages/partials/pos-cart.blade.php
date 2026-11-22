@@ -1,4 +1,7 @@
 <div class="flex h-full min-h-0 flex-col gap-4 w-full">
+    @if ($livewire->paymentModalOpen)
+        @include('filament.app.pages.partials.pos-payment-form', ['livewire' => $livewire])
+    @else
 
                 <div class="flex items-center justify-between">
                     <h3 class="text-base font-semibold text-gray-950 dark:text-white">Keranjang</h3>
@@ -53,4 +56,5 @@
                     </x-filament::button>
                 </div>
 
+    @endif
 </div>
