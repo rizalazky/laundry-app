@@ -85,8 +85,9 @@ class PointOfSale extends Page implements HasForms
                 ->slideOver()
                 ->modalHeading('Keranjang Belanja')
                 ->modalDescription('Periksa layanan dan total transaksi sebelum melanjutkan pembayaran.')
-                ->modalContent(fn () => view('filament.app.pages.partials.pos-cart', [
+                ->modalContent(fn (Action $action) => view('filament.app.pages.partials.pos-cart', [
                     'livewire' => $this,
+                    'modalId' => "fi-{$this->getId()}-action-{$action->getNestingIndex()}",
                 ]))
                 ->modalSubmitAction(false)
                 ->modalCancelAction(false)
@@ -359,7 +360,7 @@ class PointOfSale extends Page implements HasForms
             ->toScale(2);
     }
 
-    public function openPaymentModal(): void
+    public function openPaymentModal(?string $cartModalId = null): void
     {
         $this->ensureCustomerSelected();
 
@@ -376,7 +377,12 @@ class PointOfSale extends Page implements HasForms
                 'method' => PaymentMethod::Cash->value,
                 'reference' => '',
             ]];
+
         $this->paymentModalOpen = true;
+
+        if (filled($cartModalId)) {
+            $this->dispatch('close-modal', id: $cartModalId);
+        }
     }
 
     public function addPaymentLine(): void
