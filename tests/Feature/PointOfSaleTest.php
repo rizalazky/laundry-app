@@ -50,7 +50,7 @@ class PointOfSaleTest extends TestCase
         $user = User::factory()->for($this->tenant)->withRole('cashier')->create();
         $user->branches()->attach($branch ?? $this->branch);
 
-        foreach (['orders.create', 'orders.payment'] as $slug) {
+        foreach (['orders.view', 'orders.create', 'orders.payment'] as $slug) {
             $permission = Permission::query()->firstOrCreate(
                 ['slug' => $slug],
                 ['name' => $slug, 'group' => 'Pesanan'],
