@@ -47,8 +47,14 @@ class EdcMachineResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
+        $user = Auth::user();
+
         return parent::getEloquentQuery()
-            ->where('tenant_id', Auth::user()?->tenant_id)
+            ->where('tenant_id', $user?->tenant_id)
+            ->when(
+                $user?->role !== 'tenant_owner',
+                fn (Builder $query) => $query->where('branch_id', \Filament\Facades\Filament::getTenant()?->getKey()),
+            )
             ->with(['branch', 'bankAccount'])
             ->orderBy('terminal_name');
     }
@@ -65,6 +71,10 @@ class EdcMachineResource extends Resource
                         ->options(fn (): array => Branch::query()
                             ->where('is_active', true)
                             ->where('is_workshop', false)
+                            ->when(
+                                Auth::user()?->role !== 'tenant_owner',
+                                fn (Builder $query) => $query->whereKey(\Filament\Facades\Filament::getTenant()?->getKey()),
+                            )
                             ->orderBy('name')
                             ->pluck('name', 'id')->all())
                         ->searchable()
