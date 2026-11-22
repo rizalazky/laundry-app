@@ -74,7 +74,21 @@ class CustomerMembershipTable
                         CustomerMembership::STATUS_ACTIVE => 'Aktif',
                         CustomerMembership::STATUS_EXPIRED => 'Kedaluwarsa',
                         CustomerMembership::STATUS_CANCELLED => 'Dibatalkan',
-                    ]),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
+                        CustomerMembership::STATUS_ACTIVE => $query
+                            ->where('status', CustomerMembership::STATUS_ACTIVE)
+                            ->where('expired_at', '>', now()),
+                        CustomerMembership::STATUS_EXPIRED => $query->where(function (Builder $expired): void {
+                            $expired->where('status', CustomerMembership::STATUS_EXPIRED)
+                                ->orWhere(function (Builder $stale): void {
+                                    $stale->where('status', CustomerMembership::STATUS_ACTIVE)
+                                        ->where('expired_at', '<=', now());
+                                });
+                        }),
+                        CustomerMembership::STATUS_CANCELLED => $query->where('status', CustomerMembership::STATUS_CANCELLED),
+                        default => $query,
+                    }),
             ])
             ->headerActions([
                 Action::make('registerMembership')
