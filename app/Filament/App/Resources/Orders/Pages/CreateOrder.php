@@ -43,7 +43,7 @@ class CreateOrder extends CreateRecord
                 discount: $data['discount'] ?? 0,
                 notes: $data['notes'] ?? null,
                 dueAt: filled($data['due_at'] ?? null) ? Carbon::parse($data['due_at']) : null,
-                initialPayment: $initialPayment,
+                initialPayment: $initialPayment,\n                voucherCode: $data['voucher_code'] ?? null,
             );
         } catch (DomainException $exception) {
             Notification::make()
