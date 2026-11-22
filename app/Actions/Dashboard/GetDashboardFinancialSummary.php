@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Actions\\Dashboard;
+namespace App\Actions\Dashboard;
 
-use App\\Enums\\OrderStatus;
-use App\\Enums\\PaymentType;
-use App\\Models\\Order;
-use App\\Models\\Payment;
-use App\\Models\\User;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentType;
+use App\Models\Order;
+use App\Models\Payment;
+use App\Models\User;
 
 class GetDashboardFinancialSummary
 {
