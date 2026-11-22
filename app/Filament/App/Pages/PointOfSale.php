@@ -15,6 +15,11 @@ use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use DomainException;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
@@ -24,8 +29,10 @@ use Illuminate\Validation\ValidationException;
 use UnitEnum;
 use BackedEnum;
 
-class PointOfSale extends Page
+class PointOfSale extends Page implements HasForms
 {
+    use InteractsWithForms;
+
     protected string $view = 'filament.app.pages.point-of-sale';
 
     protected static ?string $slug = 'pos';
@@ -40,7 +47,7 @@ class PointOfSale extends Page
 
     protected static ?int $navigationSort = 9;
 
-    public string $customerSearch = '';
+    public array $customerForm = [];
 
     public ?int $customerId = null;
 
@@ -68,6 +75,74 @@ class PointOfSale extends Page
     public function mount(): void
     {
         abort_unless(static::canAccess(), 403);
+
+        $this->form->fill(['customerId' => null]);
+    }
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Select::make('customerId')
+                    ->label('Pelanggan')
+                    ->placeholder('Cari nama atau nomor HP pelanggan...')
+                    ->searchable()
+                    ->required()
+                    ->live()
+                    ->getSearchResultsUsing(function (string $search): array {
+                        $branch = $this->currentBranch();
+
+                        return Customer::query()
+                            ->where('tenant_id', $branch->tenant_id)
+                            ->where(function ($query) use ($search): void {
+                                $query->where('name', 'like', "%{$search}%")
+                                    ->orWhere('phone', 'like', "%{$search}%");
+                            })
+                            ->orderBy('name')
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn (Customer $customer): array => [
+                                $customer->getKey() => $customer->name.($customer->phone ? ' · '.$customer->phone : ''),
+                            ])
+                            ->all();
+                    })
+                    ->getOptionLabelUsing(function ($value): ?string {
+                        if (blank($value)) {
+                            return null;
+                        }
+
+                        $customer = Customer::query()
+                            ->where('tenant_id', $this->currentBranch()->tenant_id)
+                            ->find($value);
+
+                        return $customer?->name.($customer?->phone ? ' · '.$customer->phone : '');
+                    })
+                    ->createOptionForm([
+                        TextInput::make('name')
+                            ->label('Nama Pelanggan')
+                            ->required()
+                            ->maxLength(255),
+                        TextInput::make('phone')
+                            ->label('Nomor HP / WhatsApp')
+                            ->tel()
+                            ->maxLength(25),
+                    ])
+                    ->createOptionAction(fn ($action) => $action
+                        ->label('Tambah pelanggan baru')
+                        ->modalHeading('Pelanggan Baru')
+                        ->modalSubmitActionLabel('Simpan Pelanggan'))
+                    ->createOptionUsing(function (array $data): int {
+                        $customer = Customer::query()->create([
+                            'tenant_id' => $this->currentBranch()->tenant_id,
+                            'name' => $data['name'],
+                            'phone' => $data['phone'] ?? null,
+                        ]);
+
+                        return (int) $customer->getKey();
+                    })
+                    ->afterStateUpdated(fn ($state) => $this->customerId = filled($state) ? (int) $state : null),
+            ])
+            ->statePath('customerForm');
     }
 
     public function currentBranchName(): string
@@ -85,26 +160,6 @@ class PointOfSale extends Page
             ->with(['branchPrices' => fn ($query) => $query->where('branch_id', $branch->getKey())])
             ->orderBy('name')
             ->get();
-    }
-
-    public function customerResults(): \Illuminate\Support\Collection
-    {
-        $branch = $this->currentBranch();
-        $search = trim($this->customerSearch);
-
-        if ($search === '') {
-            return collect();
-        }
-
-        return Customer::query()
-            ->where('tenant_id', $branch->tenant_id)
-            ->where(function ($query) use ($search): void {
-                $query->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
-            })
-            ->orderBy('name')
-            ->limit(8)
-            ->get(['id', 'name', 'phone']);
     }
 
     public function selectedCustomer(): ?Customer
@@ -125,13 +180,13 @@ class PointOfSale extends Page
             ->findOrFail($customerId);
 
         $this->customerId = (int) $customer->getKey();
-        $this->customerSearch = '';
+        $this->customerForm['customerId'] = $this->customerId;
     }
 
     public function clearCustomer(): void
     {
         $this->customerId = null;
-        $this->customerSearch = '';
+        $this->customerForm['customerId'] = null;
     }
 
     public function addToCart(int $serviceId): void
@@ -385,7 +440,7 @@ class PointOfSale extends Page
         $this->cart = [];
         $this->discount = '0';
         $this->customerId = null;
-        $this->customerSearch = '';
+        $this->customerForm = ['customerId' => null];
         $this->paymentLines = [];
         $this->paymentModalOpen = false;
 
