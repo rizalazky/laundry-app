@@ -352,9 +352,16 @@ class GenerateFinancialReports
 
     private function assertTenantAccess(int $tenantId): void
     {
-        $authenticatedTenantId = Auth::user()?->tenant_id;
+        $user = Auth::user();
 
-        if ($authenticatedTenantId !== null && (int) $authenticatedTenantId !== $tenantId) {
+        if ($user === null || ! $user->is_active || ! $user->hasPermissionTo('reports.view')) {
+            throw new DomainException('Anda tidak memiliki izin untuk melihat laporan keuangan.');
+        }
+
+        if (
+            $user->role !== 'super_admin'
+            && ($user->tenant_id === null || (int) $user->tenant_id !== $tenantId)
+        ) {
             throw new DomainException('Tenant laporan tidak sesuai dengan tenant pengguna.');
         }
     }
