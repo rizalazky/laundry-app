@@ -23,13 +23,13 @@
             </div>
         @endif
 
+        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            {{ $this->form }}
+        </div>
+
         @if ($this->selectedCustomer())
         <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_23rem]">
             <section class="space-y-4">
-                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                    {{ $this->form }}
-                </div>
-
                 <div class="flex items-center justify-between gap-3">
                     <h3 class="text-base font-semibold text-gray-950 dark:text-white">Pilih layanan</h3>
                     <span class="text-xs text-gray-500 dark:text-gray-400">Ketuk kartu untuk menambahkan</span>
