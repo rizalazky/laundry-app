@@ -22,7 +22,7 @@ class GetBusinessPerformanceAnalytics
      *   to: string,
      *   summary: array{orders: int, completed_orders: int, turnover: string, average_order_value: string},
      *   outlets: array<int, array{branch_id: int, branch_name: string, orders: int, completed_orders: int, turnover: string, average_order_value: string}>,
-     *   services: array<int, array{service_id: int, service_name: string, orders: int, quantity: string, revenue: string}>,
+     *   services: array<int, array{service_id: int, service_name: string, orders: int, quantity: string, gross_value: string}>,
      *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_records: int}>
      * }
      *
@@ -108,6 +108,7 @@ class GetBusinessPerformanceAnalytics
             ->join('users', 'users.id', '=', 'production_logs.worker_id')
             ->where('production_logs.tenant_id', $tenantId)
             ->where('users.tenant_id', $tenantId)
+            ->where('orders.tenant_id', $tenantId)
             ->whereBetween('production_logs.started_at', [$from, $to])
             ->when($branchId !== null, fn ($query) => $query->where('orders.branch_id', $branchId))
             ->select('users.id as user_id', 'users.name as employee_name')
