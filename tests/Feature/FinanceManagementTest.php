@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Actions\Accounting\CreateJournal;
 use App\Filament\App\Pages\ManualJournal;
+use App\Filament\App\Resources\CashSettlements\Pages\CreateCashSettlement;
+use App\Models\BankAccount;
+use App\Models\CashSettlement;
 use App\Filament\App\Resources\BankAccounts\BankAccountResource;
 use App\Filament\App\Resources\CashSettlements\CashSettlementResource;
 use App\Filament\App\Resources\ChartOfAccounts\ChartOfAccountResource;
@@ -173,6 +176,49 @@ class FinanceManagementTest extends TestCase
             ->assertHasErrors('entries');
 
         $this->assertSame(0, Journal::query()->where('tenant_id', $tenant->id)->count());
+    }
+
+
+    public function test_cash_settlement_create_page_posts_the_settlement_and_balanced_journal(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $bankCoa = ChartOfAccount::query()->where('code', '1010')->firstOrFail();
+        $bank = BankAccount::query()->create([
+            'tenant_id' => $tenant->id,
+            'coa_id' => $bankCoa->id,
+            'bank_name' => 'Bank Test',
+            'account_number' => '1234567890',
+            'holder_name' => 'Laundry Test',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        Livewire::test(CreateCashSettlement::class)
+            ->fillForm([
+                'source_type' => CashSettlement::SOURCE_OUTLET_CASH,
+                'branch_id' => (string) $branch->id,
+                'target_bank_id' => (string) $bank->id,
+                'gross_amount' => '250000.00',
+                'reference_number' => 'UI-CASH-SETTLE-001',
+                'settled_at' => '2026-11-22 09:00:00',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $settlement = CashSettlement::query()->where('tenant_id', $tenant->id)->sole();
+
+        $this->assertSame('250000.00', $settlement->gross_amount);
+        $this->assertSame('250000.00', $settlement->net_amount);
+        $this->assertDatabaseHas('journals', [
+            'tenant_id' => $tenant->id,
+            'reference_type' => 'cash_settlement',
+            'reference_id' => $settlement->id,
+        ]);
     }
 
     public function test_system_chart_of_accounts_cannot_be_edited(): void
