@@ -32,6 +32,11 @@ class Order extends Model
         'due_at',
         'subtotal',
         'discount',
+        'promo_id',
+        'voucher_id',
+        'promo_name_snapshot',
+        'voucher_code_snapshot',
+        'promo_discount',
         'total',
         'notes',
     ];
@@ -45,6 +50,7 @@ class Order extends Model
             'due_at' => 'datetime',
             'subtotal' => 'decimal:2',
             'discount' => 'decimal:2',
+            'promo_discount' => 'decimal:2',
             'total' => 'decimal:2',
             'paid_amount' => 'decimal:2',
         ];
@@ -58,6 +64,16 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function promo(): BelongsTo
+    {
+        return $this->belongsTo(Promo::class);
+    }
+
+    public function voucher(): BelongsTo
+    {
+        return $this->belongsTo(Voucher::class);
     }
 
     public function creator(): BelongsTo
