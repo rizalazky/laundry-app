@@ -12,6 +12,7 @@ use App\Filament\App\Pages\RolePermissions;
 use App\Filament\App\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\App\Resources\Attendances\AttendanceResource;
 use App\Filament\App\Resources\Customers\CustomerResource;
+use App\Filament\App\Resources\AffiliateReferrals\AffiliateReferralResource;
 use App\Filament\App\Resources\CustomerMemberships\CustomerMembershipResource;
 use App\Filament\App\Resources\MemberTiers\MemberTierResource;
 use App\Filament\App\Resources\Promos\PromoResource;
@@ -41,6 +42,7 @@ class AppNavigationTest extends TestCase
         $this->assertSame('Pelanggan & CRM', VoucherResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', PromoResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', VoucherResource::getNavigationGroup());
+        $this->assertSame('Pelanggan & CRM', AffiliateReferralResource::getNavigationGroup());
 
         $this->assertSame('Karyawan & SDM', UserResource::getNavigationGroup());
         $this->assertSame('Karyawan & SDM', AttendanceResource::getNavigationGroup());

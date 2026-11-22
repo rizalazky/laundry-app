@@ -23,6 +23,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'Kelola Membership Pelanggan', 'slug' => 'memberships.manage', 'group' => 'Pelanggan'],
             ['name' => 'Lihat Promo dan Voucher', 'slug' => 'promotions.view', 'group' => 'Promosi'],
             ['name' => 'Kelola Promo dan Voucher', 'slug' => 'promotions.manage', 'group' => 'Promosi'],
+            ['name' => 'Lihat Afiliasi', 'slug' => 'affiliates.view', 'group' => 'Afiliasi'],
+            ['name' => 'Kelola Afiliasi', 'slug' => 'affiliates.manage', 'group' => 'Afiliasi'],
             ['name' => 'Lihat Layanan', 'slug' => 'services.view', 'group' => 'Layanan'],
             ['name' => 'Kelola Layanan', 'slug' => 'services.manage', 'group' => 'Layanan'],
             ['name' => 'Lihat Karyawan', 'slug' => 'staff.view', 'group' => 'Karyawan'],
