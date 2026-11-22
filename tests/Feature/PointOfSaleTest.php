@@ -76,6 +76,42 @@ class PointOfSaleTest extends TestCase
         return $user;
     }
 
+    public function test_pos_requires_a_customer_before_showing_the_service_catalog(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->assertSee('Pilih pelanggan terlebih dahulu')
+            ->assertDontSee('Cuci Kiloan')
+            ->call('selectCustomer', $this->customer->id)
+            ->assertSee('Cuci Kiloan')
+            ->assertDontSee('Pilih pelanggan terlebih dahulu');
+    }
+
+    public function test_cashier_can_quick_add_a_customer_from_the_native_customer_select(): void
+    {
+        $this->actAsCashier();
+
+        $page = Livewire::test(PointOfSale::class)
+            ->fillForm([
+                'customerForm' => [
+                    'customerId' => null,
+                ],
+            ])
+            ->assertSee('Pelanggan')
+            ->assertSee('Pilih pelanggan terlebih dahulu');
+
+        $customer = Customer::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Pelanggan Walk In',
+            'phone' => '081299988877',
+        ]);
+
+        $page->call('selectCustomer', $customer->id)
+            ->assertSet('customerId', $customer->id)
+            ->assertSee('Cuci Kiloan');
+    }
+
     public function test_touchscreen_pos_shows_only_active_services_from_the_current_tenant(): void
     {
         $inactive = Service::factory()->for($this->tenant)->inactive()->create(['name' => 'Layanan Nonaktif']);
