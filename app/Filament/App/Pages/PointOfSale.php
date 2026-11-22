@@ -509,6 +509,7 @@ class PointOfSale extends Page implements HasForms
         $this->customerForm = ['customerId' => null];
         $this->paymentLines = [];
         $this->paymentModalOpen = false;
+        $this->paymentInCart = false;
 
         Notification::make()
             ->title('Order berhasil dibuat')
