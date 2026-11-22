@@ -41,7 +41,7 @@
                             >
                                 <span class="text-sm font-semibold leading-snug text-gray-950 dark:text-white">{{ $service->name }}</span>
                                 <span>
-                                    <span class="block text-lg font-bold tabular-nums text-primary-700 dark:text-primary-400">Rp {{ number_format((float) $service->priceForBranch(\\Filament\\Facades\\Filament::getTenant()), 0, ',', '.') }}</span>
+                                    <span class="block text-lg font-bold tabular-nums text-primary-700 dark:text-primary-400">Rp {{ number_format((float) $service->priceForBranch(\Filament\Facades\Filament::getTenant()), 0, ',', '.') }}</span>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $service->unit->label() }}</span>
                                 </span>
                             </x-filament::button>
