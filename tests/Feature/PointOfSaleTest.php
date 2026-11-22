@@ -94,7 +94,7 @@ class PointOfSaleTest extends TestCase
     {
         $cashier = $this->actAsCashier();
 
-        Livewire::test(PointOfSale::class)
+        $page = Livewire::test(PointOfSale::class)
             ->call('selectCustomer', $this->customer->id)
             ->call('addToCart', $this->service->id)
             ->call('updateQuantity', $this->service->id, '5')
@@ -125,7 +125,7 @@ class PointOfSaleTest extends TestCase
             'reference' => 'QR-123',
         ]);
 
-        Livewire::test(PointOfSale::class)
+        $page
             ->assertSee($order->invoice_no)
             ->assertSee(route('orders.receipt', $order), false);
 
