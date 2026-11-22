@@ -154,6 +154,44 @@ class PointOfSaleTest extends TestCase
         $this->assertSame('3000.00', $order->paid_amount);
     }
 
+    public function test_zero_total_order_can_be_saved_without_a_payment_line(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
+            ->set('discount', '7000')
+            ->call('openPaymentModal')
+            ->assertSet('paymentLines', [])
+            ->call('createOrder')
+            ->assertHasNoErrors();
+
+        $order = Order::query()->sole();
+
+        $this->assertSame('0.00', $order->total);
+        $this->assertSame('0.00', $order->paid_amount);
+        $this->assertSame('paid', $order->payment_status->value);
+        $this->assertSame(0, $order->payments()->count());
+    }
+
+    public function test_partial_payment_is_rejected_when_the_tenant_disables_it(): void
+    {
+        $this->tenant->updateGeneralSettings(['allow_partial_payment' => false]);
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
+            ->set('paymentLines', [
+                ['amount' => '3000', 'method' => PaymentMethod::Cash->value, 'reference' => ''],
+            ])
+            ->call('createOrder')
+            ->assertHasErrors();
+
+        $this->assertSame(0, Order::query()->count());
+    }
+
     public function test_payment_above_order_total_is_rejected_without_creating_an_order(): void
     {
         $this->actAsCashier();
