@@ -2,9 +2,11 @@
 
 namespace App\Actions\Accounting;
 
+use App\Models\ChartOfAccount;
 use App\Models\Journal;
 use App\Models\Order;
 use Brick\Math\BigDecimal;
+use DomainException;
 
 class PostOrderRevenue
 {
@@ -14,6 +16,20 @@ class PostOrderRevenue
 
         if ($amount->isLessThanOrEqualTo(0)) {
             return null;
+        }
+
+        $accounts = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $order->tenant_id)
+            ->whereIn('code', ['1100', '4000'])
+            ->get()
+            ->keyBy('code');
+
+        if (
+            $accounts->count() !== 2
+            || $accounts->get('1100')?->account_type !== 'asset'
+            || $accounts->get('4000')?->account_type !== 'revenue'
+        ) {
+            throw new DomainException('Akun Piutang Usaha (1100) dan Pendapatan Jasa Laundry (4000) harus tersedia dengan tipe akun yang benar.');
         }
 
         return app(CreateJournal::class)->handle(
