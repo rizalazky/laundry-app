@@ -84,7 +84,7 @@ class Tenant extends Model
         return (string) $this->getGeneralSetting('timezone', 'Asia/Jakarta');
     }
 
-    public function getDateFormat(): string
+    public function getPreferredDateFormat(): string
     {
         return (string) $this->getGeneralSetting('date_format', 'd/m/Y');
     }
