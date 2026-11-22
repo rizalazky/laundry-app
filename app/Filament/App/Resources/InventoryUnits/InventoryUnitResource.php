@@ -21,6 +21,8 @@ class InventoryUnitResource extends Resource
     protected static ?string $model = InventoryUnit::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-scale';
+    protected static string|UnitEnum|null $navigationGroup = 'Inventori & Distribusi';
+    protected static ?int $navigationSort = 30;
     protected static UnitEnum|string|null $navigationGroup = 'Inventori';
     protected static ?string $recordTitleAttribute = 'name';
     protected static ?string $navigationLabel = 'Satuan Inventori';
