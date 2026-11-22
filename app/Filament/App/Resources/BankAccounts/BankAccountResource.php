@@ -63,14 +63,21 @@ class BankAccountResource extends Resource
                     TextInput::make('holder_name')->label('Nama Pemilik Rekening')->required()->maxLength(255),
                     Select::make('coa_id')
                         ->label('Akun COA')
-                        ->options(fn (): array => ChartOfAccount::query()
+                        ->options(fn (?BankAccount $record): array => ChartOfAccount::query()
                             ->where('is_active', true)
                             ->where('account_type', 'asset')
+                            ->whereNotIn('code', ['1000', '1030'])
+                            ->whereDoesntHave('bankAccounts', fn (Builder $query) => $query->when(
+                                $record !== null,
+                                fn (Builder $query) => $query->where('bank_accounts.id', '!=', $record->getKey()),
+                            ))
                             ->orderBy('code')
                             ->get()
                             ->mapWithKeys(fn (ChartOfAccount $account): array => [
                                 $account->id => $account->code.' — '.$account->name,
                             ])->all())
+                        ->disabled(fn (?BankAccount $record): bool => $record !== null
+                            && ($record->settlements()->exists() || $record->edcMachines()->exists()))
                         ->searchable()
                         ->required(),
                     Toggle::make('is_active')->label('Rekening Aktif')->default(true),
