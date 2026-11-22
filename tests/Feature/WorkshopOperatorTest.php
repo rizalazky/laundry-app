@@ -64,7 +64,7 @@ class WorkshopOperatorTest extends TestCase
         Filament::setCurrentPanel('app');
         Filament::setTenant($workshop);
 
-        Livewire::test(WorkshopOperator::class)
+        $component = Livewire::test(WorkshopOperator::class)
             ->set('barcode', $order->invoice_no)
             ->call('scanOrder')
             ->assertSet('selectedOrderId', $order->id)
@@ -74,6 +74,13 @@ class WorkshopOperatorTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertSame(OrderStatus::Washing, $order->fresh()->status);
+
+        $productionLog = $order->fresh()->productionLogs()->whereNull('finished_at')->sole();
+
+        $component
+            ->assertSee('data-started-at="'.$productionLog->started_at->timestamp.'"', false)
+            ->assertSee('window.setInterval', false)
+            ->assertSee('1000', false);
 
         $this->assertDatabaseHas('production_logs', [
             'tenant_id' => $tenant->id,
