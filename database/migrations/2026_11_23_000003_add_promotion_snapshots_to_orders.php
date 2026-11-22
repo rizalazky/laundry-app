@@ -9,6 +9,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $driver = DB::connection()->getDriverName();
+
+        DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_financial_snapshot_update');
+        DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_delete');
+
+        if ($driver === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_replace');
+        }
+
         Schema::table('orders', function (Blueprint $table) {
             $table->unsignedBigInteger('promo_id')->nullable()->after('discount');
             $table->unsignedBigInteger('voucher_id')->nullable()->after('promo_id');
@@ -24,9 +33,40 @@ return new class extends Migration
             $table->index(['tenant_id', 'voucher_id']);
         });
 
-        $driver = DB::connection()->getDriverName();
-
         if ($driver === 'sqlite') {
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_financial_snapshot_update
+                BEFORE UPDATE ON orders
+                WHEN OLD.invoice_no IS NOT NEW.invoice_no
+                  OR OLD.subtotal IS NOT NEW.subtotal
+                  OR OLD.discount IS NOT NEW.discount
+                  OR OLD.total IS NOT NEW.total
+                BEGIN
+                    SELECT RAISE(ABORT, 'Order financial snapshots cannot be modified.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_replace
+                BEFORE INSERT ON orders
+                WHEN EXISTS (SELECT 1 FROM orders WHERE id = NEW.id)
+                  OR EXISTS (
+                    SELECT 1 FROM orders
+                    WHERE tenant_id = NEW.tenant_id AND invoice_no = NEW.invoice_no
+                  )
+                BEGIN
+                    SELECT RAISE(ABORT, 'Order financial snapshots cannot be replaced.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_delete
+                BEFORE DELETE ON orders
+                BEGIN
+                    SELECT RAISE(ABORT, 'Orders with historical snapshots cannot be deleted.');
+                END;
+            SQL);
+
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER orders_prevent_promotion_snapshot_update
                 BEFORE UPDATE ON orders
@@ -39,7 +79,35 @@ return new class extends Migration
                     SELECT RAISE(ABORT, 'Order promotion snapshots cannot be modified.');
                 END;
             SQL);
-        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+
+            return;
+        }
+
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_financial_snapshot_update
+                BEFORE UPDATE ON orders
+                FOR EACH ROW
+                BEGIN
+                    IF NOT (OLD.invoice_no <=> NEW.invoice_no)
+                        OR NOT (OLD.subtotal <=> NEW.subtotal)
+                        OR NOT (OLD.discount <=> NEW.discount)
+                        OR NOT (OLD.total <=> NEW.total)
+                    THEN
+                        SIGNAL SQLSTATE '45000'
+                            SET MESSAGE_TEXT = 'Order financial snapshots cannot be modified.';
+                    END IF;
+                END
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_delete
+                BEFORE DELETE ON orders
+                FOR EACH ROW
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'Orders with historical snapshots cannot be deleted.'
+            SQL);
+
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER orders_prevent_promotion_snapshot_update
                 BEFORE UPDATE ON orders
@@ -56,14 +124,24 @@ return new class extends Migration
                     END IF;
                 END
             SQL);
-        } else {
-            throw new RuntimeException("Order promotion snapshot guards are not implemented for database driver [{$driver}].");
+
+            return;
         }
+
+        throw new RuntimeException("Order promotion snapshot guards are not implemented for database driver [{$driver}].");
     }
 
     public function down(): void
     {
+        $driver = DB::connection()->getDriverName();
+
+        DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_financial_snapshot_update');
+        DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_delete');
         DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_promotion_snapshot_update');
+
+        if ($driver === 'sqlite') {
+            DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_replace');
+        }
 
         Schema::table('orders', function (Blueprint $table) {
             $table->dropForeign('orders_promo_tenant_foreign');
@@ -78,5 +156,64 @@ return new class extends Migration
                 'promo_discount',
             ]);
         });
+
+        if ($driver === 'sqlite') {
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_financial_snapshot_update
+                BEFORE UPDATE ON orders
+                WHEN OLD.invoice_no IS NOT NEW.invoice_no
+                  OR OLD.subtotal IS NOT NEW.subtotal
+                  OR OLD.discount IS NOT NEW.discount
+                  OR OLD.total IS NOT NEW.total
+                BEGIN
+                    SELECT RAISE(ABORT, 'Order financial snapshots cannot be modified.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_replace
+                BEFORE INSERT ON orders
+                WHEN EXISTS (SELECT 1 FROM orders WHERE id = NEW.id)
+                  OR EXISTS (
+                    SELECT 1 FROM orders
+                    WHERE tenant_id = NEW.tenant_id AND invoice_no = NEW.invoice_no
+                  )
+                BEGIN
+                    SELECT RAISE(ABORT, 'Order financial snapshots cannot be replaced.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_delete
+                BEFORE DELETE ON orders
+                BEGIN
+                    SELECT RAISE(ABORT, 'Orders with historical snapshots cannot be deleted.');
+                END;
+            SQL);
+        } elseif ($driver === 'mysql' || $driver === 'mariadb') {
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_financial_snapshot_update
+                BEFORE UPDATE ON orders
+                FOR EACH ROW
+                BEGIN
+                    IF NOT (OLD.invoice_no <=> NEW.invoice_no)
+                        OR NOT (OLD.subtotal <=> NEW.subtotal)
+                        OR NOT (OLD.discount <=> NEW.discount)
+                        OR NOT (OLD.total <=> NEW.total)
+                    THEN
+                        SIGNAL SQLSTATE '45000'
+                            SET MESSAGE_TEXT = 'Order financial snapshots cannot be modified.';
+                    END IF;
+                END
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER orders_prevent_delete
+                BEFORE DELETE ON orders
+                FOR EACH ROW
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'Orders with historical snapshots cannot be deleted.'
+            SQL);
+        }
     }
 };
