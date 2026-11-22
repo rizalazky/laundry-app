@@ -202,7 +202,9 @@ class PointOfSaleTest extends TestCase
             ->assertSet('paymentModalOpen', true)
             ->assertNotDispatched('close-modal')
             ->assertSee('Pembayaran')
-            ->assertSee('wire:click="createOrder"', false);
+            ->assertSee('Total tagihan')
+            ->assertSee('Total dibayar')
+            ->assertSee('Sisa tagihan');
     }
 
     public function test_payment_amount_field_uses_live_binding_and_remaining_balance_updates(): void
