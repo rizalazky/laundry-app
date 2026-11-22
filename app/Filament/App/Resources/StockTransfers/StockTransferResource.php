@@ -21,7 +21,6 @@ class StockTransferResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-truck';
     protected static string|UnitEnum|null $navigationGroup = 'Inventori & Distribusi';
     protected static ?int $navigationSort = 50;
-    protected static UnitEnum|string|null $navigationGroup = 'Inventori';
     protected static ?string $navigationLabel = 'Distribusi Stok';
     protected static ?string $modelLabel = 'Distribusi Stok';
     protected static ?string $pluralModelLabel = 'Distribusi Stok';
