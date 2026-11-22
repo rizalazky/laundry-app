@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Filament\\Auth;
+namespace App\Filament\Auth;
 
-use App\\Models\\User;
-use Filament\\Auth\\Pages\\EditProfile as BaseEditProfile;
-use Filament\\Forms\\Components\\TextInput;
-use Filament\\Schemas\\Components\\Group;
-use Filament\\Schemas\\Components\\Section;
-use Filament\\Schemas\\Schema;
-use Illuminate\\Validation\\Rule;
+use App\Models\User;
+use Filament\Auth\Pages\EditProfile as BaseEditProfile;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Illuminate\Validation\Rule;
 
 class EditUserProfile extends BaseEditProfile
 {
