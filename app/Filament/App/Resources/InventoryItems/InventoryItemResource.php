@@ -24,7 +24,6 @@ class InventoryItemResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
     protected static string|UnitEnum|null $navigationGroup = 'Inventori & Distribusi';
     protected static ?int $navigationSort = 20;
-    protected static UnitEnum|string|null $navigationGroup = 'Inventori';
     protected static ?string $recordTitleAttribute = 'name';
     protected static ?string $navigationLabel = 'Barang Inventori';
     protected static ?string $modelLabel = 'Barang Inventori';
