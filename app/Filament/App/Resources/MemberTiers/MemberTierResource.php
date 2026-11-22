@@ -36,12 +36,12 @@ class MemberTierResource extends Resource
             && $user->is_active
             && $user->tenant_id !== null
             && in_array($user->role, ['tenant_owner', 'branch_manager'], true)
-            && $user->hasPermissionTo('customers.view');
+            && $user->hasPermissionTo('memberships.view');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::user()?->hasPermissionTo('customers.manage') ?? false;
+        return Auth::user()?->hasPermissionTo('memberships.manage') ?? false;
     }
 
     public static function canEdit($record): bool
