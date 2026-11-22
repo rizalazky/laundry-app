@@ -40,7 +40,7 @@
                     <x-filament::input.wrapper>
                         <x-filament::input id="invoicePrefix" type="text" wire:model="invoicePrefix" placeholder="Kosongkan untuk memakai kode cabang" maxlength="12" />
                     </x-filament::input.wrapper>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Jika diisi, prefix ini menggantikan kode cabang pada nomor invoice. Hanya huruf dan angka.</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Jika diisi, prefix ini ditambahkan sebelum kode cabang agar nomor invoice tetap unik antar cabang. Hanya huruf dan angka.</p>
                     @error('invoicePrefix') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
                 </div>
 
