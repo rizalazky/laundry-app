@@ -15,6 +15,8 @@ class PostPaymentToAccounting
 {
     public function handle(Payment $payment): Journal
     {
+        app(EnsureDefaultChartOfAccounts::class)->handle((int) $payment->tenant_id);
+
         $assetCode = match ($payment->method) {
             PaymentMethod::Cash => '1000',
             PaymentMethod::Transfer => '1010',
