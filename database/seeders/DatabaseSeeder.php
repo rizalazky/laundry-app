@@ -15,7 +15,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(PermissionSeeder::class);
+        $this->call([
+            PermissionSeeder::class,
+            DemoTenantSeeder::class,
+        ]);
 
         $email = config('app.seed_super_admin.email');
         $password = config('app.seed_super_admin.password') ?: (app()->isLocal() ? 'password' : null);
