@@ -38,9 +38,11 @@ class GenerateInvoiceNumber
 
         $sequence->increment('last_number');
 
+        $prefix = $branch->tenant?->getInvoicePrefix() ?? $branch->code;
+
         return sprintf(
             '%s-%s-%04d',
-            strtoupper($branch->code),
+            strtoupper($prefix),
             $date->format('ymd'),
             $sequence->last_number,
         );
