@@ -188,7 +188,7 @@ class PointOfSaleTest extends TestCase
             ->assertSee($order->invoice_no);
     }
 
-    public function test_opening_payment_from_mobile_cart_closes_the_cart_slide_over(): void
+    public function test_opening_payment_from_mobile_cart_renders_payment_form_inside_slide_over(): void
     {
         $this->actAsCashier();
 
