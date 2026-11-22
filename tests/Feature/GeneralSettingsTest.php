@@ -24,6 +24,14 @@ class GeneralSettingsTest extends TestCase
         $this->assertTrue($tenant->allowsPartialPayment());
     }
 
+    public function test_display_date_format_does_not_override_eloquent_database_date_format(): void
+    {
+        $tenant = $this->createTenant('settings-date-format');
+
+        $this->assertSame('Y-m-d H:i:s', $tenant->getDateFormat());
+        $this->assertSame('d/m/Y', $tenant->getPreferredDateFormat());
+    }
+
     public function test_tenant_owner_can_update_general_settings(): void
     {
         $tenant = $this->createTenant('settings-update');
