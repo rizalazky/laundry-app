@@ -1,11 +1,11 @@
-<div class="flex h-full flex-col gap-4">
+<div class="flex h-full min-h-0 flex-col gap-4">
 
                 <div class="flex items-center justify-between">
                     <h3 class="text-base font-semibold text-gray-950 dark:text-white">Keranjang</h3>
                     <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ count($livewire->cartLines()) }}</span>
                 </div>
 
-                <div class="max-h-[26rem] space-y-3 overflow-y-auto">
+                <div class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                     @forelse ($livewire->cartLines() as $line)
                         <div wire:key="pos-cart-{{ $line['id'] }}" class="rounded-lg border border-gray-100 p-3 dark:border-gray-800">
                             <div class="flex items-start justify-between gap-2">
@@ -34,7 +34,7 @@
                     @endforelse
                 </div>
 
-                <div class="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+                <div class="shrink-0 space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
                     <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                         <span>Subtotal</span>
                         <span class="font-medium tabular-nums">Rp {{ number_format((float) $livewire->subtotal(), 0, ',', '.') }}</span>
