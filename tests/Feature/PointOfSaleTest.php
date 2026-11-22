@@ -197,7 +197,11 @@ class PointOfSaleTest extends TestCase
             ->call('addToCart', $this->service->id)
             ->mountAction('cart')
             ->assertSee('Lanjut Pembayaran')
-            ->assertSee('close();setTimeout(() => $wire.openPaymentModal(), 200);', false)
+            ->assertSee('close();setTimeout(() => $wire.openPaymentModal(), 200);', false);
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
             ->call('openPaymentModal')
             ->assertSet('paymentModalOpen', true)
             ->assertNotDispatched('close-modal')
