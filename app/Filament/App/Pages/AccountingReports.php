@@ -21,9 +21,9 @@ class AccountingReports extends Page
 
     protected static ?string $navigationLabel = 'Laporan Akuntansi';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Keuangan';
+    protected static string|UnitEnum|null $navigationGroup = 'Keuangan & Laporan';
+    protected static ?int $navigationSort = 10;
 
-    protected static ?int $navigationSort = 80;
 
     protected static ?string $slug = 'laporan-akuntansi';
 

@@ -2,6 +2,8 @@
 
 namespace App\Filament\App\Resources\Services;
 
+use UnitEnum;
+
 use App\Filament\App\Resources\Services\Pages\CreateService;
 use App\Filament\App\Resources\Services\Pages\EditService;
 use App\Filament\App\Resources\Services\Pages\ListServices;
@@ -22,6 +24,8 @@ class ServiceResource extends Resource
     protected static bool $isScopedToTenant = false;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-tag';
+    protected static string|UnitEnum|null $navigationGroup = 'Operasional';
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $recordTitleAttribute = 'name';
 

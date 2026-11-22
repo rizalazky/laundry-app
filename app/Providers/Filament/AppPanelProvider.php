@@ -7,6 +7,7 @@ use App\Filament\App\Pages\Tenancy\EditBranchProfile;
 use App\Filament\App\Pages\Tenancy\RegisterBranch;
 use App\Http\Middleware\EnsureActiveSubscription;
 use App\Models\Branch;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -30,12 +31,29 @@ class AppPanelProvider extends PanelProvider
         return $panel
             ->id('app')
             ->path('app')
+            ->brandName('Smartlink Owner')
             ->tenant(Branch::class, slugAttribute: 'code')
             ->tenantRegistration(RegisterBranch::class)
             ->tenantProfile(EditBranchProfile::class)
+            ->tenantMenuItems([
+                'profile' => fn (Action $action): Action => $action
+                    ->label('Pengaturan Cabang')
+                    ->icon('heroicon-m-building-office-2'),
+                'register' => fn (Action $action): Action => $action
+                    ->label('Tambah Cabang')
+                    ->icon('heroicon-m-plus'),
+            ])
+            ->searchableTenantMenu()
             ->tenantMiddleware([
                 EnsureActiveSubscription::class,
             ], isPersistent: true)
+            ->navigationGroups([
+                'Operasional',
+                'Pelanggan & CRM',
+                'Karyawan & SDM',
+                'Inventori & Distribusi',
+                'Keuangan & Laporan',
+            ])
             ->colors([
                 'primary' => Color::Amber,
             ])
