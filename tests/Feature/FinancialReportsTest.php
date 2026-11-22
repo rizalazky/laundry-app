@@ -7,6 +7,7 @@ use App\Actions\Accounting\GenerateFinancialReports;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Tenant;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +41,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '3000', 'debit' => '0', 'credit' => '40000'],
         ]);
 
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
+
         $journals = app(GenerateFinancialReports::class)->generalJournal(
             $tenant->id,
             CarbonImmutable::parse('2026-01-01 00:00:00'),
@@ -72,6 +75,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '1000', 'debit' => '0', 'credit' => '50'],
         ]);
 
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
+
         $ledger = app(GenerateFinancialReports::class)->generalLedger(
             $tenant->id,
             $cash->id,
@@ -100,6 +105,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '5400', 'debit' => '50000', 'credit' => '0'],
             ['account_code' => '1000', 'debit' => '0', 'credit' => '50000'],
         ]);
+
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
 
         $report = app(GenerateFinancialReports::class)->incomeStatement(
             $tenant->id,
@@ -131,6 +138,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '1000', 'debit' => '0', 'credit' => '50000'],
         ]);
 
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
+
         $report = app(GenerateFinancialReports::class)->balanceSheet(
             $tenant->id,
             CarbonImmutable::parse('2026-01-31 23:59:59'),
@@ -148,6 +157,8 @@ class FinancialReportsTest extends TestCase
         $tenant = Tenant::factory()->create();
 
         $this->expectException(DomainException::class);
+
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
 
         app(GenerateFinancialReports::class)->incomeStatement(
             $tenant->id,
