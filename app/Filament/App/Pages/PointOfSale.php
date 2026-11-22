@@ -89,7 +89,8 @@ class PointOfSale extends Page implements HasForms
                     'livewire' => $this,
                 ]))
                 ->modalSubmitAction(false)
-                ->modalCancelAction(false),
+                ->modalCancelAction(false)
+                ->extraAttributes(['class' => 'xl:hidden']),
         ];
     }
 
