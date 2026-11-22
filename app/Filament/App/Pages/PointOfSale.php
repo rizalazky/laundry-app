@@ -283,6 +283,17 @@ class PointOfSale extends Page
 
     public function createOrder(): void
     {
+        $this->validate([
+            'customerId' => ['required', 'integer'],
+            'cart' => ['required', 'array', 'min:1'],
+            'cart.*' => ['required', 'numeric', 'gt:0'],
+            'discount' => ['required', 'numeric', 'min:0'],
+            'paymentLines' => ['array'],
+            'paymentLines.*.amount' => ['required', 'numeric', 'gt:0'],
+            'paymentLines.*.method' => ['required', 'in:'.implode(',', array_keys(PaymentMethod::options()))],
+            'paymentLines.*.reference' => ['nullable', 'string', 'max:255'],
+        ]);
+
         $branch = $this->currentBranch();
         $customer = $this->selectedCustomer();
 
@@ -293,16 +304,16 @@ class PointOfSale extends Page
         $lines = $this->cartLines();
 
         if ($lines === []) {
-            throw ValidationException::withMessages(['cart' => 'Tambahkan minimal satu layanan ke keranjang.']);
+            throw ValidationException::withMessages(['cart' => 'Tambahkan minimal satu layanan aktif ke keranjang.']);
         }
 
-        $this->validate([
-            'discount' => ['required', 'numeric', 'min:0'],
-            'paymentLines' => ['array'],
-            'paymentLines.*.amount' => ['required', 'numeric', 'gt:0'],
-            'paymentLines.*.method' => ['required', 'in:'.implode(',', array_keys(PaymentMethod::options()))],
-            'paymentLines.*.reference' => ['nullable', 'string', 'max:255'],
-        ]);
+        foreach ($lines as $line) {
+            if ($line['unit'] === ServiceUnit::Piece->value && (float) $line['quantity'] !== (float) (int) $line['quantity']) {
+                throw ValidationException::withMessages([
+                    'cart.'.$line['id'] => 'Layanan PCS harus menggunakan jumlah bulat.',
+                ]);
+            }
+        }
 
         $subtotal = BigDecimal::of($this->subtotal());
         $discount = BigDecimal::of($this->discountAmount());
