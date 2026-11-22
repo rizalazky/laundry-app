@@ -50,18 +50,22 @@ class CustomerMembershipTable
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        CustomerMembership::STATUS_ACTIVE => 'Aktif',
-                        CustomerMembership::STATUS_EXPIRED => 'Kedaluwarsa',
-                        CustomerMembership::STATUS_CANCELLED => 'Dibatalkan',
-                        default => ucfirst($state),
-                    })
-                    ->color(fn (string $state): string => match ($state) {
-                        CustomerMembership::STATUS_ACTIVE => 'success',
-                        CustomerMembership::STATUS_EXPIRED => 'gray',
-                        CustomerMembership::STATUS_CANCELLED => 'danger',
-                        default => 'gray',
-                    }),
+                    ->formatStateUsing(fn (string $state, CustomerMembership $record): string => $state === CustomerMembership::STATUS_ACTIVE && $record->expired_at?->isPast()
+                        ? 'Kedaluwarsa'
+                        : match ($state) {
+                            CustomerMembership::STATUS_ACTIVE => 'Aktif',
+                            CustomerMembership::STATUS_EXPIRED => 'Kedaluwarsa',
+                            CustomerMembership::STATUS_CANCELLED => 'Dibatalkan',
+                            default => ucfirst($state),
+                        })
+                    ->color(fn (string $state, CustomerMembership $record): string => $state === CustomerMembership::STATUS_ACTIVE && $record->expired_at?->isPast()
+                        ? 'gray'
+                        : match ($state) {
+                            CustomerMembership::STATUS_ACTIVE => 'success',
+                            CustomerMembership::STATUS_EXPIRED => 'gray',
+                            CustomerMembership::STATUS_CANCELLED => 'danger',
+                            default => 'gray',
+                        }),
             ])
             ->filters([
                 SelectFilter::make('status')
