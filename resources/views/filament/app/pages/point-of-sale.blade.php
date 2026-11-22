@@ -37,7 +37,7 @@
 
                 <div class="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">
                     @forelse ($this->serviceCatalog() as $service)
-                        <button
+                        <x-filament::button
                             type="button"
                             wire:key="pos-service-{{ $service->id }}"
                             wire:click="addToCart({{ $service->id }})"
@@ -48,7 +48,7 @@
                                 <span class="block text-lg font-bold tabular-nums text-primary-700 dark:text-primary-400">Rp {{ number_format((float) $service->priceForBranch(\Filament\Facades\Filament::getTenant()), 0, ',', '.') }}</span>
                                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ $service->unit->label() }}</span>
                             </span>
-                        </button>
+                        </x-filament::button>
                     @empty
                         <div class="col-span-full rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
                             Belum ada layanan aktif untuk tenant ini.
@@ -71,15 +71,15 @@
                                     <p class="font-semibold text-gray-900 dark:text-white">{{ $line['name'] }}</p>
                                     <p class="text-xs text-gray-500 dark:text-gray-400">Rp {{ number_format((float) $line['price'], 0, ',', '.') }} / {{ $line['unit'] }}</p>
                                 </div>
-                                <button type="button" wire:click="removeFromCart({{ $line['id'] }})" aria-label="Hapus {{ $line['name'] }}" class="rounded-md p-1 text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-400/10">
+                                <x-filament::button type="button" wire:click="removeFromCart({{ $line['id'] }})" aria-label="Hapus {{ $line['name'] }}" class="rounded-md p-1 text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-400/10">
                                     <x-filament::icon icon="heroicon-o-trash" class="h-4 w-4" />
-                                </button>
+                                </x-filament::button>
                             </div>
                             <div class="mt-3 flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-2">
-                                    <button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ max(0, (float) $line['quantity'] - ($line['unit'] === 'pcs' ? 1 : 0.5)) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">−</button>
+                                    <x-filament::button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ max(0, (float) $line['quantity'] - ($line['unit'] === 'pcs' ? 1 : 0.5)) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">−</x-filament::button>
                                     <x-filament::input type="number" min="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" step="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" value="{{ $line['quantity'] }}" wire:change="updateQuantity({{ $line['id'] }}, $event.target.value)" class="w-20 text-center text-sm" />
-                                    <button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ (float) $line['quantity'] + ($line['unit'] === 'pcs' ? 1 : 0.5) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">+</button>
+                                    <x-filament::button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ (float) $line['quantity'] + ($line['unit'] === 'pcs' ? 1 : 0.5) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">+</x-filament::button>
                                 </div>
                                 <span class="text-sm font-semibold tabular-nums text-gray-950 dark:text-white">Rp {{ number_format((float) $line['subtotal'], 0, ',', '.') }}</span>
                             </div>
@@ -129,9 +129,9 @@
                             <h3 class="text-lg font-bold text-gray-950 dark:text-white">Pembayaran</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400">Bisa menggunakan lebih dari satu metode pembayaran.</p>
                         </div>
-                        <button type="button" wire:click="closePaymentModal" class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Tutup">
+                        <x-filament::button type="button" wire:click="closePaymentModal" class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Tutup">
                             <x-filament::icon icon="heroicon-o-x-mark" class="h-5 w-5" />
-                        </button>
+                        </x-filament::button>
                     </div>
 
                     <div class="my-4 rounded-xl bg-gray-50 p-4 dark:bg-gray-800">
@@ -154,18 +154,18 @@
                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Nominal</label>
                                     <x-filament::input type="number" min="0.01" step="0.01" wire:model="paymentLines.{{ $index }}.amount" class="text-right text-sm tabular-nums" />
                                 </div>
-                                <button type="button" wire:click="removePaymentLine({{ $index }})" class="mt-5 rounded-lg p-2 text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-400/10" aria-label="Hapus metode pembayaran">
+                                <x-filament::button type="button" wire:click="removePaymentLine({{ $index }})" class="mt-5 rounded-lg p-2 text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-400/10" aria-label="Hapus metode pembayaran">
                                     <x-filament::icon icon="heroicon-o-trash" class="h-5 w-5" />
-                                </button>
+                                </x-filament::button>
                                 <div class="sm:col-span-3">
                                     <x-filament::input type="text" maxlength="255" placeholder="No. referensi (opsional)" wire:model="paymentLines.{{ $index }}.reference" class="text-sm" />
                                 </div>
                             </div>
                         @endforeach
                         @if ((float) $this->grandTotal() > 0)
-                            <button type="button" wire:click="addPaymentLine" class="min-h-11 w-full rounded-lg border border-dashed border-primary-400 text-sm font-semibold text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-400/10">
+                            <x-filament::button type="button" wire:click="addPaymentLine" class="min-h-11 w-full rounded-lg border border-dashed border-primary-400 text-sm font-semibold text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-400/10">
                                 + Tambah metode pembayaran
-                            </button>
+                            </x-filament::button>
                         @else
                             <p class="rounded-lg bg-success-50 p-3 text-sm text-success-700 dark:bg-success-400/10 dark:text-success-400">
                                 Total tagihan Rp 0. Order akan langsung tercatat lunas tanpa pembayaran.
