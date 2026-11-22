@@ -14,6 +14,8 @@ use App\Filament\App\Resources\Attendances\AttendanceResource;
 use App\Filament\App\Resources\Customers\CustomerResource;
 use App\Filament\App\Resources\CustomerMemberships\CustomerMembershipResource;
 use App\Filament\App\Resources\MemberTiers\MemberTierResource;
+use App\Filament\App\Resources\Promos\PromoResource;
+use App\Filament\App\Resources\Vouchers\VoucherResource;
 use App\Filament\App\Resources\EmployeeLoans\EmployeeLoanResource;
 use App\Filament\App\Resources\InventoryItems\InventoryItemResource;
 use App\Filament\App\Resources\InventoryUnits\InventoryUnitResource;
@@ -35,6 +37,8 @@ class AppNavigationTest extends TestCase
         $this->assertSame('Pelanggan & CRM', CustomerResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', MemberTierResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', CustomerMembershipResource::getNavigationGroup());
+        $this->assertSame('Pelanggan & CRM', PromoResource::getNavigationGroup());
+        $this->assertSame('Pelanggan & CRM', VoucherResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', PromoResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', VoucherResource::getNavigationGroup());
 
