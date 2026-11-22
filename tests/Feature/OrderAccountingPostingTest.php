@@ -74,6 +74,46 @@ class OrderAccountingPostingTest extends TestCase
         $this->assertSame(2, Journal::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->count());
     }
 
+    public function test_all_payment_methods_post_to_their_configured_asset_accounts(): void
+    {
+        $methods = [
+            [PaymentMethod::Cash, '1000'],
+            [PaymentMethod::Transfer, '1010'],
+            [PaymentMethod::Qris, '1020'],
+            [PaymentMethod::EdcDebit, '1030'],
+            [PaymentMethod::EdcCredit, '1030'],
+        ];
+
+        foreach ($methods as [$method, $assetCode]) {
+            [$tenant, $branch, $cashier, $customer, $service] = $this->makeOrderSetup();
+
+            $order = app(CreateOrder::class)->handle(
+                branch: $branch,
+                user: $cashier,
+                customerId: $customer->id,
+                items: [['service_id' => $service->id, 'quantity' => 1]],
+            );
+
+            $payment = app(RecordPayment::class)->handle(
+                order: $order,
+                amount: '7000.00',
+                method: $method,
+                user: $cashier,
+            );
+
+            $journal = $this->journalFor($tenant->id, 'payment', $payment->id);
+
+            $this->assertSame(
+                [
+                    $assetCode => ['debit' => '7000.00', 'credit' => '0.00'],
+                    '1100' => ['debit' => '0.00', 'credit' => '7000.00'],
+                ],
+                $this->journalEntriesByCode($journal),
+                'Payment method '.$method->value.' should post to account '.$assetCode.'.',
+            );
+        }
+    }
+
     public function test_payment_retry_does_not_duplicate_payment_or_accounting_journal(): void
     {
         [$tenant, $branch, $cashier, $customer, $service] = $this->makeOrderSetup();
