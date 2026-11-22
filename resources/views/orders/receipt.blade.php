@@ -87,8 +87,20 @@
         <hr class="rule">
 
         <div class="row"><span>Subtotal</span><span>{{ $rp($order->subtotal) }}</span></div>
-        @if ((float) $order->discount > 0)
-            <div class="row"><span>Diskon</span><span>-{{ $rp($order->discount) }}</span></div>
+        @if (filled($order->promo_name_snapshot))
+            <div class="row"><span>Promo</span><span>{{ $order->promo_name_snapshot }}</span></div>
+        @endif
+        @if (filled($order->voucher_code_snapshot))
+            <div class="row"><span>Voucher</span><span>{{ $order->voucher_code_snapshot }}</span></div>
+        @endif
+        @php
+            $manualDiscount = (float) $order->discount - (float) $order->promo_discount;
+        @endphp
+        @if ($manualDiscount > 0)
+            <div class="row"><span>Diskon Manual</span><span>-{{ $rp($manualDiscount) }}</span></div>
+        @endif
+        @if ((float) $order->promo_discount > 0)
+            <div class="row"><span>Diskon Promo</span><span>-{{ $rp($order->promo_discount) }}</span></div>
         @endif
         <div class="row strong"><span>TOTAL</span><span>{{ $rp($order->total) }}</span></div>
 
