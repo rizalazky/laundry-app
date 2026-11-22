@@ -54,8 +54,13 @@ class OrderActionAuthorization
     /**
      * @param  list<string>  $allowedRoles
      */
-    public function authorizeOrder(User $user, Order $order, array $allowedRoles, bool $requireActiveBusiness = true): Order
-    {
+    public function authorizeOrder(
+        User $user,
+        Order $order,
+        array $allowedRoles,
+        bool $requireActiveBusiness = true,
+        bool $allowMappedWorkshopAccess = false,
+    ): Order {
         $lockedOrder = Order::query()
             ->withoutGlobalScope('tenant')
             ->whereKey($order->getKey())
@@ -72,6 +77,48 @@ class OrderActionAuthorization
 
         if ($branch === null || (int) $branch->tenant_id !== (int) $lockedOrder->tenant_id) {
             throw new DomainException('Cabang order tidak valid.');
+        }
+
+        if ($allowMappedWorkshopAccess && $user->role === 'operator') {
+            $actor = User::query()->find($user->getKey());
+
+            if ($actor === null || ! $actor->is_active || ! in_array($actor->role, $allowedRoles, true) || (int) $actor->tenant_id !== (int) $lockedOrder->tenant_id) {
+                throw new DomainException('Anda tidak memiliki izin untuk melakukan tindakan ini.');
+            }
+
+            if ($requireActiveBusiness && ! $branch->is_active) {
+                throw new DomainException('Cabang order tidak ditemukan atau sedang tidak aktif.');
+            }
+
+            $tenant = Tenant::query()->find($lockedOrder->tenant_id);
+
+            if ($tenant === null || ($requireActiveBusiness && ! $tenant->hasActiveSubscription())) {
+                throw new DomainException('Masa aktif langganan bisnis Anda telah berakhir atau bisnis sedang tidak aktif.');
+            }
+
+            $allowedBranchIds = [$branch->getKey()];
+
+            if (! $branch->is_workshop) {
+                $allowedBranchIds = [
+                    ...$allowedBranchIds,
+                    ...$branch->workshops()
+                        ->where('branches.is_active', true)
+                        ->pluck('branches.id')
+                        ->all(),
+                ];
+            }
+
+            $operatorHasLocationAccess = $actor->branches()
+                ->whereIn('branches.id', $allowedBranchIds)
+                ->where('branches.tenant_id', $lockedOrder->tenant_id)
+                ->when($requireActiveBusiness, fn ($query) => $query->where('branches.is_active', true))
+                ->exists();
+
+            if (! $operatorHasLocationAccess) {
+                throw new DomainException('Anda tidak memiliki akses ke outlet atau workshop yang menangani order ini.');
+            }
+
+            return $lockedOrder;
         }
 
         $this->authorizeBranch($user, $branch, $allowedRoles, $requireActiveBusiness);
