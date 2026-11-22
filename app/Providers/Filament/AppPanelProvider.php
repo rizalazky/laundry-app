@@ -45,7 +45,7 @@ class AppPanelProvider extends PanelProvider
                 Action::make('companyProfile')
                     ->label('Profil Perusahaan')
                     ->icon('heroicon-m-building-office')
-                    ->url(fn (): string => CompanyProfile::getUrl())
+                    ->url(fn (): string => CompanyProfile::getUrl(tenant: Filament::getTenant()))
                     ->visible(fn (): bool => auth()->user()?->role === 'tenant_owner'),
             ])
             ->tenantMenuItems([
