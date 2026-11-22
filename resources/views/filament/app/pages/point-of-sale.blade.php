@@ -187,9 +187,15 @@
                                 </div>
                             </div>
                         @endforeach
-                        <button type="button" wire:click="addPaymentLine" class="min-h-11 w-full rounded-lg border border-dashed border-primary-400 text-sm font-semibold text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-400/10">
-                            + Tambah metode pembayaran
-                        </button>
+                        @if ((float) $this->grandTotal() > 0)
+                            <button type="button" wire:click="addPaymentLine" class="min-h-11 w-full rounded-lg border border-dashed border-primary-400 text-sm font-semibold text-primary-700 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-400/10">
+                                + Tambah metode pembayaran
+                            </button>
+                        @else
+                            <p class="rounded-lg bg-success-50 p-3 text-sm text-success-700 dark:bg-success-400/10 dark:text-success-400">
+                                Total tagihan Rp 0. Order akan langsung tercatat lunas tanpa pembayaran.
+                            </p>
+                        @endif
                     </div>
 
                     <div class="mt-4 space-y-2 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
