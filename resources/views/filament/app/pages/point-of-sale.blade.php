@@ -56,7 +56,7 @@
                 </section>
 
                 <aside class="hidden h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm xl:flex dark:border-gray-700 dark:bg-gray-900">
-                    @include('filament.app.pages.partials.pos-cart', ['livewire' => $this])
+                    @include('filament.app.pages.partials.pos-cart', ['livewire' => $this, 'isDesktop' => true])
                 </aside>
             </div>
 
