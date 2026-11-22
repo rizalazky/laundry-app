@@ -143,6 +143,45 @@ class OrderActionsTest extends TestCase
         $this->assertSame('PUSAT-261120-0001', $this->createOrder()->invoice_no);
     }
 
+    public function test_tenant_invoice_prefix_overrides_branch_code_when_configured(): void
+    {
+        $this->tenant->updateGeneralSettings(['invoice_prefix' => 'SMART']);
+
+        $this->travelTo(now()->setDate(2026, 11, 19)->setTime(10, 0));
+
+        $this->assertSame('SMART-PUSAT-261119-0001', $this->createOrder()->invoice_no);
+    }
+
+    public function test_tenant_default_estimation_is_used_when_services_have_no_estimate(): void
+    {
+        $this->service->update(['estimated_hours' => 0]);
+        $this->tenant->updateGeneralSettings(['default_estimation_hours' => 36]);
+
+        $order = $this->createOrder();
+
+        $this->assertTrue($order->due_at->equalTo($order->order_date->copy()->addHours(36)));
+    }
+
+    public function test_partial_payments_can_be_disabled_per_tenant(): void
+    {
+        $this->tenant->updateGeneralSettings(['allow_partial_payment' => false]);
+        $order = $this->createOrder();
+        $recordPayment = app(RecordPayment::class);
+
+        try {
+            $recordPayment->handle($order, 20000, PaymentMethod::Cash, $this->cashier);
+            $this->fail('Partial payments should be disabled for this tenant.');
+        } catch (DomainException $exception) {
+            $this->assertStringContainsString('Pembayaran sebagian dinonaktifkan', $exception->getMessage());
+        }
+
+        $this->assertSame(0, $order->payments()->count());
+
+        $recordPayment->handle($order, 70000, PaymentMethod::Cash, $this->cashier);
+
+        $this->assertSame(PaymentStatus::Paid, $order->fresh()->payment_status);
+    }
+
     public function test_down_payment_at_creation_marks_the_order_partial(): void
     {
         $order = $this->createOrder(initialPayment: ['amount' => 20000, 'method' => PaymentMethod::Qris]);

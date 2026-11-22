@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Tenant;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\Exception\NumberFormatException;
@@ -75,8 +76,16 @@ class RecordPayment
                 throw new DomainException('Order yang dibatalkan tidak bisa menerima transaksi pembayaran.');
             }
 
-            if ($type === PaymentType::Payment && $amount->isGreaterThan($locked->balanceDue())) {
-                throw new DomainException('Nominal melebihi sisa tagihan ('.$locked->balanceDue().').');
+            if ($type === PaymentType::Payment) {
+                if ($amount->isGreaterThan($locked->balanceDue())) {
+                    throw new DomainException('Nominal melebihi sisa tagihan ('.$locked->balanceDue().').');
+                }
+
+                $tenant = Tenant::query()->find($locked->tenant_id);
+
+                if ($tenant !== null && ! $tenant->allowsPartialPayment() && $amount->isLessThan($locked->balanceDue())) {
+                    throw new DomainException('Pembayaran sebagian dinonaktifkan untuk perusahaan ini. Silakan bayar seluruh sisa tagihan.');
+                }
             }
 
             if ($type === PaymentType::Refund && $amount->isGreaterThan($locked->paid_amount)) {
