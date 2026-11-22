@@ -95,6 +95,7 @@ class EditUserProfile extends BaseEditProfile
         return $this->getUser() instanceof User
             && $this->getUser()->is_active
             && $this->getUser()->role === 'tenant_owner'
-            && $this->getUser()->getAttribute('tenant_id') !== null;
+            && $this->getUser()->getAttribute('tenant_id') !== null
+            && $this->getUser()->tenant !== null;
     }
 }
