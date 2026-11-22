@@ -8,6 +8,8 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\ProductionLog;
 use App\Models\Service;
 use App\Models\Tenant;
@@ -115,7 +117,7 @@ class BusinessPerformanceAnalyticsTest extends TestCase
             'service_name' => 'Cuci Kiloan',
             'orders' => 2,
             'quantity' => '7.00',
-            'revenue' => '70000.00',
+            'gross_value' => '70000.00',
         ], $analytics['services'][0]);
         $this->assertSame([
             'user_id' => $worker->id,
@@ -123,7 +125,7 @@ class BusinessPerformanceAnalyticsTest extends TestCase
             'assigned_orders' => 1,
             'production_stages' => 2,
             'completed_stages' => 1,
-            'attendance_days' => 1,
+            'attendance_records' => 1,
         ], $analytics['employees'][0]);
     }
 
@@ -134,6 +136,15 @@ class BusinessPerformanceAnalyticsTest extends TestCase
         $otherBranch = Branch::factory()->for($tenant)->create();
         $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
         $manager->branches()->attach($assignedBranch);
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'reports.view'],
+            ['name' => 'Lihat Laporan', 'group' => 'Laporan'],
+        );
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $permission->id,
+        ]);
         $customer = \App\Models\Customer::factory()->create(['tenant_id' => $tenant->id]);
 
         Order::factory()->create([
