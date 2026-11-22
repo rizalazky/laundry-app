@@ -2,6 +2,8 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Accounting\PostOrderRevenue;
+use App\Actions\Accounting\ReverseOrderRevenue;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Branch;
@@ -125,6 +127,16 @@ class ChangeOrderStatus
             }
 
             $locked->forceFill(['status' => $to])->save();
+
+            if ($to === OrderStatus::Cancelled) {
+                app(PostOrderRevenue::class)->handle($locked);
+
+                app(ReverseOrderRevenue::class)->handle(
+                    order: $locked,
+                    cancelledAt: $transitionedAt,
+                    createdBy: (int) $actor->getKey(),
+                );
+            }
 
             OrderStatusLog::query()->create([
                 'order_id' => $locked->getKey(),
