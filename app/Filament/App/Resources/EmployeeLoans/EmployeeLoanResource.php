@@ -29,7 +29,6 @@ class EmployeeLoanResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
     protected static string|UnitEnum|null $navigationGroup = 'Karyawan & SDM';
     protected static ?int $navigationSort = 30;
-    protected static UnitEnum|string|null $navigationGroup = 'Karyawan';
     protected static ?string $recordTitleAttribute = 'id';
     protected static ?string $navigationLabel = 'Kasbon Karyawan';
     protected static ?string $modelLabel = 'Kasbon Karyawan';
