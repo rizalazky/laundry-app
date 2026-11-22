@@ -1,32 +1,29 @@
 <?php
 
-namespace App\Providers\Filament;
+namespace App\\Providers\\Filament;
 
-use App\Filament\App\Pages\CompanyProfile;
-use App\Filament\App\Pages\Dashboard;
-use App\Filament\App\Pages\GeneralSettings;
-use App\Filament\App\Pages\Tenancy\EditBranchProfile;
-use App\Filament\App\Pages\Tenancy\RegisterBranch;
-use App\Filament\Auth\EditUserProfile;
-use App\Http\Middleware\EnsureActiveSubscription;
-use App\Models\Branch;
-use Filament\Actions\Action;
-use Filament\Facades\Filament;
-use Filament\Http\Middleware\Authenticate;
-use Filament\Http\Middleware\AuthenticateSession;
-use Filament\Http\Middleware\DisableBladeIconComponents;
-use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Panel;
-use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
-use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
-use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
-use Illuminate\Routing\Middleware\SubstituteBindings;
-use Illuminate\Session\Middleware\StartSession;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\\Filament\\App\\Pages\\Dashboard;
+use App\\Filament\\App\\Pages\\GeneralSettings;
+use App\\Filament\\App\\Pages\\Tenancy\\EditBranchProfile;
+use App\\Filament\\App\\Pages\\Tenancy\\RegisterBranch;
+use App\\Filament\\Auth\\EditUserProfile;
+use App\\Http\\Middleware\\EnsureActiveSubscription;
+use App\\Models\\Branch;
+use Filament\\Http\\Middleware\\Authenticate;
+use Filament\\Http\\Middleware\\AuthenticateSession;
+use Filament\\Http\\Middleware\\DisableBladeIconComponents;
+use Filament\\Http\\Middleware\\DispatchServingFilamentEvent;
+use Filament\\Panel;
+use Filament\\PanelProvider;
+use Filament\\Support\\Colors\\Color;
+use Filament\\Widgets\\AccountWidget;
+use Filament\\Widgets\\FilamentInfoWidget;
+use Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse;
+use Illuminate\\Cookie\\Middleware\\EncryptCookies;
+use Illuminate\\Foundation\\Http\\Middleware\\PreventRequestForgery;
+use Illuminate\\Routing\\Middleware\\SubstituteBindings;
+use Illuminate\\Session\\Middleware\\StartSession;
+use Illuminate\\View\\Middleware\\ShareErrorsFromSession;
 
 class AppPanelProvider extends PanelProvider
 {
@@ -40,20 +37,11 @@ class AppPanelProvider extends PanelProvider
             ->tenantRegistration(RegisterBranch::class)
             ->tenantProfile(EditBranchProfile::class)
             ->profile(EditUserProfile::class)
-            ->userMenuItems([
-                'profile' => fn (Action $action): Action => $action
-                    ->label('Profil Saya'),
-                Action::make('companyProfile')
-                    ->label('Profil Perusahaan')
-                    ->icon('heroicon-m-building-office')
-                    ->url(fn (): string => CompanyProfile::getUrl(tenant: Filament::getTenant()))
-                    ->visible(fn (): bool => auth()->user()?->role === 'tenant_owner'),
-            ])
             ->tenantMenuItems([
-                'profile' => fn (Action $action): Action => $action
+                'profile' => fn (\\Filament\\Actions\\Action $action): \\Filament\\Actions\\Action => $action
                     ->label('Pengaturan Cabang')
                     ->icon('heroicon-m-building-office-2'),
-                'register' => fn (Action $action): Action => $action
+                'register' => fn (\\Filament\\Actions\\Action $action): \\Filament\\Actions\\Action => $action
                     ->label('Tambah Cabang')
                     ->icon('heroicon-m-plus'),
             ])
