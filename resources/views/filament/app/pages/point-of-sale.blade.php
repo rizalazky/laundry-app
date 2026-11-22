@@ -78,7 +78,7 @@
                             <div class="mt-3 flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-2">
                                     <button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ max(0, (float) $line['quantity'] - ($line['unit'] === 'pcs' ? 1 : 0.5)) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">−</button>
-                                    <input type="number" min="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" step="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" value="{{ $line['quantity'] }}" wire:change="updateQuantity({{ $line['id'] }}, $event.target.value)" class="h-9 w-20 rounded-lg border-gray-300 px-2 text-center text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                    <x-filament::input type="number" min="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" step="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" value="{{ $line['quantity'] }}" wire:change="updateQuantity({{ $line['id'] }}, $event.target.value)" class="w-20 text-center text-sm" />
                                     <button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ (float) $line['quantity'] + ($line['unit'] === 'pcs' ? 1 : 0.5) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">+</button>
                                 </div>
                                 <span class="text-sm font-semibold tabular-nums text-gray-950 dark:text-white">Rp {{ number_format((float) $line['subtotal'], 0, ',', '.') }}</span>
@@ -99,7 +99,7 @@
                     </div>
                     <div>
                         <label for="pos-discount" class="mb-1 block text-sm text-gray-600 dark:text-gray-300">Diskon (Rp)</label>
-                        <input id="pos-discount" type="number" min="0" step="1000" wire:model.live.debounce.300ms="discount" class="h-11 w-full rounded-lg border-gray-300 text-right tabular-nums dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        <x-filament::input id="pos-discount" type="number" min="0" step="1000" wire:model.live.debounce.300ms="discount" class="text-right tabular-nums" />
                         @error('discount') <p class="mt-1 text-xs text-danger-600">{{ $message }}</p> @enderror
                     </div>
                     <div class="flex items-center justify-between border-t border-dashed border-gray-200 pt-3 dark:border-gray-700">
@@ -144,21 +144,21 @@
                             <div wire:key="pos-payment-line-{{ $index }}" class="grid gap-2 rounded-xl border border-gray-200 p-3 sm:grid-cols-[1fr_1fr_auto] dark:border-gray-700">
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Metode pembayaran</label>
-                                    <select wire:model="paymentLines.{{ $index }}.method" class="h-11 w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                    <x-filament::input.select wire:model="paymentLines.{{ $index }}.method" class="text-sm">
                                         @foreach ($this->paymentMethods() as $method => $label)
                                             <option value="{{ $method }}">{{ $label }}</option>
                                         @endforeach
-                                    </select>
+                                    </x-filament::input.select>
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Nominal</label>
-                                    <input type="number" min="0.01" step="0.01" wire:model="paymentLines.{{ $index }}.amount" class="h-11 w-full rounded-lg border-gray-300 text-right text-sm tabular-nums dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                    <x-filament::input type="number" min="0.01" step="0.01" wire:model="paymentLines.{{ $index }}.amount" class="text-right text-sm tabular-nums" />
                                 </div>
                                 <button type="button" wire:click="removePaymentLine({{ $index }})" class="mt-5 rounded-lg p-2 text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-400/10" aria-label="Hapus metode pembayaran">
                                     <x-filament::icon icon="heroicon-o-trash" class="h-5 w-5" />
                                 </button>
                                 <div class="sm:col-span-3">
-                                    <input type="text" maxlength="255" placeholder="No. referensi (opsional)" wire:model="paymentLines.{{ $index }}.reference" class="h-10 w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                                    <x-filament::input type="text" maxlength="255" placeholder="No. referensi (opsional)" wire:model="paymentLines.{{ $index }}.reference" class="text-sm" />
                                 </div>
                             </div>
                         @endforeach
