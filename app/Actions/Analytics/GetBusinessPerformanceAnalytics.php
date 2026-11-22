@@ -40,18 +40,18 @@ class GetBusinessPerformanceAnalytics
         $this->assertDateRange($from, $to);
 
         $orders = DB::table('orders')
-            ->where('tenant_id', $tenantId)
-            ->whereBetween('order_date', [$from, $to])
-            ->where('status', '!=', 'cancelled');
+            ->where('orders.tenant_id', $tenantId)
+            ->whereBetween('orders.order_date', [$from, $to])
+            ->where('orders.status', '!=', 'cancelled');
 
         if ($branchId !== null) {
-            $orders->where('branch_id', $branchId);
+            $orders->where('orders.branch_id', $branchId);
         }
 
         $summary = (clone $orders)
             ->selectRaw('COUNT(*) as order_count')
-            ->selectRaw('SUM(total) as turnover')
-            ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders")
+            ->selectRaw('SUM(orders.total) as turnover')
+            ->selectRaw("SUM(CASE WHEN orders.status = 'completed' THEN 1 ELSE 0 END) as completed_orders")
             ->first();
 
         $orderCount = (int) ($summary->order_count ?? 0);
@@ -59,6 +59,7 @@ class GetBusinessPerformanceAnalytics
 
         $outlets = (clone $orders)
             ->join('branches', 'branches.id', '=', 'orders.branch_id')
+            ->where('branches.tenant_id', $tenantId)
             ->select('branches.id as branch_id', 'branches.name as branch_name')
             ->selectRaw('COUNT(orders.id) as order_count')
             ->selectRaw('SUM(orders.total) as turnover')
