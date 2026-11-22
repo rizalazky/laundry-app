@@ -37,6 +37,43 @@ class AffiliateReferralsTable
                 AffiliateReferral::STATUS_APPROVED => 'Disetujui',
                 AffiliateReferral::STATUS_REJECTED => 'Ditolak',
             ]),
+        ])->recordActions([
+            Action::make('approve')
+                ->label('Setujui')
+                ->color('success')
+                ->visible(fn (AffiliateReferral $record): bool => $record->status === AffiliateReferral::STATUS_PENDING
+                    && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
+                ->action(fn (AffiliateReferral $record) => $record->update(['status' => AffiliateReferral::STATUS_APPROVED])),
+            Action::make('reject')
+                ->label('Tolak')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->visible(fn (AffiliateReferral $record): bool => $record->status === AffiliateReferral::STATUS_PENDING
+                    && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
+                ->action(fn (AffiliateReferral $record) => $record->update(['status' => AffiliateReferral::STATUS_REJECTED])),
+            Action::make('recordPayout')
+                ->label('Catat Payout')
+                ->icon('heroicon-o-banknotes')
+                ->visible(fn (AffiliateReferral $record): bool => $record->status === AffiliateReferral::STATUS_APPROVED
+                    && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
+                ->schema([
+                    TextInput::make('amount')->label('Nominal (Rp)')->numeric()->minValue(1)->required(),
+                    DatePicker::make('payout_date')->label('Tanggal Payout')->default(now())->required(),
+                    TextInput::make('reference')->label('Referensi')->maxLength(255),
+                    Textarea::make('notes')->label('Catatan'),
+                ])
+                ->action(function (AffiliateReferral $record, array $data): void {
+                    $record->payouts()->create([
+                        'tenant_id' => $record->referrer_tenant_id,
+                        'amount' => $data['amount'],
+                        'payout_date' => $data['payout_date'],
+                        'status' => AffiliatePayout::STATUS_PENDING,
+                        'reference' => $data['reference'] ?? null,
+                        'notes' => $data['notes'] ?? null,
+                    ]);
+
+                    Notification::make()->title('Payout berhasil dicatat sebagai menunggu pembayaran.')->success()->send();
+                }),
         ])->headerActions([
             Action::make('registerReferral')
                 ->label('Tambah Referral')
