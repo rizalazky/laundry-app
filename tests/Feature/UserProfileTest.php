@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Filament\\Auth\\EditUserProfile;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Livewire\\Livewire;
-use Tests\\TestCase;
+use App\Filament\Auth\EditUserProfile;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
 
 class UserProfileTest extends TestCase
 {
