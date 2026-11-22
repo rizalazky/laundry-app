@@ -2,11 +2,13 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\App\Pages\CompanyProfile;
 use App\Filament\App\Pages\Dashboard;
 use App\Filament\App\Pages\Tenancy\EditBranchProfile;
 use App\Filament\App\Pages\Tenancy\RegisterBranch;
 use App\Http\Middleware\EnsureActiveSubscription;
 use App\Models\Branch;
+use App\Filament\Auth\EditUserProfile;
 use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -35,6 +37,16 @@ class AppPanelProvider extends PanelProvider
             ->tenant(Branch::class, slugAttribute: 'code')
             ->tenantRegistration(RegisterBranch::class)
             ->tenantProfile(EditBranchProfile::class)
+            ->profile(EditUserProfile::class)
+            ->userMenuItems([
+                'profile' => fn (Action $action): Action => $action
+                    ->label('Profil Saya'),
+                Action::make('companyProfile')
+                    ->label('Profil Perusahaan')
+                    ->icon('heroicon-m-building-office')
+                    ->url(fn (): string => CompanyProfile::getUrl())
+                    ->visible(fn (): bool => auth()->user()?->role === 'tenant_owner'),
+            ])
             ->tenantMenuItems([
                 'profile' => fn (Action $action): Action => $action
                     ->label('Pengaturan Cabang')
