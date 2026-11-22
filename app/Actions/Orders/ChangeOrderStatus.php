@@ -4,6 +4,7 @@ namespace App\Actions\Orders;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Models\Branch;
 use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\ProductionLog;
@@ -31,6 +32,7 @@ class ChangeOrderStatus
             $actor,
             $order,
             ['tenant_owner', 'branch_manager', 'cashier', 'operator'],
+            allowMappedWorkshopAccess: true,
         );
 
         if (! $to->canBeSetByRole($actor->role)) {
@@ -45,16 +47,35 @@ class ChangeOrderStatus
                 ->firstOrFail();
 
             if ($workerId !== null) {
-                $workerIsAssignedToBranch = User::query()
+                $orderBranch = Branch::query()
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->find($locked->branch_id);
+
+                $allowedWorkerBranchIds = [$locked->branch_id];
+
+                if ($orderBranch !== null && ! $orderBranch->is_workshop) {
+                    $allowedWorkerBranchIds = [
+                        ...$allowedWorkerBranchIds,
+                        ...$orderBranch->workshops()
+                            ->where('branches.is_active', true)
+                            ->pluck('branches.id')
+                            ->all(),
+                    ];
+                }
+
+                $workerIsAssignedToOrderLocation = User::query()
                     ->whereKey($workerId)
                     ->where('tenant_id', $locked->tenant_id)
                     ->where('role', 'operator')
                     ->where('is_active', true)
-                    ->whereHas('branches', fn ($query) => $query->whereKey($locked->branch_id))
+                    ->whereHas('branches', fn ($query) => $query
+                        ->whereIn('branches.id', $allowedWorkerBranchIds)
+                        ->where('branches.tenant_id', $locked->tenant_id)
+                        ->where('branches.is_active', true))
                     ->exists();
 
-                if (! $workerIsAssignedToBranch) {
-                    throw new DomainException('Petugas produksi tidak valid atau tidak ditugaskan ke cabang order ini.');
+                if (! $workerIsAssignedToOrderLocation) {
+                    throw new DomainException('Petugas produksi harus aktif dan ditugaskan ke outlet atau workshop yang menangani order ini.');
                 }
             }
 
