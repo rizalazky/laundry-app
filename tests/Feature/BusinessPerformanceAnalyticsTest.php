@@ -180,6 +180,15 @@ class BusinessPerformanceAnalyticsTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'reports.view'],
+            ['name' => 'Lihat Laporan', 'group' => 'Laporan'],
+        );
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $permission->id,
+        ]);
 
         $this->actingAs($manager);
         $this->expectException(DomainException::class);
