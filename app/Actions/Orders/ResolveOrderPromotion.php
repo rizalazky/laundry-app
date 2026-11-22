@@ -90,7 +90,7 @@ class ResolveOrderPromotion
                 throw new DomainException('Nominal promo harus lebih dari 0.');
             }
 
-            $discount = $rewardValue->min($subtotal);
+            $discount = $rewardValue->isGreaterThan($subtotal) ? $subtotal : $rewardValue;
         } else {
             throw new DomainException('Jenis benefit promo tidak didukung.');
         }
