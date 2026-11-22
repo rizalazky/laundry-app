@@ -102,7 +102,7 @@
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Nominal</label>
-                                    <x-filament::input type="number" min="0.01" step="0.01" wire:model="paymentLines.{{ $index }}.amount" class="text-right text-sm tabular-nums" />
+                                    <x-filament::input type="number" min="0.01" step="0.01" wire:model.live.debounce.300ms="paymentLines.{{ $index }}.amount" class="text-right text-sm tabular-nums" />
                                 </div>
                                 <x-filament::button type="button" wire:click="removePaymentLine({{ $index }})" class="mt-5 rounded-lg p-2 text-gray-400 hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-400/10" aria-label="Hapus metode pembayaran">
                                     <x-filament::icon icon="heroicon-o-trash" class="h-5 w-5" />
