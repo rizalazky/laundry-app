@@ -2,6 +2,8 @@
 
 namespace App\Filament\App\Resources\Users;
 
+use UnitEnum;
+
 use App\Filament\App\Resources\Users\Pages\CreateUser;
 use App\Filament\App\Resources\Users\Pages\EditUser;
 use App\Filament\App\Resources\Users\Pages\ListUsers;
@@ -20,8 +22,10 @@ class UserResource extends Resource
     protected static ?string $model = User::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-users';
+    protected static string|UnitEnum|null $navigationGroup = 'Karyawan & SDM';
+    protected static ?int $navigationSort = 10;
     protected static ?string $recordTitleAttribute = 'name';
-    protected static ?string $navigationLabel = 'Staff & Hak Akses';
+    protected static ?string $navigationLabel = 'Daftar Karyawan';
     protected static ?string $modelLabel = 'Staff';
 
     public static function canAccess(): bool
