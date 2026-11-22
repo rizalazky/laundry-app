@@ -2,44 +2,28 @@
 
 namespace Tests\Feature;
 
-use App\Filament\App\Pages\CompanyProfile;
+use App\Filament\Auth\EditUserProfile;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
 
-class CompanyProfileTest extends TestCase
+class UserProfileTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_only_active_tenant_owners_can_access_company_profile(): void
+    public function test_tenant_owner_can_update_company_fields_inside_native_profile(): void
     {
         $tenant = $this->createTenant('profile-owner');
         $owner = $this->createUser($tenant, 'tenant_owner');
-        $manager = $this->createUser($tenant, 'branch_manager');
-
-        $this->actingAs($owner);
-        $this->assertTrue(CompanyProfile::canAccess());
-
-        $this->actingAs($manager);
-        $this->assertFalse(CompanyProfile::canAccess());
-
-        $owner->update(['is_active' => false]);
-        $this->actingAs($owner);
-        $this->assertFalse(CompanyProfile::canAccess());
-    }
-
-    public function test_tenant_owner_can_update_company_profile(): void
-    {
-        $tenant = $this->createTenant('profile-update');
-        $owner = $this->createUser($tenant, 'tenant_owner');
 
         Livewire::actingAs($owner)
-            ->test(CompanyProfile::class)
-            ->set('companyName', 'Laundry Bersih')
-            ->set('ownerEmail', 'owner@laundry.test')
-            ->set('phone', '081234567890')
+            ->test(EditUserProfile::class)
+            ->assertSet('data.tenant.name', 'profile-owner')
+            ->set('data.tenant.name', 'Laundry Bersih')
+            ->set('data.tenant.owner_email', 'owner@laundry.test')
+            ->set('data.tenant.phone', '081234567890')
             ->call('save')
             ->assertHasNoErrors();
 
@@ -51,21 +35,38 @@ class CompanyProfileTest extends TestCase
         ]);
     }
 
-    public function test_company_profile_rejects_duplicate_owner_email(): void
+    public function test_native_profile_rejects_duplicate_company_owner_email(): void
     {
         $tenant = $this->createTenant('profile-duplicate');
         $owner = $this->createUser($tenant, 'tenant_owner');
         $otherTenant = $this->createTenant('profile-existing');
 
         Livewire::actingAs($owner)
-            ->test(CompanyProfile::class)
-            ->set('ownerEmail', $otherTenant->owner_email)
+            ->test(EditUserProfile::class)
+            ->set('data.tenant.owner_email', $otherTenant->owner_email)
             ->call('save')
-            ->assertHasErrors(['ownerEmail']);
+            ->assertHasErrors(['data.tenant.owner_email']);
 
         $this->assertDatabaseHas('tenants', [
             'id' => $tenant->id,
             'owner_email' => $tenant->owner_email,
+        ]);
+    }
+
+    public function test_non_owner_cannot_change_tenant_company_fields_through_profile_state(): void
+    {
+        $tenant = $this->createTenant('profile-manager');
+        $manager = $this->createUser($tenant, 'branch_manager');
+
+        Livewire::actingAs($manager)
+            ->test(EditUserProfile::class)
+            ->set('data.tenant.name', 'Unauthorized Change')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('tenants', [
+            'id' => $tenant->id,
+            'name' => 'profile-manager',
         ]);
     }
 
