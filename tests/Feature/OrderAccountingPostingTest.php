@@ -84,9 +84,9 @@ class OrderAccountingPostingTest extends TestCase
             [PaymentMethod::EdcCredit, '1030'],
         ];
 
-        foreach ($methods as [$method, $assetCode]) {
-            [$tenant, $branch, $cashier, $customer, $service] = $this->makeOrderSetup();
+        [$tenant, $branch, $cashier, $customer, $service] = $this->makeOrderSetup();
 
+        foreach ($methods as [$method, $assetCode]) {
             $order = app(CreateOrder::class)->handle(
                 branch: $branch,
                 user: $cashier,
