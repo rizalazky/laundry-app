@@ -1,5 +1,5 @@
 <div class="flex h-full min-h-0 flex-col gap-4 w-full">
-    @if ($livewire->paymentModalOpen)
+    @if ($livewire->paymentModalOpen && ! ($isDesktop ?? false))
         @include('filament.app.pages.partials.pos-payment-form', ['livewire' => $livewire])
     @else
 
