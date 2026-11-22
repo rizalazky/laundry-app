@@ -20,7 +20,7 @@
         @endif
 
         @if ($this->selectedCustomer())
-            <div class="grid grid-cols-1 gap-5 xl:h-[calc(100dvh-15rem)] xl:min-h-[34rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+            <div class="grid grid-cols-1 gap-5 xl:h-[calc(100dvh-15rem)] xl:min-h-136 xl:grid-cols-[minmax(0,1fr)_24rem]">
                 <section class="flex min-h-0 min-w-0 flex-col gap-4">
                     <div class="shrink-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                         {{ $this->form }}
@@ -72,7 +72,7 @@
         @endif
 
         @if ($paymentModalOpen)
-            <div class="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-gray-950/60 p-4" wire:key="pos-payment-modal">
+            <div class="fixed inset-0 z-100 flex items-center justify-center overflow-y-auto bg-gray-950/60 p-4" wire:key="pos-payment-modal">
                 <div class="w-full max-w-xl rounded-2xl bg-white p-5 shadow-2xl dark:bg-gray-900" @click.stop>
                     <div class="flex items-start justify-between gap-3">
                         <div>

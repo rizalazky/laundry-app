@@ -1,11 +1,11 @@
-<div class="flex h-full min-h-0 flex-col gap-4">
+<div class="flex h-full min-h-0 flex-col gap-4 w-full">
 
                 <div class="flex items-center justify-between">
                     <h3 class="text-base font-semibold text-gray-950 dark:text-white">Keranjang</h3>
                     <span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">{{ count($livewire->cartLines()) }}</span>
                 </div>
 
-                <div class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                <div class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 scrollbar-none">
                     @forelse ($livewire->cartLines() as $line)
                         <div wire:key="pos-cart-{{ $line['id'] }}" class="rounded-lg border border-gray-100 p-3 dark:border-gray-800">
                             <div class="flex items-start justify-between gap-2">
@@ -19,9 +19,9 @@
                             </div>
                             <div class="mt-3 flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-2">
-                                    <x-filament::button type="button" size="sm" color="gray" outlined icon="heroicon-m-minus" wire:click="updateQuantity({{ $line['id'] }}, {{ max(0, (float) $line['quantity'] - ($line['unit'] === 'pcs' ? 1 : 0.5)) }})" class="!h-9 !w-9 !min-w-9 !p-0" aria-label="Kurangi jumlah" />
+                                    <x-filament::button type="button" size="sm" color="gray" outlined icon="heroicon-m-minus" wire:click="updateQuantity({{ $line['id'] }}, {{ max(0, (float) $line['quantity'] - ($line['unit'] === 'pcs' ? 1 : 0.5)) }})" class="h-9! w-9! min-w-9! p-0!" aria-label="Kurangi jumlah" />
                                     <x-filament::input type="number" min="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" step="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" value="{{ $line['quantity'] }}" wire:change="updateQuantity({{ $line['id'] }}, $event.target.value)" class="w-20 text-center text-sm" />
-                                    <x-filament::button type="button" size="sm" color="gray" outlined icon="heroicon-m-plus" wire:click="updateQuantity({{ $line['id'] }}, {{ (float) $line['quantity'] + ($line['unit'] === 'pcs' ? 1 : 0.5) }})" class="!h-9 !w-9 !min-w-9 !p-0" aria-label="Tambah jumlah" />
+                                    <x-filament::button type="button" size="sm" color="gray" outlined icon="heroicon-m-plus" wire:click="updateQuantity({{ $line['id'] }}, {{ (float) $line['quantity'] + ($line['unit'] === 'pcs' ? 1 : 0.5) }})" class="h-9! w-9! min-w-9! p-0!" aria-label="Tambah jumlah" />
                                 </div>
                                 <span class="text-sm font-semibold tabular-nums text-gray-950 dark:text-white">Rp {{ number_format((float) $line['subtotal'], 0, ',', '.') }}</span>
                             </div>
