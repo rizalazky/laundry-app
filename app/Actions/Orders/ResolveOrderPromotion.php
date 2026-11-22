@@ -79,6 +79,10 @@ class ResolveOrderPromotion
 
         $minimumOrder = $promo->rules['minimum_order'] ?? null;
 
+        if ($minimumOrder !== null && (! is_numeric($minimumOrder) || (float) $minimumOrder < 0)) {
+            throw new DomainException('Minimum transaksi promo tidak valid.');
+        }
+
         if ($minimumOrder !== null && $subtotal->isLessThan(BigDecimal::of((string) $minimumOrder))) {
             throw new DomainException('Subtotal belum memenuhi minimum transaksi promo.');
         }
