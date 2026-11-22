@@ -38,7 +38,7 @@ class AppPanelProvider extends PanelProvider
             ->tenantMenuItems([
                 'profile' => fn (Action $action): Action => $action
                     ->label('Pengaturan Cabang')
-                    ->icon('heroicon-m-building-store'),
+                    ->icon('heroicon-m-building-office-2'),
                 'register' => fn (Action $action): Action => $action
                     ->label('Tambah Cabang')
                     ->icon('heroicon-m-plus'),
