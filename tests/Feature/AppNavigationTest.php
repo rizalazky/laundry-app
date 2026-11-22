@@ -12,6 +12,8 @@ use App\Filament\App\Pages\RolePermissions;
 use App\Filament\App\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\App\Resources\Attendances\AttendanceResource;
 use App\Filament\App\Resources\Customers\CustomerResource;
+use App\Filament\App\Resources\CustomerMemberships\CustomerMembershipResource;
+use App\Filament\App\Resources\MemberTiers\MemberTierResource;
 use App\Filament\App\Resources\EmployeeLoans\EmployeeLoanResource;
 use App\Filament\App\Resources\InventoryItems\InventoryItemResource;
 use App\Filament\App\Resources\InventoryUnits\InventoryUnitResource;
@@ -31,6 +33,8 @@ class AppNavigationTest extends TestCase
         $this->assertSame('Operasional', OrderResource::getNavigationGroup());
         $this->assertSame('Operasional', ServiceResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', CustomerResource::getNavigationGroup());
+        $this->assertSame('Pelanggan & CRM', MemberTierResource::getNavigationGroup());
+        $this->assertSame('Pelanggan & CRM', CustomerMembershipResource::getNavigationGroup());
 
         $this->assertSame('Karyawan & SDM', UserResource::getNavigationGroup());
         $this->assertSame('Karyawan & SDM', AttendanceResource::getNavigationGroup());
