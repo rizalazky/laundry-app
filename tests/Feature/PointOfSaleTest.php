@@ -197,7 +197,10 @@ class PointOfSaleTest extends TestCase
             ->call('addToCart', $this->service->id)
             ->call('openPaymentModal', 'fi-test-component-action-0')
             ->assertSet('paymentModalOpen', true)
-            ->assertDispatched('close-modal');
+            ->assertSet('paymentInCart', true)
+            ->assertSee('Pembayaran')
+            ->assertSee('Simpan Order')
+            ->assertDontSee('Lanjut Pembayaran');
     }
 
     public function test_payment_amount_field_uses_live_binding_and_remaining_balance_updates(): void
@@ -208,6 +211,7 @@ class PointOfSaleTest extends TestCase
             ->call('selectCustomer', $this->customer->id)
             ->call('addToCart', $this->service->id)
             ->call('openPaymentModal')
+            ->assertSet('paymentInCart', false)
             ->assertSee('wire:model.live.debounce.300ms="paymentLines.0.amount"', false)
             ->set('paymentLines.0.amount', '3000')
             ->assertSet('paymentLines.0.amount', '3000')
