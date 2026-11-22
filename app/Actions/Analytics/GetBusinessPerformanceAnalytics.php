@@ -3,6 +3,8 @@
 namespace App\Actions\Analytics;
 
 use App\Models\Branch;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Carbon\CarbonInterface;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
@@ -53,7 +55,7 @@ class GetBusinessPerformanceAnalytics
             ->first();
 
         $orderCount = (int) ($summary->order_count ?? 0);
-        $turnover = (float) ($summary->turnover ?? 0);
+        $turnover = BigDecimal::of((string) ($summary->turnover ?? '0'));
 
         $outlets = (clone $orders)
             ->join('branches', 'branches.id', '=', 'orders.branch_id')
@@ -66,15 +68,15 @@ class GetBusinessPerformanceAnalytics
             ->get()
             ->map(function (object $row): array {
                 $count = (int) $row->order_count;
-                $amount = (float) $row->turnover;
+                $amount = BigDecimal::of((string) $row->turnover);
 
                 return [
                     'branch_id' => (int) $row->branch_id,
                     'branch_name' => $row->branch_name,
                     'orders' => $count,
                     'completed_orders' => (int) $row->completed_orders,
-                    'turnover' => $this->money($amount),
-                    'average_order_value' => $this->money($count > 0 ? $amount / $count : 0),
+                    'turnover' => $this->money((string) $amount),
+                    'average_order_value' => $this->average((string) $amount, $count),
                 ];
             })
             ->values()
@@ -97,8 +99,8 @@ class GetBusinessPerformanceAnalytics
                 'service_id' => (int) $row->service_id,
                 'service_name' => $row->service_name,
                 'orders' => (int) $row->order_count,
-                'quantity' => $this->quantity((float) $row->total_quantity),
-                'gross_value' => $this->money((float) $row->gross_value),
+                'quantity' => $this->quantity((string) $row->total_quantity),
+                'gross_value' => $this->money((string) $row->gross_value),
             ])
             ->values()
             ->all();
@@ -149,8 +151,8 @@ class GetBusinessPerformanceAnalytics
             'summary' => [
                 'orders' => $orderCount,
                 'completed_orders' => (int) ($summary->completed_orders ?? 0),
-                'turnover' => $this->money($turnover),
-                'average_order_value' => $this->money($orderCount > 0 ? $turnover / $orderCount : 0),
+                'turnover' => $this->money((string) $turnover),
+                'average_order_value' => $this->average((string) $turnover, $orderCount),
             ],
             'outlets' => $outlets,
             'services' => $services,
@@ -207,13 +209,22 @@ class GetBusinessPerformanceAnalytics
         }
     }
 
-    private function money(float $amount): string
+    private function money(string $amount): string
     {
-        return number_format($amount, 2, '.', '');
+        return (string) BigDecimal::of($amount)->toScale(2, RoundingMode::HALF_UP);
     }
 
-    private function quantity(float $amount): string
+    private function average(string $amount, int $count): string
     {
-        return number_format($amount, 2, '.', '');
+        if ($count === 0) {
+            return '0.00';
+        }
+
+        return (string) BigDecimal::of($amount)->dividedBy($count, 2, RoundingMode::HALF_UP);
+    }
+
+    private function quantity(string $amount): string
+    {
+        return (string) BigDecimal::of($amount)->toScale(2, RoundingMode::HALF_UP);
     }
 }
