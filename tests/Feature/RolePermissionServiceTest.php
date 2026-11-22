@@ -7,6 +7,7 @@ use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\RolePermissionService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -29,6 +30,9 @@ class RolePermissionServiceTest extends TestCase
             'slug' => 'orders.create',
             'group' => 'Pesanan',
         ]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
         $service = new RolePermissionService();
 
         $service->sync($tenant, 'cashier', [$viewOrders->id, $createOrders->id]);
@@ -47,6 +51,9 @@ class RolePermissionServiceTest extends TestCase
             'slug' => 'orders.view',
             'group' => 'Pesanan',
         ]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
         $service = new RolePermissionService();
         $service->sync($tenant, 'cashier', [$permission->id]);
 
@@ -59,6 +66,29 @@ class RolePermissionServiceTest extends TestCase
                 'role' => 'cashier',
                 'permission_id' => $permission->id,
             ]);
+        }
+    }
+
+    public function test_unauthenticated_and_non_owner_users_cannot_change_permission_matrix(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $service = new RolePermissionService();
+
+        try {
+            $service->sync($tenant, 'cashier', []);
+            $this->fail('Unauthenticated callers must not change tenant permissions.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseCount('role_permissions', 0);
+        }
+
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
+        $this->actingAs($cashier);
+
+        try {
+            $service->sync($tenant, 'cashier', []);
+            $this->fail('Non-owner tenant staff must not change the permission matrix.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseCount('role_permissions', 0);
         }
     }
 
