@@ -18,6 +18,10 @@ return new class extends Migration
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_replace');
         }
 
+        Schema::table('vouchers', function (Blueprint $table) {
+            $table->unique(['id', 'tenant_id'], 'vouchers_id_tenant_unique');
+        });
+
         Schema::table('orders', function (Blueprint $table) {
             $table->unsignedBigInteger('promo_id')->nullable()->after('discount');
             $table->unsignedBigInteger('voucher_id')->nullable()->after('promo_id');
@@ -31,6 +35,10 @@ return new class extends Migration
                 ->references(['id', 'tenant_id'])->on('vouchers')->restrictOnDelete();
             $table->index(['tenant_id', 'promo_id']);
             $table->index(['tenant_id', 'voucher_id']);
+        });
+
+        Schema::table('vouchers', function (Blueprint $table) {
+            $table->dropUnique('vouchers_id_tenant_unique');
         });
 
         if ($driver === 'sqlite') {
