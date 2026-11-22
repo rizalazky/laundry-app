@@ -14,6 +14,7 @@ class GetBusinessPerformanceAnalytics
      * Build operational performance metrics from order, service and production records.
      *
      * Turnover is based on non-cancelled order totals, not payment receipts.
+     * Service value uses stored line subtotals before order-level discounts.
      * Employee productivity is based on production-stage assignments, not sales attribution.
      *
      * @return array{
@@ -22,7 +23,7 @@ class GetBusinessPerformanceAnalytics
      *   summary: array{orders: int, completed_orders: int, turnover: string, average_order_value: string},
      *   outlets: array<int, array{branch_id: int, branch_name: string, orders: int, completed_orders: int, turnover: string, average_order_value: string}>,
      *   services: array<int, array{service_id: int, service_name: string, orders: int, quantity: string, revenue: string}>,
-     *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_days: int}>
+     *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_records: int}>
      * }
      *
      * @throws DomainException
@@ -88,16 +89,16 @@ class GetBusinessPerformanceAnalytics
             ->select('order_items.service_id', 'order_items.service_name')
             ->selectRaw('COUNT(DISTINCT orders.id) as order_count')
             ->selectRaw('SUM(order_items.quantity) as total_quantity')
-            ->selectRaw('SUM(order_items.subtotal) as service_revenue')
+            ->selectRaw('SUM(order_items.subtotal) as gross_value')
             ->groupBy('order_items.service_id', 'order_items.service_name')
-            ->orderByDesc('service_revenue')
+            ->orderByDesc('gross_value')
             ->get()
             ->map(fn (object $row): array => [
                 'service_id' => (int) $row->service_id,
                 'service_name' => $row->service_name,
                 'orders' => (int) $row->order_count,
                 'quantity' => $this->quantity((float) $row->total_quantity),
-                'revenue' => $this->money((float) $row->service_revenue),
+                'gross_value' => $this->money((float) $row->gross_value),
             ])
             ->values()
             ->all();
@@ -124,7 +125,7 @@ class GetBusinessPerformanceAnalytics
             ->whereBetween('attendances.clock_in', [$from, $to])
             ->when($branchId !== null, fn ($query) => $query->where('attendances.branch_id', $branchId))
             ->select('attendances.user_id')
-            ->selectRaw('COUNT(attendances.id) as attendance_days')
+            ->selectRaw('COUNT(attendances.id) as attendance_records')
             ->groupBy('attendances.user_id')
             ->get()
             ->keyBy('user_id');
@@ -136,7 +137,7 @@ class GetBusinessPerformanceAnalytics
                 'assigned_orders' => (int) $row->assigned_orders,
                 'production_stages' => (int) $row->production_stages,
                 'completed_stages' => (int) $row->completed_stages,
-                'attendance_days' => (int) ($attendance->get($row->user_id)->attendance_days ?? 0),
+                'attendance_records' => (int) ($attendance->get($row->user_id)->attendance_records ?? 0),
             ])
             ->values()
             ->all();
