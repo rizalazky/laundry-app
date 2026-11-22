@@ -236,7 +236,7 @@ class PointOfSale extends Page
 
                 return is_numeric($amount) ? $total->plus((string) $amount) : $total;
             }, BigDecimal::zero())
-            ->toScale(2);
+            ->toScale(2, RoundingMode::HalfUp);
     }
 
     public function paymentRemaining(): string
@@ -254,11 +254,13 @@ class PointOfSale extends Page
             return;
         }
 
-        $this->paymentLines = [[
-            'amount' => $this->grandTotal(),
-            'method' => PaymentMethod::Cash->value,
-            'reference' => '',
-        ]];
+        $this->paymentLines = BigDecimal::of($this->grandTotal())->isZero()
+            ? []
+            : [[
+                'amount' => $this->grandTotal(),
+                'method' => PaymentMethod::Cash->value,
+                'reference' => '',
+            ]];
         $this->paymentModalOpen = true;
     }
 
