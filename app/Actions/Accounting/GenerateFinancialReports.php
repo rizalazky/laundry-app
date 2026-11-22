@@ -284,7 +284,6 @@ class GenerateFinancialReports
         ];
     }
 
-
     /**
      * @return array{
      *   from: string,
