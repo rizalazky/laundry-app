@@ -1,13 +1,13 @@
 <?php
 
-namespace App\\Filament\\App\\Pages;
+namespace App\Filament\App\Pages;
 
-use App\\Models\\User;
+use App\Models\User;
 use DateTimeZone;
-use Filament\\Notifications\\Notification;
-use Filament\\Pages\\Page;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Validation\\Rule;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class GeneralSettings extends Page
 {
@@ -15,7 +15,7 @@ class GeneralSettings extends Page
 
     protected static ?string $slug = 'pengaturan-umum';
 
-    protected static string|\\BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
 
     protected static ?string $navigationGroup = 'Pengaturan';
 
