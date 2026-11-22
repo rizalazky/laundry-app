@@ -20,7 +20,8 @@ class RolePermissions extends Page
 
     protected static ?string $navigationLabel = 'Matriks Hak Akses';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Pengaturan';
+    protected static string|UnitEnum|null $navigationGroup = 'Karyawan & SDM';
+    protected static ?int $navigationSort = 50;
 
     protected static ?int $navigationSort = 90;
 
