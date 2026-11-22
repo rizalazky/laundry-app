@@ -56,7 +56,7 @@
                 </div>
 
                 @forelse ($this->queueOrders() as $order)
-                    <button
+                    <x-filament::button
                         type="button"
                         wire:key="workshop-order-{{ $order->id }}"
                         wire:click="selectOrder({{ $order->id }})"
@@ -80,7 +80,7 @@
                             <span>Masuk {{ $order->order_date?->format('d M H:i') }}</span>
                             <span>Estimasi {{ $order->due_at?->format('d M H:i') ?? '—' }}</span>
                         </div>
-                    </button>
+                    </x-filament::button>
                 @empty
                     <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
                         <x-filament::icon icon="heroicon-o-inbox" class="mx-auto h-8 w-8 text-gray-400" />
