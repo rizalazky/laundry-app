@@ -143,7 +143,7 @@ class PointOfSaleTest extends TestCase
             ->call('selectCustomer', $this->customer->id)
             ->call('addToCart', $this->service->id)
             ->set('paymentLines', [
-                ['amount' => '10000', 'method' => PaymentMethod::Transfer->value, 'reference' => 'BANK-1'],
+                ['amount' => '3000', 'method' => PaymentMethod::Transfer->value, 'reference' => 'BANK-1'],
             ])
             ->call('createOrder')
             ->assertHasNoErrors();
@@ -151,7 +151,7 @@ class PointOfSaleTest extends TestCase
         $order = Order::query()->sole();
 
         $this->assertSame('7000.00', $order->total);
-        $this->assertSame('7000.00', $order->paid_amount);
+        $this->assertSame('3000.00', $order->paid_amount);
     }
 
     public function test_payment_above_order_total_is_rejected_without_creating_an_order(): void
