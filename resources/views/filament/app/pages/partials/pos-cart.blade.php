@@ -19,9 +19,9 @@
                             </div>
                             <div class="mt-3 flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-2">
-                                    <x-filament::button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ max(0, (float) $line['quantity'] - ($line['unit'] === 'pcs' ? 1 : 0.5)) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">−</x-filament::button>
+                                    <x-filament::button type="button" size="sm" color="gray" outlined icon="heroicon-m-minus" wire:click="updateQuantity({{ $line['id'] }}, {{ max(0, (float) $line['quantity'] - ($line['unit'] === 'pcs' ? 1 : 0.5)) }})" class="!h-9 !w-9 !min-w-9 !p-0" aria-label="Kurangi jumlah" />
                                     <x-filament::input type="number" min="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" step="{{ $line['unit'] === 'pcs' ? 1 : 0.01 }}" value="{{ $line['quantity'] }}" wire:change="updateQuantity({{ $line['id'] }}, $event.target.value)" class="w-20 text-center text-sm" />
-                                    <x-filament::button type="button" wire:click="updateQuantity({{ $line['id'] }}, {{ (float) $line['quantity'] + ($line['unit'] === 'pcs' ? 1 : 0.5) }})" class="h-9 w-9 rounded-lg border border-gray-300 text-lg dark:border-gray-600">+</x-filament::button>
+                                    <x-filament::button type="button" size="sm" color="gray" outlined icon="heroicon-m-plus" wire:click="updateQuantity({{ $line['id'] }}, {{ (float) $line['quantity'] + ($line['unit'] === 'pcs' ? 1 : 0.5) }})" class="!h-9 !w-9 !min-w-9 !p-0" aria-label="Tambah jumlah" />
                                 </div>
                                 <span class="text-sm font-semibold tabular-nums text-gray-950 dark:text-white">Rp {{ number_format((float) $line['subtotal'], 0, ',', '.') }}</span>
                             </div>
