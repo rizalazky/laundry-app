@@ -20,7 +20,6 @@ class AttendanceResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clock';
     protected static string|UnitEnum|null $navigationGroup = 'Karyawan & SDM';
     protected static ?int $navigationSort = 20;
-    protected static UnitEnum|string|null $navigationGroup = 'Karyawan';
     protected static ?string $recordTitleAttribute = 'id';
     protected static ?string $navigationLabel = 'Presensi';
     protected static ?string $modelLabel = 'Presensi';
