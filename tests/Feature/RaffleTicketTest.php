@@ -134,6 +134,16 @@ class RaffleTicketTest extends TestCase
             'status' => Raffle::STATUS_ACTIVE,
         ]);
 
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
+        try {
+            app(IssueRaffleTickets::class)->handle($owner, $raffle->id, $customer->id, 101);
+            $this->fail('Expected batch-size validation.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('quantity', $exception->errors());
+        }
+
         $this->expectException(AuthorizationException::class);
         app(IssueRaffleTickets::class)->handle($cashier, $raffle->id, $customer->id);
     }
