@@ -88,6 +88,15 @@ class OrderForm
                             ]),
                     ]),
 
+                Section::make('Promo & Voucher')
+                    ->schema([
+                        TextInput::make('voucher_code')
+                            ->label('Kode Voucher')
+                            ->maxLength(60)
+                            ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? strtoupper(trim($state)) : null)
+                            ->helperText('Diskon promo akan divalidasi ulang saat order disimpan.'),
+                    ]),
+
                 Section::make('Tagihan')
                     ->columns(2)
                     ->schema([
