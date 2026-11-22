@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Filament\\App\\Pages\\GeneralSettings;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Livewire\\Livewire;
-use Tests\\TestCase;
+use App\Filament\App\Pages\GeneralSettings;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
 
 class GeneralSettingsTest extends TestCase
 {
