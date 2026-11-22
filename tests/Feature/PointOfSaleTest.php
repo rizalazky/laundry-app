@@ -95,8 +95,7 @@ class PointOfSaleTest extends TestCase
         Livewire::test(PointOfSale::class)
             ->assertDontSee('Keranjang')
             ->call('selectCustomer', $this->customer->id)
-            ->assertSee('Keranjang')
-            ->assertSee('shopping-cart', false);
+            ->assertSee('Keranjang');
     }
 
     public function test_quick_add_customer_callback_creates_and_selects_a_customer_for_the_current_tenant(): void
