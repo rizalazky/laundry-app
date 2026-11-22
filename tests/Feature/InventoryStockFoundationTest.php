@@ -1,15 +1,15 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\Branch;
-use App\\Models\\InventoryItem;
-use App\\Models\\InventoryUnit;
-use App\\Models\\LocationStock;
-use App\\Models\\Tenant;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Tests\\TestCase;
+use App\Models\Branch;
+use App\Models\InventoryItem;
+use App\Models\InventoryUnit;
+use App\Models\LocationStock;
+use App\Models\Tenant;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class InventoryStockFoundationTest extends TestCase
 {
