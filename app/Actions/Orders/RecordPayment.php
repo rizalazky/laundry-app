@@ -2,6 +2,8 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Accounting\PostOrderRevenue;
+use App\Actions\Accounting\PostPaymentToAccounting;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
@@ -68,6 +70,9 @@ class RecordPayment
                     ->first();
 
                 if ($existing !== null) {
+                    app(PostOrderRevenue::class)->handle($locked);
+                    app(PostPaymentToAccounting::class)->handle($existing);
+
                     return $existing;
                 }
             }
@@ -105,6 +110,9 @@ class RecordPayment
                 'notes' => $notes,
                 'idempotency_key' => $idempotencyKey,
             ]);
+
+            app(PostOrderRevenue::class)->handle($locked);
+            app(PostPaymentToAccounting::class)->handle($payment);
 
             $locked->recalculatePayment();
             $order->refresh();
