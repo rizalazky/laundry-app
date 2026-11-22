@@ -40,6 +40,11 @@ class Customer extends Model
         return $this->hasMany(CustomerMembership::class);
     }
 
+    public function pointLogs(): HasMany
+    {
+        return $this->hasMany(PointLog::class);
+    }
+
     public static function normalizePhone(?string $phone): ?string
     {
         if ($phone === null || trim($phone) === '') {
