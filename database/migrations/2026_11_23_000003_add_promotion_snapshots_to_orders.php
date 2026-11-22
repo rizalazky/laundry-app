@@ -16,6 +16,8 @@ return new class extends Migration
 
         if ($driver === 'sqlite') {
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_replace');
+            DB::unprepared('DROP TRIGGER IF EXISTS branches_prevent_delete_with_orders');
+            DB::unprepared('DROP TRIGGER IF EXISTS tenants_prevent_delete_with_orders');
         }
 
         Schema::table('vouchers', function (Blueprint $table) {
@@ -38,6 +40,26 @@ return new class extends Migration
         });
 
         if ($driver === 'sqlite') {
+            // SQLite rebuilds the orders table when adding composite foreign keys.
+            // Drop and restore dependent-table triggers around that rebuild.
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER branches_prevent_delete_with_orders
+                BEFORE DELETE ON branches
+                WHEN EXISTS (SELECT 1 FROM orders WHERE branch_id = OLD.id)
+                BEGIN
+                    SELECT RAISE(ABORT, 'Branches with historical orders cannot be deleted.');
+                END;
+            SQL);
+
+            DB::unprepared(<<<'SQL'
+                CREATE TRIGGER tenants_prevent_delete_with_orders
+                BEFORE DELETE ON tenants
+                WHEN EXISTS (SELECT 1 FROM orders WHERE tenant_id = OLD.id)
+                BEGIN
+                    SELECT RAISE(ABORT, 'Tenants with historical orders cannot be deleted.');
+                END;
+            SQL);
+
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER orders_prevent_financial_snapshot_update
                 BEFORE UPDATE ON orders
