@@ -25,6 +25,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'Kelola Promo dan Voucher', 'slug' => 'promotions.manage', 'group' => 'Promosi'],
             ['name' => 'Lihat Poin dan Hadiah', 'slug' => 'loyalty.view', 'group' => 'Promosi'],
             ['name' => 'Kelola Poin dan Hadiah', 'slug' => 'loyalty.manage', 'group' => 'Promosi'],
+            ['name' => 'Lihat Undian dan Tiket', 'slug' => 'raffles.view', 'group' => 'Promosi'],
+            ['name' => 'Kelola Undian dan Tiket', 'slug' => 'raffles.manage', 'group' => 'Promosi'],
             ['name' => 'Lihat Layanan', 'slug' => 'services.view', 'group' => 'Layanan'],
             ['name' => 'Kelola Layanan', 'slug' => 'services.manage', 'group' => 'Layanan'],
             ['name' => 'Lihat Karyawan', 'slug' => 'staff.view', 'group' => 'Karyawan'],
