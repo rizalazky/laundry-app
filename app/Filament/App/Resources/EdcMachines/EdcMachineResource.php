@@ -78,7 +78,8 @@ class EdcMachineResource extends Resource
                             ->orderBy('name')
                             ->pluck('name', 'id')->all())
                         ->searchable()
-                        ->required(),
+                        ->required()
+                        ->disabled(fn (?EdcMachine $record): bool => $record?->settlements()->exists() ?? false),
                     Select::make('bank_account_id')
                         ->label('Rekening Tujuan Settlement')
                         ->options(fn (): array => BankAccount::query()
@@ -89,7 +90,8 @@ class EdcMachineResource extends Resource
                                 $account->id => $account->bank_name.' — '.$account->account_number,
                             ])->all())
                         ->searchable()
-                        ->required(),
+                        ->required()
+                        ->disabled(fn (?EdcMachine $record): bool => $record?->settlements()->exists() ?? false),
                     TextInput::make('mdr_percent')
                         ->label('Estimasi MDR (%)')
                         ->numeric()
