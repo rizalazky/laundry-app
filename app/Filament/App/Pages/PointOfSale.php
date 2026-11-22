@@ -177,6 +177,11 @@ class PointOfSale extends Page implements HasForms
 
     public function createCustomerOption(array $data): int
     {
+        $data = validator($data, [
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:25'],
+        ])->validate();
+
         $customer = Customer::query()->create([
             'tenant_id' => $this->currentBranch()->tenant_id,
             'name' => $data['name'],
