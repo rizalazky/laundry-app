@@ -20,7 +20,11 @@ class MemberTierForm
                     TextInput::make('name')
                         ->label('Nama Jenis Member')
                         ->required()
-                        ->maxLength(255),
+                        ->maxLength(255)
+                        ->unique(
+                            ignoreRecord: true,
+                            modifyRuleUsing: fn (Unique $rule): Unique => $rule->where('tenant_id', Auth::user()?->tenant_id),
+                        ),
 
                     TextInput::make('price')
                         ->label('Harga Pendaftaran')
