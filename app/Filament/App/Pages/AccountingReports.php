@@ -96,7 +96,7 @@ class AccountingReports extends Page
      */
     public function getReportData(): array|\Illuminate\Support\Collection
     {
-        $allowedReports = ['general-journal', 'general-ledger', 'income-statement', 'balance-sheet'];
+        $allowedReports = ['general-journal', 'general-ledger', 'income-statement', 'balance-sheet', 'statement-of-equity'];
 
         if (! in_array($this->reportType, $allowedReports, true)) {
             return ['error' => 'Jenis laporan tidak valid.'];
@@ -128,6 +128,7 @@ class AccountingReports extends Page
                     : ['error' => 'Pilih akun untuk melihat buku besar.'],
                 'income-statement' => $reports->incomeStatement($tenantId, $from, $to, $branchId),
                 'balance-sheet' => $reports->balanceSheet($tenantId, $to, $branchId),
+                'statement-of-equity' => $reports->statementOfChangesInEquity($tenantId, $from, $to, $branchId),
             };
         } catch (DomainException $exception) {
             return ['error' => $exception->getMessage()];
