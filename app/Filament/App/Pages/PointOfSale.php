@@ -87,6 +87,7 @@ class PointOfSale extends Page implements HasForms
                     ->label('Pelanggan')
                     ->placeholder('Cari nama atau nomor HP pelanggan...')
                     ->searchable()
+                    ->allowHtml()
                     ->required()
                     ->live()
                     ->getSearchResultsUsing(function (string $search): array {
@@ -102,7 +103,7 @@ class PointOfSale extends Page implements HasForms
                             ->limit(50)
                             ->get()
                             ->mapWithKeys(fn (Customer $customer): array => [
-                                $customer->getKey() => $customer->name.($customer->phone ? ' · '.$customer->phone : ''),
+                                $customer->getKey() => $this->customerOptionLabel($customer),
                             ])
                             ->all();
                     })
@@ -115,7 +116,7 @@ class PointOfSale extends Page implements HasForms
                             ->where('tenant_id', $this->currentBranch()->tenant_id)
                             ->find($value);
 
-                        return $customer?->name.($customer?->phone ? ' · '.$customer->phone : '');
+                        return $customer ? $this->customerOptionLabel($customer) : null;
                     })
                     ->createOptionForm([
                         TextInput::make('name')
@@ -163,6 +164,19 @@ class PointOfSale extends Page implements HasForms
         return Customer::query()
             ->where('tenant_id', $this->currentBranch()->tenant_id)
             ->find($this->customerId);
+    }
+
+    private function customerOptionLabel(Customer $customer): string
+    {
+        $name = e($customer->name);
+        $phone = e($customer->phone ?: 'Nomor HP belum diisi');
+
+        return <<<HTML
+            <div class="flex flex-col gap-0.5">
+                <span class="font-medium">{$name}</span>
+                <span class="text-xs text-gray-500">{$phone}</span>
+            </div>
+            HTML;
     }
 
     public function selectCustomer(int $customerId): void
