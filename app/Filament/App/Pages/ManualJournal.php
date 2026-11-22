@@ -30,7 +30,7 @@ class ManualJournal extends Page
     public string $branchId = '';
     public string $description = '';
     public string $referenceType = '';
-    public string $referenceId = '';
+    public ?string $referenceId = null;
     public array $entries = [];
 
     public static function canAccess(): bool
@@ -74,7 +74,11 @@ class ManualJournal extends Page
             $query->whereKey(Filament::getTenant()?->getKey());
         }
 
-        return ['' => 'Perusahaan (tanpa cabang)'] + $query->pluck('name', 'id')->all();
+        $branches = $query->pluck('name', 'id')->all();
+
+        return Auth::user()?->role === 'tenant_owner'
+            ? ['' => 'Perusahaan (tanpa cabang)'] + $branches
+            : $branches;
     }
 
     public function addEntry(): void
@@ -104,6 +108,8 @@ class ManualJournal extends Page
 
     public function createJournal(): void
     {
+        $this->referenceId = $this->referenceId === '' ? null : $this->referenceId;
+
         $data = $this->validate([
             'journalDate' => ['required', 'date'],
             'branchId' => ['nullable', 'string'],
