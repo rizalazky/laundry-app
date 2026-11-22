@@ -210,4 +210,32 @@ class PromoVoucherCheckoutTest extends TestCase
 
         $order->update(['promo_discount' => '1.00']);
     }
+    public function test_referral_vouchers_and_unsupported_promo_rules_are_not_applied_as_general_discounts(): void
+    {
+        $promo = $this->makePromo(['rules' => []]);
+        $this->makeVoucher($promo, [
+            'code' => 'REFERRAL',
+            'voucher_type' => Voucher::TYPE_REFERRAL,
+        ]);
+
+        try {
+            $this->createOrder('REFERRAL');
+            $this->fail('Referral vouchers must not be accepted as general vouchers.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Voucher referral belum dapat digunakan pada checkout umum.', $exception->getMessage());
+        }
+
+        $promo->update(['rules' => ['minimum_order' => '50000', 'first_order_only' => 'true']]);
+        $this->makeVoucher($promo, ['code' => 'UNSUPPORTED']);
+
+        try {
+            $this->createOrder('UNSUPPORTED');
+            $this->fail('Unsupported promotion rules must not be silently ignored.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Promo memiliki ketentuan yang belum didukung pada checkout.', $exception->getMessage());
+        }
+
+        $this->assertSame(0, Order::query()->count());
+    }
+
 }
