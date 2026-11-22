@@ -18,7 +18,7 @@ class GeneralSettingsTest extends TestCase
         $tenant = $this->createTenant('settings-defaults');
 
         $this->assertSame('Asia/Jakarta', $tenant->getTimezone());
-        $this->assertSame('d/m/Y', $tenant->getDateFormat());
+        $this->assertSame('d/m/Y', $tenant->getPreferredDateFormat());
         $this->assertNull($tenant->getInvoicePrefix());
         $this->assertSame(24, $tenant->getDefaultEstimationHours());
         $this->assertTrue($tenant->allowsPartialPayment());
@@ -42,7 +42,7 @@ class GeneralSettingsTest extends TestCase
         $tenant->refresh();
 
         $this->assertSame('Asia/Makassar', $tenant->getTimezone());
-        $this->assertSame('Y-m-d', $tenant->getDateFormat());
+        $this->assertSame('Y-m-d', $tenant->getPreferredDateFormat());
         $this->assertSame('LAUNDRY01', $tenant->getInvoicePrefix());
         $this->assertSame(36, $tenant->getDefaultEstimationHours());
         $this->assertFalse($tenant->allowsPartialPayment());
