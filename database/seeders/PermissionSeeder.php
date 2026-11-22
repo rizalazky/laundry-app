@@ -19,6 +19,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'Batalkan Pesanan', 'slug' => 'orders.cancel', 'group' => 'Pesanan'],
             ['name' => 'Lihat Pelanggan', 'slug' => 'customers.view', 'group' => 'Pelanggan'],
             ['name' => 'Kelola Pelanggan', 'slug' => 'customers.manage', 'group' => 'Pelanggan'],
+            ['name' => 'Lihat Membership Pelanggan', 'slug' => 'memberships.view', 'group' => 'Pelanggan'],
+            ['name' => 'Kelola Membership Pelanggan', 'slug' => 'memberships.manage', 'group' => 'Pelanggan'],
             ['name' => 'Lihat Layanan', 'slug' => 'services.view', 'group' => 'Layanan'],
             ['name' => 'Kelola Layanan', 'slug' => 'services.manage', 'group' => 'Layanan'],
             ['name' => 'Lihat Karyawan', 'slug' => 'staff.view', 'group' => 'Karyawan'],
