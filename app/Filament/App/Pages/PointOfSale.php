@@ -131,15 +131,7 @@ class PointOfSale extends Page implements HasForms
                         ->label('Tambah pelanggan baru')
                         ->modalHeading('Pelanggan Baru')
                         ->modalSubmitActionLabel('Simpan Pelanggan'))
-                    ->createOptionUsing(function (array $data): int {
-                        $customer = Customer::query()->create([
-                            'tenant_id' => $this->currentBranch()->tenant_id,
-                            'name' => $data['name'],
-                            'phone' => $data['phone'] ?? null,
-                        ]);
-
-                        return (int) $customer->getKey();
-                    })
+                    ->createOptionUsing(fn (array $data): int => $this->createCustomerOption($data))
                     ->afterStateUpdated(fn ($state) => $this->customerId = filled($state) ? (int) $state : null),
             ])
             ->statePath('customerForm');
@@ -183,6 +175,25 @@ class PointOfSale extends Page implements HasForms
         $this->customerForm['customerId'] = $this->customerId;
     }
 
+    public function createCustomerOption(array $data): int
+    {
+        $customer = Customer::query()->create([
+            'tenant_id' => $this->currentBranch()->tenant_id,
+            'name' => $data['name'],
+            'phone' => $data['phone'] ?? null,
+        ]);
+
+        $this->customerId = (int) $customer->getKey();
+        $this->customerForm['customerId'] = $this->customerId;
+
+        return (int) $customer->getKey();
+    }
+
+    private function ensureCustomerSelected(): void
+    {
+        abort_if($this->selectedCustomer() === null, 403, 'Pilih pelanggan terlebih dahulu.');
+    }
+
     public function clearCustomer(): void
     {
         $this->customerId = null;
@@ -191,6 +202,8 @@ class PointOfSale extends Page implements HasForms
 
     public function addToCart(int $serviceId): void
     {
+        $this->ensureCustomerSelected();
+
         $service = $this->availableService($serviceId);
         $key = (string) $service->getKey();
 
@@ -205,6 +218,8 @@ class PointOfSale extends Page implements HasForms
 
     public function updateQuantity(int $serviceId, mixed $quantity): void
     {
+        $this->ensureCustomerSelected();
+
         $service = $this->availableService($serviceId);
         $value = is_scalar($quantity) ? trim((string) $quantity) : '';
 
@@ -225,6 +240,8 @@ class PointOfSale extends Page implements HasForms
 
     public function removeFromCart(int $serviceId): void
     {
+        $this->ensureCustomerSelected();
+
         unset($this->cart[(string) $serviceId]);
     }
 
@@ -303,6 +320,8 @@ class PointOfSale extends Page implements HasForms
 
     public function openPaymentModal(): void
     {
+        $this->ensureCustomerSelected();
+
         if ($this->cart === []) {
             Notification::make()->title('Keranjang masih kosong')->warning()->send();
 
