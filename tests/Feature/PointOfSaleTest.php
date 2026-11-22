@@ -210,6 +210,7 @@ class PointOfSaleTest extends TestCase
             ->call('openPaymentModal')
             ->assertSee('wire:model.live.debounce.300ms="paymentLines.0.amount"', false)
             ->set('paymentLines.0.amount', '3000')
+            ->assertSet('paymentLines.0.amount', '3000')
             ->assertSee('Rp 4.000');
     }
 
