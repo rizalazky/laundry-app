@@ -6,13 +6,13 @@ use App\Filament\App\Resources\ChartOfAccounts\Pages\CreateChartOfAccount;
 use App\Filament\App\Resources\ChartOfAccounts\Pages\ListChartOfAccounts;
 use App\Models\ChartOfAccount;
 use BackedEnum;
+use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Filament\Tables\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -61,6 +61,9 @@ class ChartOfAccountResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $isReferenced = fn (?ChartOfAccount $record): bool => $record !== null
+            && ($record->journalEntries()->exists() || $record->bankAccounts()->exists());
+
         return $schema->components([
             Section::make('Informasi Akun')
                 ->columns(2)
@@ -69,7 +72,7 @@ class ChartOfAccountResource extends Resource
                         ->label('Kode Akun')
                         ->required()
                         ->maxLength(30)
-                        ->disabled(fn (?ChartOfAccount $record): bool => $record?->is_system ?? false),
+                        ->disabled(fn (?ChartOfAccount $record): bool => ($record?->is_system ?? false) || $isReferenced($record)),
                     TextInput::make('name')
                         ->label('Nama Akun')
                         ->required()
@@ -86,11 +89,11 @@ class ChartOfAccountResource extends Resource
                         ])
                         ->required()
                         ->native(false)
-                        ->disabled(fn (?ChartOfAccount $record): bool => $record?->is_system ?? false),
+                        ->disabled(fn (?ChartOfAccount $record): bool => ($record?->is_system ?? false) || $isReferenced($record)),
                     Toggle::make('is_active')
                         ->label('Akun Aktif')
                         ->default(true)
-                        ->disabled(fn (?ChartOfAccount $record): bool => $record?->is_system ?? false),
+                        ->disabled(fn (?ChartOfAccount $record): bool => ($record?->is_system ?? false) || $isReferenced($record)),
                 ]),
         ]);
     }
