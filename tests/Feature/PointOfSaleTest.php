@@ -93,23 +93,30 @@ class PointOfSaleTest extends TestCase
         $this->actAsCashier();
 
         $page = Livewire::test(PointOfSale::class)
-            ->fillForm([
-                'customerForm' => [
-                    'customerId' => null,
-                ],
+            ->call('createCustomerOption', [
+                'name' => 'Pelanggan Walk In',
+                'phone' => '081299988877',
             ])
-            ->assertSee('Pelanggan')
-            ->assertSee('Pilih pelanggan terlebih dahulu');
+            ->assertHasNoErrors()
+            ->assertSet('customerId', Customer::query()->where('name', 'Pelanggan Walk In')->value('id'))
+            ->assertSee('Cuci Kiloan');
 
-        $customer = Customer::query()->create([
+        $this->assertDatabaseHas('customers', [
             'tenant_id' => $this->tenant->id,
             'name' => 'Pelanggan Walk In',
-            'phone' => '081299988877',
+            'phone' => '6281299988877',
         ]);
+    }
 
-        $page->call('selectCustomer', $customer->id)
-            ->assertSet('customerId', $customer->id)
-            ->assertSee('Cuci Kiloan');
+    public function test_cashier_cannot_add_services_before_selecting_a_customer(): void
+    {
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('addToCart', $this->service->id)
+            ->assertForbidden();
+
+        $this->assertSame(0, Order::query()->count());
     }
 
     public function test_touchscreen_pos_shows_only_active_services_from_the_current_tenant(): void
@@ -120,7 +127,7 @@ class PointOfSaleTest extends TestCase
         $this->actAsCashier();
 
         Livewire::test(PointOfSale::class)
-            ->assertSee('Kasir Laundry')
+            ->call('selectCustomer', $this->customer->id)
             ->assertSee($this->service->name)
             ->assertDontSee($inactive->name)
             ->assertDontSee($foreign->name);
@@ -287,9 +294,9 @@ class PointOfSaleTest extends TestCase
         ]);
 
         Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
             ->call('addToCart', $this->service->id)
             ->assertSee('Rp 9.000')
-            ->call('selectCustomer', $this->customer->id)
             ->call('createOrder')
             ->assertHasNoErrors();
 
