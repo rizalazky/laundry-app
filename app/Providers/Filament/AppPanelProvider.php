@@ -31,7 +31,7 @@ class AppPanelProvider extends PanelProvider
         return $panel
             ->id('app')
             ->path('app')
-            ->brandName('Smartlink Owner')
+            ->brandName('Laundry App')
             ->tenant(Branch::class, slugAttribute: 'code')
             ->tenantRegistration(RegisterBranch::class)
             ->tenantProfile(EditBranchProfile::class)
