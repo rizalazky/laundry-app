@@ -14,6 +14,7 @@ use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use DomainException;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -70,6 +71,26 @@ class PointOfSale extends Page implements HasForms
             && $user->tenant_id !== null
             && in_array($user->role, ['tenant_owner', 'branch_manager', 'cashier'], true)
             && $user->hasPermissionTo('orders.create');
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('cart')
+                ->label('Keranjang')
+                ->icon('heroicon-o-shopping-cart')
+                ->badge(fn (): int => count($this->cartLines()))
+                ->badgeColor('primary')
+                ->visible(fn (): bool => $this->selectedCustomer() !== null)
+                ->slideOver()
+                ->modalHeading('Keranjang Belanja')
+                ->modalDescription('Periksa layanan dan total transaksi sebelum melanjutkan pembayaran.')
+                ->modalContent(fn () => view('filament.app.pages.partials.pos-cart', [
+                    'livewire' => $this,
+                ]))
+                ->modalSubmitAction(false)
+                ->modalCancelAction(false),
+        ];
     }
 
     public function mount(): void
