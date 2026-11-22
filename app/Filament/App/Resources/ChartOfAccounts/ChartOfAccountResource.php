@@ -46,7 +46,7 @@ class ChartOfAccountResource extends Resource
         return Auth::user()?->hasPermissionTo('finance.manage') ?? false;
     }
 
-    public static function canEdit($record): bool
+    public static function canEdit(Model $record): bool
     {
         return static::canCreate() && ! $record->is_system;
     }
