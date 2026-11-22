@@ -88,7 +88,7 @@ class PointOfSaleTest extends TestCase
             ->assertDontSee('Pilih pelanggan terlebih dahulu');
     }
 
-    public function test_cashier_can_quick_add_a_customer_from_the_native_customer_select(): void
+    public function test_quick_add_customer_callback_creates_and_selects_a_customer_for_the_current_tenant(): void
     {
         $this->actAsCashier();
 
