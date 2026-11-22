@@ -7,6 +7,7 @@ use App\Actions\Accounting\GenerateFinancialReports;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Tenant;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,6 +41,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '3000', 'debit' => '0', 'credit' => '40000'],
         ]);
 
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
+
         $journals = app(GenerateFinancialReports::class)->generalJournal(
             $tenant->id,
             CarbonImmutable::parse('2026-01-01 00:00:00'),
@@ -72,6 +75,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '1000', 'debit' => '0', 'credit' => '50'],
         ]);
 
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
+
         $ledger = app(GenerateFinancialReports::class)->generalLedger(
             $tenant->id,
             $cash->id,
@@ -100,6 +105,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '5400', 'debit' => '50000', 'credit' => '0'],
             ['account_code' => '1000', 'debit' => '0', 'credit' => '50000'],
         ]);
+
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
 
         $report = app(GenerateFinancialReports::class)->incomeStatement(
             $tenant->id,
@@ -131,6 +138,8 @@ class FinancialReportsTest extends TestCase
             ['account_code' => '1000', 'debit' => '0', 'credit' => '50000'],
         ]);
 
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
+
         $report = app(GenerateFinancialReports::class)->balanceSheet(
             $tenant->id,
             CarbonImmutable::parse('2026-01-31 23:59:59'),
@@ -149,10 +158,56 @@ class FinancialReportsTest extends TestCase
 
         $this->expectException(DomainException::class);
 
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
+
         app(GenerateFinancialReports::class)->incomeStatement(
             $tenant->id,
             CarbonImmutable::parse('2026-02-01'),
             CarbonImmutable::parse('2026-01-01'),
+        );
+    }
+
+    public function test_report_service_rejects_unauthenticated_callers(): void
+    {
+        $tenant = Tenant::factory()->create();
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01'),
+            CarbonImmutable::parse('2026-01-31'),
+        );
+    }
+
+    public function test_report_service_requires_reports_permission_for_tenant_staff(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
+        $this->actingAs($cashier);
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01'),
+            CarbonImmutable::parse('2026-01-31'),
+        );
+    }
+
+    public function test_report_service_rejects_a_different_tenant_id(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $foreignTenant->id,
+            CarbonImmutable::parse('2026-01-01'),
+            CarbonImmutable::parse('2026-01-31'),
         );
     }
 

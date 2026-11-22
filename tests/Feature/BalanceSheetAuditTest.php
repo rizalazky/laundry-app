@@ -7,6 +7,7 @@ use App\Actions\Accounting\GenerateFinancialReports;
 use App\Models\ChartOfAccount;
 use App\Models\JournalEntry;
 use App\Models\Tenant;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -32,6 +33,8 @@ class BalanceSheetAuditTest extends TestCase
             ['account_code' => '5400', 'debit' => '150', 'credit' => '0'],
             ['account_code' => '1000', 'debit' => '0', 'credit' => '150'],
         ]);
+
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
 
         $report = app(GenerateFinancialReports::class)->balanceSheet(
             $tenant->id,
@@ -65,6 +68,8 @@ class BalanceSheetAuditTest extends TestCase
             ->where('tenant_id', $tenant->id)
             ->where('coa_id', $equity->id)
             ->update(['credit' => '900.00']);
+
+        $this->actingAs(User::factory()->for($tenant)->withRole('tenant_owner')->create());
 
         $report = app(GenerateFinancialReports::class)->balanceSheet(
             $tenant->id,

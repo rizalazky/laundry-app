@@ -441,6 +441,45 @@ class OrderModuleTest extends TestCase
             workerId: $foreignOperator->id,
         );
     }
+
+    public function test_cashier_cannot_record_payment_against_another_tenants_order_when_action_is_called_directly(): void
+    {
+        $cashier = $this->staff('cashier');
+        $foreignOrder = Order::factory()->create();
+
+        try {
+            app(RecordPayment::class)->handle(
+                order: $foreignOrder,
+                amount: '1000',
+                method: PaymentMethod::Cash,
+                user: $cashier,
+            );
+
+            $this->fail('A cashier must not be able to record a payment for another tenant.');
+        } catch (DomainException) {
+            $this->assertSame(0, $foreignOrder->payments()->count());
+        }
+    }
+
+    public function test_cashier_cannot_change_status_of_another_tenants_order_when_action_is_called_directly(): void
+    {
+        $cashier = $this->staff('cashier');
+        $foreignOrder = Order::factory()->create();
+
+        try {
+            app(ChangeOrderStatus::class)->handle(
+                order: $foreignOrder,
+                to: OrderStatus::Washing,
+                user: $cashier,
+            );
+
+            $this->fail('A cashier must not be able to change an order belonging to another tenant.');
+        } catch (DomainException) {
+            $this->assertSame(OrderStatus::Received, $foreignOrder->fresh()->status);
+            $this->assertSame(0, $foreignOrder->statusLogs()->count());
+        }
+    }
+
     public function test_cashier_can_use_edc_debit_for_down_payment_and_edc_credit_for_later_payment(): void
     {
         $cashier = $this->staff('cashier');
@@ -483,5 +522,4 @@ class OrderModuleTest extends TestCase
             'amount' => '5000.00',
         ]);
     }
-
 }
