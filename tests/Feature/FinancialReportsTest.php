@@ -167,6 +167,50 @@ class FinancialReportsTest extends TestCase
         );
     }
 
+    public function test_report_service_rejects_unauthenticated_callers(): void
+    {
+        $tenant = Tenant::factory()->create();
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01'),
+            CarbonImmutable::parse('2026-01-31'),
+        );
+    }
+
+    public function test_report_service_requires_reports_permission_for_tenant_staff(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
+        $this->actingAs($cashier);
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01'),
+            CarbonImmutable::parse('2026-01-31'),
+        );
+    }
+
+    public function test_report_service_rejects_a_different_tenant_id(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $foreignTenant->id,
+            CarbonImmutable::parse('2026-01-01'),
+            CarbonImmutable::parse('2026-01-31'),
+        );
+    }
+
     /**
      * @param  list<array{account_code: string, debit: string, credit: string}>  $entries
      */
