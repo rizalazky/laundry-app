@@ -37,10 +37,6 @@ return new class extends Migration
             $table->index(['tenant_id', 'voucher_id']);
         });
 
-        Schema::table('vouchers', function (Blueprint $table) {
-            $table->dropUnique('vouchers_id_tenant_unique');
-        });
-
         if ($driver === 'sqlite') {
             DB::unprepared(<<<'SQL'
                 CREATE TRIGGER orders_prevent_financial_snapshot_update
@@ -163,6 +159,10 @@ return new class extends Migration
                 'voucher_code_snapshot',
                 'promo_discount',
             ]);
+        });
+
+        Schema::table('vouchers', function (Blueprint $table) {
+            $table->dropUnique('vouchers_id_tenant_unique');
         });
 
         if ($driver === 'sqlite') {
