@@ -45,13 +45,18 @@ class AccountingReportsTest extends TestCase
             ->assertSee('Buku Besar')
             ->assertSee('Laba Rugi')
             ->assertSee('Neraca')
+            ->assertSee('Perubahan Modal')
             ->set('fromDate', '2026-01-01')
             ->set('toDate', '2026-01-31')
             ->set('reportType', 'income-statement')
             ->assertSee('4000')
             ->assertSee('200.000,00')
             ->assertSee('50.000,00')
-            ->assertSee('150.000,00');
+            ->assertSee('150.000,00')
+            ->set('reportType', 'statement-of-equity')
+            ->assertSee('Saldo ekuitas awal')
+            ->assertSee('Laba / rugi periode')
+            ->assertSee('Saldo ekuitas akhir');
     }
 
     public function test_statement_of_changes_in_equity_reconciles_opening_profit_owner_contribution_and_withdrawal(): void
