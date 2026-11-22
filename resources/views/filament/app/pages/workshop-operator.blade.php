@@ -122,11 +122,42 @@
 
                         @php($activeLog = $this->activeProductionLog($selectedOrder))
                         @if ($activeLog)
-                            <div class="rounded-xl border border-success-200 bg-success-50 p-4 dark:border-success-500/30 dark:bg-success-400/10">
+                            <div
+                                wire:key="production-timer-{{ $activeLog->id }}"
+                                data-started-at="{{ $activeLog->started_at->timestamp }}"
+                                x-data="{
+                                    startedAt: {{ $activeLog->started_at->timestamp }},
+                                    elapsedSeconds: 0,
+                                    intervalId: null,
+                                    init() {
+                                        this.updateElapsed();
+                                        this.intervalId = window.setInterval(() => this.updateElapsed(), 1000);
+                                    },
+                                    destroy() {
+                                        if (this.intervalId !== null) {
+                                            window.clearInterval(this.intervalId);
+                                        }
+                                    },
+                                    updateElapsed() {
+                                        this.elapsedSeconds = Math.max(0, Math.floor(Date.now() / 1000) - this.startedAt);
+                                    },
+                                    formatElapsed() {
+                                        const hours = Math.floor(this.elapsedSeconds / 3600);
+                                        const minutes = Math.floor((this.elapsedSeconds % 3600) / 60);
+                                        const seconds = this.elapsedSeconds % 60;
+
+                                        return [hours, minutes, seconds]
+                                            .map((value) => String(value).padStart(2, '0'))
+                                            .join(':');
+                                    },
+                                }"
+                                class="rounded-xl border border-success-200 bg-success-50 p-4 dark:border-success-500/30 dark:bg-success-400/10"
+                            >
                                 <p class="text-xs font-semibold uppercase tracking-wide text-success-700 dark:text-success-400">Timer tahap berjalan</p>
-                                <p class="mt-1 font-mono text-3xl font-bold tabular-nums text-success-800 dark:text-success-300">
-                                    {{ $this->formatElapsedTime($activeLog) }}
-                                </p>
+                                <p
+                                    class="mt-1 font-mono text-3xl font-bold tabular-nums text-success-800 dark:text-success-300"
+                                    x-text="formatElapsed()"
+                                >{{ $this->formatElapsedTime($activeLog) }}</p>
                                 <p class="mt-1 text-xs text-success-700 dark:text-success-400">
                                     Mulai {{ $activeLog->started_at->format('d M Y H:i:s') }}
                                     @if ($activeLog->worker)
