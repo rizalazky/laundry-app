@@ -32,6 +32,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'Lihat Antrean Workshop', 'slug' => 'workshop.queue.view', 'group' => 'Workshop'],
             ['name' => 'Ubah Status Pengerjaan', 'slug' => 'workshop.queue.update', 'group' => 'Workshop'],
             ['name' => 'Lihat Laporan', 'slug' => 'reports.view', 'group' => 'Laporan'],
+            ['name' => 'Lihat Keuangan', 'slug' => 'finance.view', 'group' => 'Keuangan'],
+            ['name' => 'Kelola Keuangan', 'slug' => 'finance.manage', 'group' => 'Keuangan'],
         ];
 
         foreach ($permissions as $permission) {

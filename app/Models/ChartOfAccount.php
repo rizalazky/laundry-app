@@ -32,4 +32,9 @@ class ChartOfAccount extends Model
     {
         return $this->hasMany(JournalEntry::class, 'coa_id');
     }
+
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(BankAccount::class, 'coa_id');
+    }
 }
