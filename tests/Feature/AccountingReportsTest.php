@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\Accounting\CreateJournal;
+use App\Actions\Accounting\GenerateFinancialReports;
 use App\Filament\App\Pages\AccountingReports;
 use App\Models\Branch;
 use App\Models\Permission;
@@ -44,13 +45,68 @@ class AccountingReportsTest extends TestCase
             ->assertSee('Buku Besar')
             ->assertSee('Laba Rugi')
             ->assertSee('Neraca')
+            ->assertSee('Perubahan Modal')
             ->set('fromDate', '2026-01-01')
             ->set('toDate', '2026-01-31')
             ->set('reportType', 'income-statement')
             ->assertSee('4000')
             ->assertSee('200.000,00')
             ->assertSee('50.000,00')
-            ->assertSee('150.000,00');
+            ->assertSee('150.000,00')
+            ->set('reportType', 'statement-of-equity')
+            ->assertSee('Saldo ekuitas awal')
+            ->assertSee('Laba / rugi periode')
+            ->assertSee('Saldo ekuitas akhir');
+    }
+
+    public function test_statement_of_changes_in_equity_reconciles_opening_profit_owner_contribution_and_withdrawal(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->postJournal($tenant->id, $branch->id, '2025-12-15 09:00:00', 'Modal awal', [
+            ['account_code' => '1000', 'debit' => '500000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '500000'],
+        ]);
+        $this->postJournal($tenant->id, $branch->id, '2026-01-10 09:00:00', 'Pendapatan laundry', [
+            ['account_code' => '1000', 'debit' => '200000', 'credit' => '0'],
+            ['account_code' => '4000', 'debit' => '0', 'credit' => '200000'],
+        ]);
+        $this->postJournal($tenant->id, $branch->id, '2026-01-11 09:00:00', 'Biaya operasional', [
+            ['account_code' => '5400', 'debit' => '50000', 'credit' => '0'],
+            ['account_code' => '1000', 'debit' => '0', 'credit' => '50000'],
+        ]);
+        $this->postJournal($tenant->id, $branch->id, '2026-01-12 09:00:00', 'Tambahan modal', [
+            ['account_code' => '1000', 'debit' => '100000', 'credit' => '0'],
+            ['account_code' => '3000', 'debit' => '0', 'credit' => '100000'],
+        ]);
+        $this->postJournal($tenant->id, $branch->id, '2026-01-13 09:00:00', 'Pengambilan prive', [
+            ['account_code' => '3100', 'debit' => '20000', 'credit' => '0'],
+            ['account_code' => '1000', 'debit' => '0', 'credit' => '20000'],
+        ]);
+
+        $this->actingAs($owner);
+
+        $report = app(GenerateFinancialReports::class)->statementOfChangesInEquity(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01 00:00:00'),
+            CarbonImmutable::parse('2026-01-31 23:59:59'),
+            $branch->id,
+        );
+
+        $this->assertSame('500000.00', $report['opening_equity']);
+        $this->assertSame('150000.00', $report['net_income']);
+        $this->assertSame('80000.00', $report['total_equity_movements']);
+        $this->assertSame('730000.00', $report['closing_equity']);
+        $this->assertSame('0.00', $report['reconciliation_difference']);
+        $this->assertTrue($report['is_reconciled']);
+        $this->assertSame(
+            ['3000' => '100000.00', '3100' => '-20000.00'],
+            $report['equity_movements']
+                ->mapWithKeys(fn (array $movement): array => [$movement['account']->code => $movement['amount']])
+                ->all(),
+        );
     }
 
     public function test_non_owner_cannot_expand_report_scope_beyond_current_branch(): void

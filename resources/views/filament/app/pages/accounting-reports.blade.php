@@ -7,6 +7,7 @@
             'general-ledger' => 'Buku Besar',
             'income-statement' => 'Laba Rugi',
             'balance-sheet' => 'Neraca',
+            'statement-of-equity' => 'Perubahan Modal',
         ];
     @endphp
 
@@ -249,6 +250,45 @@
                             </tbody>
                         </table>
                     </div>
+                @elseif ($reportType === 'statement-of-equity')
+                    <div class="accounting-reports__status" style="margin-bottom: 1rem;">
+                        <h3 class="accounting-reports__section-title">Perubahan ekuitas {{ $fromDate }} sampai {{ $toDate }}</h3>
+                        <x-filament::badge color="{{ $reportData['is_reconciled'] ? 'success' : 'danger' }}">
+                            {{ $reportData['is_reconciled'] ? 'Terekonsiliasi' : 'Tidak terekonsiliasi' }}
+                        </x-filament::badge>
+                    </div>
+                    <div class="accounting-reports__totals" style="margin-bottom: 1rem;">
+                        <div class="accounting-reports__total"><span>Saldo ekuitas awal</span><strong>{{ $this->formatMoney($reportData['opening_equity']) }}</strong></div>
+                        <div class="accounting-reports__total"><span>Laba / rugi periode</span><strong>{{ $this->formatMoney($reportData['net_income']) }}</strong></div>
+                        <div class="accounting-reports__total"><span>Perubahan akun ekuitas</span><strong>{{ $this->formatMoney($reportData['total_equity_movements']) }}</strong></div>
+                        <div class="accounting-reports__total"><span>Saldo ekuitas akhir</span><strong>{{ $this->formatMoney($reportData['closing_equity']) }}</strong></div>
+                    </div>
+                    <div class="accounting-reports__table-wrap">
+                        <table class="accounting-reports__table">
+                            <thead><tr><th>Komponen perubahan ekuitas</th><th class="numeric">Perubahan</th></tr></thead>
+                            <tbody>
+                                <tr><td>Saldo ekuitas awal periode</td><td class="numeric">{{ $this->formatMoney($reportData['opening_equity']) }}</td></tr>
+                                <tr><td>Laba / rugi periode berjalan</td><td class="numeric">{{ $this->formatMoney($reportData['net_income']) }}</td></tr>
+                                <tr><td colspan="2"><strong>Mutasi akun ekuitas</strong></td></tr>
+                                @forelse ($reportData['equity_movements'] as $movement)
+                                    <tr>
+                                        <td>{{ $movement['account']->code }} — {{ $movement['account']->name }}</td>
+                                        <td class="numeric">{{ $this->formatMoney($movement['amount']) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="2" class="accounting-reports__empty">Tidak ada mutasi langsung pada akun ekuitas.</td></tr>
+                                @endforelse
+                                <tr><td><strong>Total perubahan ekuitas</strong></td><td class="numeric"><strong>{{ $this->formatMoney($reportData['total_changes']) }}</strong></td></tr>
+                                <tr><td><strong>Saldo ekuitas akhir periode</strong></td><td class="numeric"><strong>{{ $this->formatMoney($reportData['closing_equity']) }}</strong></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    @if (! $reportData['is_reconciled'])
+                        <p class="accounting-reports__empty accounting-reports__error">
+                            Selisih rekonsiliasi: {{ $this->formatMoney($reportData['reconciliation_difference']) }}.
+                            Periksa jurnal dan mutasi akun ekuitas pada periode ini.
+                        </p>
+                    @endif
                 @endif
             </div>
         </x-filament::section>

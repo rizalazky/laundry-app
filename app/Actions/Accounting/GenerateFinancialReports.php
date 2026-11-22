@@ -284,6 +284,125 @@ class GenerateFinancialReports
         ];
     }
 
+    /**
+     * @return array{
+     *   from: string,
+     *   to: string,
+     *   opening_equity: string,
+     *   net_income: string,
+     *   equity_movements: Collection<int, array{account: ChartOfAccount, amount: string}>,
+     *   total_equity_movements: string,
+     *   total_changes: string,
+     *   closing_equity: string,
+     *   reconciliation_difference: string,
+     *   is_reconciled: bool
+     * }
+     *
+     * @throws DomainException
+     */
+    public function statementOfChangesInEquity(
+        int $tenantId,
+        CarbonInterface $from,
+        CarbonInterface $to,
+        ?int $branchId = null,
+    ): array {
+        $this->assertTenantAccess($tenantId);
+        $this->assertBranchAccess($tenantId, $branchId);
+        $this->assertDateRange($from, $to);
+
+        $openingAsOf = Carbon::instance($from->toDateTime())->subSecond();
+        $openingEquity = $this->equityPosition($tenantId, $openingAsOf, $branchId);
+        $closingEquity = $this->equityPosition($tenantId, $to, $branchId);
+        $incomeStatement = $this->incomeStatement($tenantId, $from, $to, $branchId);
+
+        $movementTotals = $this->totalsByAccount(
+            $this->scopedEntries($tenantId, $branchId)
+                ->whereHas('journal', fn (Builder $query) => $query->whereBetween('journal_date', [$from, $to]))
+                ->whereHas('account', fn (Builder $query) => $query
+                    ->withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->where('account_type', 'equity')),
+        );
+
+        $equityAccounts = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('account_type', 'equity')
+            ->orderBy('code')
+            ->get();
+
+        $equityMovements = $equityAccounts
+            ->map(function (ChartOfAccount $account) use ($movementTotals): array {
+                $amounts = $movementTotals->get($account->id, [
+                    'debit' => BigDecimal::zero(),
+                    'credit' => BigDecimal::zero(),
+                ]);
+                $movement = $amounts['credit']->minus($amounts['debit']);
+
+                return [
+                    'account' => $account,
+                    'amount' => $this->money($movement),
+                ];
+            })
+            ->filter(fn (array $movement): bool => ! BigDecimal::of($movement['amount'])->isZero())
+            ->values();
+
+        $totalEquityMovements = $equityMovements->reduce(
+            fn (BigDecimal $total, array $movement): BigDecimal => $total->plus(BigDecimal::of($movement['amount'])),
+            BigDecimal::zero(),
+        );
+        $netIncome = BigDecimal::of($incomeStatement['net_income']);
+        $totalChanges = $netIncome->plus($totalEquityMovements);
+        $calculatedClosingEquity = $openingEquity->plus($totalChanges);
+        $reconciliationDifference = $closingEquity->minus($calculatedClosingEquity);
+
+        return [
+            'from' => $from->toDateTimeString(),
+            'to' => $to->toDateTimeString(),
+            'opening_equity' => $this->money($openingEquity),
+            'net_income' => $this->money($netIncome),
+            'equity_movements' => $equityMovements,
+            'total_equity_movements' => $this->money($totalEquityMovements),
+            'total_changes' => $this->money($totalChanges),
+            'closing_equity' => $this->money($closingEquity),
+            'reconciliation_difference' => $this->money($reconciliationDifference),
+            'is_reconciled' => $reconciliationDifference->isZero(),
+        ];
+    }
+
+    private function equityPosition(int $tenantId, CarbonInterface $asOf, ?int $branchId): BigDecimal
+    {
+        $totals = $this->totalsByAccount(
+            $this->scopedEntries($tenantId, $branchId)
+                ->whereHas('journal', fn (Builder $query) => $query->where('journal_date', '<=', $asOf)),
+        );
+
+        $accounts = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->whereIn('account_type', ['equity', 'revenue', 'expense'])
+            ->get();
+
+        $equity = BigDecimal::zero();
+        $accumulatedEarnings = BigDecimal::zero();
+
+        foreach ($accounts as $account) {
+            $amounts = $totals->get($account->id, [
+                'debit' => BigDecimal::zero(),
+                'credit' => BigDecimal::zero(),
+            ]);
+            $balance = $this->accountBalanceFromTotals($account->account_type, $amounts['debit'], $amounts['credit']);
+
+            if ($account->account_type === 'equity') {
+                $equity = $equity->plus($balance);
+            } elseif ($account->account_type === 'revenue') {
+                $accumulatedEarnings = $accumulatedEarnings->plus($balance);
+            } else {
+                $accumulatedEarnings = $accumulatedEarnings->minus($balance);
+            }
+        }
+
+        return $equity->plus($accumulatedEarnings);
+    }
+
     private function scopedEntries(int $tenantId, ?int $branchId): Builder
     {
         return JournalEntry::withoutGlobalScope('tenant')
