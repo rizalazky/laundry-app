@@ -2,11 +2,11 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Accounting\PostOrderRevenue;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceUnit;
-use App\Actions\Accounting\PostOrderRevenue;
 use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Order;
@@ -25,6 +25,7 @@ class CreateOrder
         private GenerateInvoiceNumber $generateInvoiceNumber,
         private RecordPayment $recordPayment,
         private OrderActionAuthorization $authorization,
+        private ResolveOrderPromotion $resolveOrderPromotion,
     ) {}
 
     /**
@@ -42,6 +43,7 @@ class CreateOrder
         ?string $notes = null,
         ?CarbonInterface $dueAt = null,
         ?array $initialPayment = null,
+        ?string $voucherCode = null,
     ): Order {
         if ($items === []) {
             throw new DomainException('Order harus memiliki minimal satu layanan.');
@@ -53,7 +55,7 @@ class CreateOrder
             ['tenant_owner', 'branch_manager', 'cashier'],
         );
 
-        return DB::transaction(function () use ($branch, $user, $customerId, $items, $discount, $notes, $dueAt, $initialPayment): Order {
+        return DB::transaction(function () use ($branch, $user, $customerId, $items, $discount, $notes, $dueAt, $initialPayment, $voucherCode): Order {
             $customer = Customer::query()
                 ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $branch->tenant_id)
@@ -110,13 +112,30 @@ class CreateOrder
                 ];
             }
 
-            $discount = BigDecimal::of((string) $discount)->toScale(2, RoundingMode::HalfUp);
+            $manualDiscount = BigDecimal::of((string) $discount)->toScale(2, RoundingMode::HalfUp);
 
-            if ($discount->isLessThan(0) || $discount->isGreaterThan($subtotal)) {
+            if ($manualDiscount->isLessThan(0) || $manualDiscount->isGreaterThan($subtotal)) {
                 throw new DomainException('Diskon tidak boleh negatif atau melebihi subtotal.');
             }
 
-            $total = $subtotal->minus($discount);
+            $promotion = null;
+
+            if (filled($voucherCode)) {
+                $promotion = $this->resolveOrderPromotion->handle(
+                    tenantId: (int) $branch->tenant_id,
+                    voucherCode: $voucherCode,
+                    subtotal: $subtotal,
+                );
+            }
+
+            $promoDiscount = $promotion['discount'] ?? BigDecimal::zero();
+            $totalDiscount = $manualDiscount->plus($promoDiscount)->toScale(2, RoundingMode::HalfUp);
+
+            if ($totalDiscount->isGreaterThan($subtotal)) {
+                throw new DomainException('Total diskon tidak boleh melebihi subtotal.');
+            }
+
+            $total = $subtotal->minus($totalDiscount);
             $orderDate = now();
             $maxHours = $services->max('estimated_hours') ?: $branch->tenant->getDefaultEstimationHours();
 
@@ -129,8 +148,13 @@ class CreateOrder
                 'order_date' => $orderDate,
                 'due_at' => $dueAt ?? ($maxHours ? $orderDate->copy()->addHours((int) $maxHours) : null),
                 'subtotal' => (string) $subtotal,
-                'discount' => (string) $discount,
+                'discount' => (string) $totalDiscount,
                 'total' => (string) $total,
+                'promo_id' => $promotion['promo']->getKey() ?? null,
+                'voucher_id' => $promotion['voucher']->getKey() ?? null,
+                'promo_name_snapshot' => $promotion['promo']->name ?? null,
+                'voucher_code_snapshot' => $promotion['voucher']->code ?? null,
+                'promo_discount' => (string) $promoDiscount,
                 'notes' => $notes,
             ]);
 
@@ -141,6 +165,10 @@ class CreateOrder
             ])->save();
 
             $order->items()->createMany($lines);
+
+            if ($promotion !== null) {
+                $promotion['voucher']->increment('used_count');
+            }
 
             app(PostOrderRevenue::class)->handle($order);
 
