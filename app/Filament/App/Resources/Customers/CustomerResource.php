@@ -2,6 +2,8 @@
 
 namespace App\Filament\App\Resources\Customers;
 
+use UnitEnum;
+
 use App\Filament\App\Resources\Customers\Pages\CreateCustomer;
 use App\Filament\App\Resources\Customers\Pages\EditCustomer;
 use App\Filament\App\Resources\Customers\Pages\ListCustomers;
@@ -21,6 +23,8 @@ class CustomerResource extends Resource
     protected static ?string $model = Customer::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
+    protected static string|UnitEnum|null $navigationGroup = 'Pelanggan & CRM';
+    protected static ?int $navigationSort = 10;
     protected static ?string $recordTitleAttribute = 'name';
     protected static ?string $navigationLabel = 'Pelanggan';
     protected static ?string $modelLabel = 'Pelanggan';
