@@ -1,0 +1,81 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to DomaiNesia staging
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Configure SSH
+        env:
+          STAGING_SSH_PRIVATE_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          STAGING_KNOWN_HOSTS: ${{ secrets.STAGING_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$STAGING_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$STAGING_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy application
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_PORT: ${{ secrets.STAGING_PORT }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+        run: |
+          test -n "$STAGING_HOST"
+          test -n "$STAGING_PORT"
+          test -n "$STAGING_USER"
+
+          ssh \
+            -i ~/.ssh/id_ed25519 \
+            -p "$STAGING_PORT" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "$STAGING_USER@$STAGING_HOST" 'bash -se' <<'REMOTE'
+          set -Eeuo pipefail
+
+          cd "$HOME/laundry-app"
+
+          echo "Fetching latest main..."
+          git fetch --prune origin main
+          git reset --hard origin/main
+
+          echo "Installing PHP production dependencies..."
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+          echo "Building frontend assets..."
+          npm ci
+          npm run build
+
+          echo "Clearing stale Laravel caches..."
+          php artisan optimize:clear
+
+          echo "Running database migrations..."
+          php artisan migrate --force
+
+          echo "Rebuilding Laravel caches..."
+          php artisan optimize
+
+          echo "Deployed commit: $(git rev-parse --short HEAD)"
+          REMOTE
+
+      - name: Verify staging HTTP response
+        run: |
+          curl --fail --silent --show-error --location --max-time 30 \
+            --output /dev/null \
+            https://laundryappstaging.sndbengkelmotor.com
