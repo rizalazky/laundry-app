@@ -41,6 +41,10 @@ class ResolveOrderPromotion
             throw new DomainException('Voucher belum berlaku atau sudah kedaluwarsa.');
         }
 
+        if ($voucher->voucher_type !== Voucher::TYPE_GENERAL) {
+            throw new DomainException('Voucher referral belum dapat digunakan pada checkout umum.');
+        }
+
         if ($voucher->quota !== null && $voucher->used_count >= $voucher->quota) {
             throw new DomainException('Kuota voucher sudah habis.');
         }
@@ -65,6 +69,12 @@ class ResolveOrderPromotion
             || ($promo->end_at !== null && $promo->end_at->isPast())
         ) {
             throw new DomainException('Promo belum berlaku atau sudah berakhir.');
+        }
+
+        $unsupportedRules = array_diff(array_keys($promo->rules ?? []), ['minimum_order']);
+
+        if ($unsupportedRules !== []) {
+            throw new DomainException('Promo memiliki ketentuan yang belum didukung pada checkout.');
         }
 
         $minimumOrder = $promo->rules['minimum_order'] ?? null;
