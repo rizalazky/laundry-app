@@ -19,18 +19,19 @@
             </div>
         @endif
 
-        <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            {{ $this->form }}
-        </div>
-
         @if ($this->selectedCustomer())
-            <div class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-                <section class="min-w-0 space-y-4">
-                    <div class="flex items-center justify-between gap-3">
+            <div class="grid grid-cols-1 gap-5 xl:h-[calc(100dvh-15rem)] xl:min-h-[34rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
+                <section class="flex min-h-0 min-w-0 flex-col gap-4">
+                    <div class="shrink-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                        {{ $this->form }}
+                    </div>
+
+                    <div class="flex shrink-0 items-center justify-between gap-3">
                         <h3 class="text-base font-semibold text-gray-950 dark:text-white">Pilih layanan</h3>
                         <span class="text-xs text-gray-500 dark:text-gray-400">Ketuk kartu untuk menambahkan</span>
                     </div>
 
+                    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
                     <div class="grid grid-cols-2 gap-3 md:grid-cols-3 2xl:grid-cols-4">
                         @forelse ($this->serviceCatalog() as $service)
                             <x-filament::button
@@ -51,14 +52,18 @@
                             </div>
                         @endforelse
                     </div>
+                    </div>
                 </section>
 
-                <aside class="hidden min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm xl:block dark:border-gray-700 dark:bg-gray-900">
+                <aside class="hidden h-full min-h-0 min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-4 shadow-sm xl:flex dark:border-gray-700 dark:bg-gray-900">
                     @include('filament.app.pages.partials.pos-cart', ['livewire' => $this])
                 </aside>
             </div>
 
         @else
+            <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                {{ $this->form }}
+            </div>
             <div class="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center dark:border-gray-700 dark:bg-gray-900">
                 <x-filament::icon icon="heroicon-o-user-circle" class="mx-auto h-10 w-10 text-gray-400" />
                 <h2 class="mt-3 text-base font-semibold text-gray-950 dark:text-white">Pilih pelanggan terlebih dahulu</h2>
