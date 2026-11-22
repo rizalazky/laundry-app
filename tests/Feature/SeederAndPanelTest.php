@@ -7,6 +7,7 @@ use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Tests\TestCase;
 
 class SeederAndPanelTest extends TestCase
@@ -117,7 +118,7 @@ class SeederAndPanelTest extends TestCase
         try {
             $this->seed(DatabaseSeeder::class);
             $this->fail('Expected demo seeding to reject an existing account from another tenant.');
-        } catch (\\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             $this->assertStringContainsString('different account scope', $exception->getMessage());
         }
 
