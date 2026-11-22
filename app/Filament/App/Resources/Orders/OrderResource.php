@@ -2,6 +2,8 @@
 
 namespace App\Filament\App\Resources\Orders;
 
+use UnitEnum;
+
 use App\Filament\App\Resources\Orders\Pages\CreateOrder;
 use App\Filament\App\Resources\Orders\Pages\ListOrders;
 use App\Filament\App\Resources\Orders\Pages\ViewOrder;
@@ -22,6 +24,8 @@ class OrderResource extends Resource
     protected static ?string $model = Order::class;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shopping-bag';
+    protected static string|UnitEnum|null $navigationGroup = 'Operasional';
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $recordTitleAttribute = 'invoice_no';
 
