@@ -34,8 +34,6 @@ class ResolveOrderPromotion
             throw new DomainException('Voucher tidak ditemukan atau tidak aktif.');
         }
 
-        $now = now();
-
         if (
             ($voucher->starts_at !== null && $voucher->starts_at->isFuture())
             || ($voucher->expires_at !== null && $voucher->expires_at->isPast())
