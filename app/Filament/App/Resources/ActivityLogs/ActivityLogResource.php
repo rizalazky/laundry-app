@@ -20,6 +20,8 @@ class ActivityLogResource extends Resource
     protected static ?string $model = ActivityLog::class;
     protected static bool $isScopedToTenant = false;
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static string|UnitEnum|null $navigationGroup = 'Karyawan & SDM';
+    protected static ?int $navigationSort = 40;
     protected static UnitEnum|string|null $navigationGroup = 'Karyawan';
     protected static ?string $recordTitleAttribute = 'action';
     protected static ?string $navigationLabel = 'Log Aktivitas';
