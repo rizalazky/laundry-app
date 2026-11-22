@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Service;
 use App\Models\User;
 use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use DomainException;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
@@ -184,7 +185,7 @@ class PointOfSale extends Page
             ->get()
             ->map(function (Service $service): array {
                 $quantity = BigDecimal::of((string) ($this->cart[(string) $service->getKey()] ?? '0'))
-                    ->toScale(2);
+                    ->toScale(2, RoundingMode::HalfUp);
                 $price = BigDecimal::of($service->priceForBranch($this->currentBranch()))->toScale(2);
                 $subtotal = $price->multipliedBy($quantity)->toScale(2);
 
@@ -214,7 +215,7 @@ class PointOfSale extends Page
             return '0.00';
         }
 
-        return (string) BigDecimal::of($this->discount)->toScale(2);
+        return (string) BigDecimal::of($this->discount)->toScale(2, RoundingMode::HalfUp);
     }
 
     public function grandTotal(): string
@@ -287,9 +288,9 @@ class PointOfSale extends Page
             'customerId' => ['required', 'integer'],
             'cart' => ['required', 'array', 'min:1'],
             'cart.*' => ['required', 'numeric', 'gt:0'],
-            'discount' => ['required', 'numeric', 'min:0'],
+            'discount' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
             'paymentLines' => ['array'],
-            'paymentLines.*.amount' => ['required', 'numeric', 'gt:0'],
+            'paymentLines.*.amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
             'paymentLines.*.method' => ['required', 'in:'.implode(',', array_keys(PaymentMethod::options()))],
             'paymentLines.*.reference' => ['nullable', 'string', 'max:255'],
         ]);
