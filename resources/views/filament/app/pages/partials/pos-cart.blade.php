@@ -48,7 +48,7 @@
                         <span class="font-semibold text-gray-900 dark:text-white">Total</span>
                         <span class="text-xl font-bold tabular-nums text-primary-700 dark:text-primary-400">Rp {{ number_format((float) $livewire->grandTotal(), 0, ',', '.') }}</span>
                     </div>
-                    <x-filament::button type="button" color="primary" size="xl" class="w-full" wire:click="openPaymentModal(@js($modalId ?? null))" :disabled="count($livewire->cartLines()) === 0">
+                    <x-filament::button type="button" color="primary" size="xl" class="w-full" x-on:click="close();setTimeout(() => $wire.openPaymentModal(), 200);" :disabled="count($livewire->cartLines()) === 0">
                         Lanjut Pembayaran
                     </x-filament::button>
                 </div>
