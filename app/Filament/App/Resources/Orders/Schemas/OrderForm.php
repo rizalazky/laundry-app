@@ -118,6 +118,7 @@ class OrderForm
 
                         TextInput::make('estimated_total')
                             ->label('Total')
+                            ->helperText('Preview belum memasukkan diskon voucher.')
                             ->prefix('Rp')
                             ->disabled()
                             ->dehydrated(false)
