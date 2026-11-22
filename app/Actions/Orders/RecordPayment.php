@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Tenant;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\Exception\NumberFormatException;
