@@ -35,6 +35,8 @@ class AppNavigationTest extends TestCase
         $this->assertSame('Pelanggan & CRM', CustomerResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', MemberTierResource::getNavigationGroup());
         $this->assertSame('Pelanggan & CRM', CustomerMembershipResource::getNavigationGroup());
+        $this->assertSame('Pelanggan & CRM', PromoResource::getNavigationGroup());
+        $this->assertSame('Pelanggan & CRM', VoucherResource::getNavigationGroup());
 
         $this->assertSame('Karyawan & SDM', UserResource::getNavigationGroup());
         $this->assertSame('Karyawan & SDM', AttendanceResource::getNavigationGroup());
