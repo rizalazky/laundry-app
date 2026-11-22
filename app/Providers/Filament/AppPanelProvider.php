@@ -7,10 +7,11 @@ use App\Filament\App\Pages\Dashboard;
 use App\Filament\App\Pages\GeneralSettings;
 use App\Filament\App\Pages\Tenancy\EditBranchProfile;
 use App\Filament\App\Pages\Tenancy\RegisterBranch;
+use App\Filament\Auth\EditUserProfile;
 use App\Http\Middleware\EnsureActiveSubscription;
 use App\Models\Branch;
-use App\Filament\Auth\EditUserProfile;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -71,13 +72,13 @@ class AppPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
-            ->discoverResources(in: app_path('Filament/App/Resources'), for: 'App\Filament\App\Resources')
-            ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\Filament\App\Pages')
+            ->discoverResources(in: app_path('Filament/App/Resources'), for: 'App\\Filament\\App\\Resources')
+            ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\\Filament\\App\\Pages')
             ->pages([
                 Dashboard::class,
                 GeneralSettings::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\Filament\App\Widgets')
+            ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\\Filament\\App\\Widgets')
             ->widgets([
                 AccountWidget::class,
                 FilamentInfoWidget::class,
