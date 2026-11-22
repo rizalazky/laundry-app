@@ -15,6 +15,7 @@ use App\Models\Voucher;
 use DomainException;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Database\QueryException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -197,4 +198,16 @@ class PromoVoucherCheckoutTest extends TestCase
         $this->assertSame('63000.00', $order->total);
         $this->assertSame(1, $voucher->fresh()->used_count);
     }
+    public function test_promotion_financial_snapshots_cannot_be_modified_after_order_creation(): void
+    {
+        $promo = $this->makePromo(['rules' => []]);
+        $this->makeVoucher($promo);
+
+        $order = $this->createOrder('HEMAT10');
+
+        $this->expectException(QueryException::class);
+
+        $order->update(['promo_discount' => '1.00']);
+    }
+
 }
