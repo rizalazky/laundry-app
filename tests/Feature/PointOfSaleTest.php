@@ -188,16 +188,27 @@ class PointOfSaleTest extends TestCase
             ->assertSee($order->invoice_no);
     }
 
-    public function test_opening_payment_from_mobile_cart_closes_the_cart_slide_over(): void
+    public function test_mobile_cart_action_closes_before_opening_the_payment_modal(): void
     {
         $this->actAsCashier();
 
         Livewire::test(PointOfSale::class)
             ->call('selectCustomer', $this->customer->id)
             ->call('addToCart', $this->service->id)
-            ->call('openPaymentModal', 'fi-test-component-action-0')
+            ->mountAction('cart')
+            ->assertSee('Lanjut Pembayaran')
+            ->assertSee('close();setTimeout(() => $wire.openPaymentModal(), 200);', false);
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
+            ->call('openPaymentModal')
             ->assertSet('paymentModalOpen', true)
-            ->assertDispatched('close-modal');
+            ->assertNotDispatched('close-modal')
+            ->assertSee('Pembayaran')
+            ->assertSee('Total tagihan')
+            ->assertSee('Total dibayar')
+            ->assertSee('Sisa tagihan');
     }
 
     public function test_payment_amount_field_uses_live_binding_and_remaining_balance_updates(): void
