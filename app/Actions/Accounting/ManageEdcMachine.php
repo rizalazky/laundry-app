@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Actions\\Accounting;
+namespace App\Actions\Accounting;
 
-use App\\Models\\BankAccount;
-use App\\Models\\Branch;
-use App\\Models\\EdcMachine;
-use App\\Models\\User;
+use App\Models\BankAccount;
+use App\Models\Branch;
+use App\Models\EdcMachine;
+use App\Models\User;
 use DomainException;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\ValidationException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ManageEdcMachine
 {
