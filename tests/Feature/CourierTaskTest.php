@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Actions\CourierTasks\CreateCourierTask;
 use App\Actions\CourierTasks\UpdateCourierTaskStatus;
+use App\Actions\Orders\ChangeOrderStatus;
 use App\Enums\CourierTaskStatus;
 use App\Enums\CourierTaskType;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Branch;
 use App\Models\CourierTask;
 use App\Models\Customer;
@@ -188,6 +190,69 @@ class CourierTaskTest extends TestCase
             courierId: (int) $courier->id,
             user: $owner,
         );
+    }
+
+
+    public function test_order_cannot_enter_production_until_an_existing_pickup_task_is_completed(): void
+    {
+        [, , , $order, $owner, $courier] = $this->business();
+
+        app(CreateCourierTask::class)->handle(
+            order: $order,
+            type: CourierTaskType::Pickup,
+            address: 'Jl. Mawar No. 10',
+            courierId: (int) $courier->id,
+            user: $owner,
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Tugas pickup harus diselesaikan sebelum order masuk ke proses produksi.');
+
+        app(ChangeOrderStatus::class)->handle(
+            order: $order,
+            to: OrderStatus::Washing,
+            user: $owner,
+        );
+    }
+
+    public function test_order_cannot_be_completed_until_an_existing_delivery_task_is_completed(): void
+    {
+        [, , , $order, $owner, $courier] = $this->business();
+        $order->forceFill([
+            'status' => OrderStatus::Ready,
+            'payment_status' => PaymentStatus::Paid,
+            'paid_amount' => $order->total,
+        ])->save();
+
+        app(CreateCourierTask::class)->handle(
+            order: $order->fresh(),
+            type: CourierTaskType::Delivery,
+            address: 'Jl. Mawar No. 10',
+            courierId: (int) $courier->id,
+            user: $owner,
+        );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Tugas delivery harus diselesaikan sebelum order ditandai selesai.');
+
+        app(ChangeOrderStatus::class)->handle(
+            order: $order->fresh(),
+            to: OrderStatus::Completed,
+            user: $owner,
+        );
+    }
+
+    public function test_orders_without_courier_tasks_can_follow_the_normal_status_flow(): void
+    {
+        [, , , $order, $owner] = $this->business();
+
+        $updated = app(ChangeOrderStatus::class)->handle(
+            order: $order,
+            to: OrderStatus::Washing,
+            user: $owner,
+        );
+
+        $this->assertSame(OrderStatus::Washing, $updated->status);
     }
 
     /**
