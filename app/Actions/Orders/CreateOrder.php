@@ -10,6 +10,8 @@ use App\Enums\PaymentStatus;
 use App\Enums\ServiceUnit;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerMembership;
+use App\Models\MemberTier;
 use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\Service;
