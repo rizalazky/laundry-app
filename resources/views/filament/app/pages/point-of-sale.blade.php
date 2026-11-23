@@ -4,6 +4,19 @@
             <p class="text-sm text-gray-500 dark:text-gray-400">Transaksi baru · {{ $this->currentBranchName() }}</p>
         </div>
 
+        @if (count($this->workshopOptions()) > 1)
+            <div class="max-w-md rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <label for="pos-workshop" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Workshop tujuan</label>
+                <x-filament::input.select id="pos-workshop" wire:model="selectedWorkshopId" class="text-sm">
+                    <option value="">Pilih workshop tujuan</option>
+                    @foreach ($this->workshopOptions() as $workshopId => $workshopName)
+                        <option value="{{ $workshopId }}">{{ $workshopName }}</option>
+                    @endforeach
+                </x-filament::input.select>
+                @error('selectedWorkshopId') <p class="mt-1 text-sm text-danger-600">{{ $message }}</p> @enderror
+            </div>
+        @endif
+
         @if ($order = $this->lastCreatedOrder())
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-success-200 bg-success-50 p-4 dark:border-success-500/30 dark:bg-success-400/10">
                 <div>
