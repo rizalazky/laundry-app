@@ -9,20 +9,26 @@ use Illuminate\Support\Facades\Auth;
 
 class PayrollAuthorization
 {
-    public function authorizeManager(User $actor): void
+    public function authorizeManager(User $actor): User
     {
         if (Auth::hasUser() && (int) Auth::id() !== (int) $actor->getKey()) {
             throw new DomainException('Payroll hanya dapat dikelola oleh akun yang sedang masuk.');
         }
 
+        // Never authorize from caller-supplied role or tenant attributes.
+        $actor = User::query()->find($actor->getKey());
+
         if (
-            ! $actor->is_active
+            $actor === null
+            || ! $actor->is_active
             || $actor->tenant_id === null
             || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
             || ! $actor->hasPermissionTo('payroll.manage')
         ) {
             throw new DomainException('Anda tidak memiliki izin untuk mengelola payroll.');
         }
+
+        return $actor;
     }
 
     public function authorizeEmployee(User $actor, int $employeeId, bool $requireActive = true): User
