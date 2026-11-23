@@ -34,6 +34,10 @@ class AffiliateReferralsTable
                 }),
             TextColumn::make('payouts_sum_amount')->label('Total Payout')
                 ->sum('payouts', 'amount')->money('IDR'),
+            TextColumn::make('payouts_paid_sum_amount')->label('Sudah Dibayar')
+                ->sum('payouts', 'amount', fn ($query) => $query->where('status', AffiliatePayout::STATUS_PAID))->money('IDR'),
+            TextColumn::make('payouts_pending_sum_amount')->label('Menunggu Pembayaran')
+                ->sum('payouts', 'amount', fn ($query) => $query->where('status', AffiliatePayout::STATUS_PENDING))->money('IDR'),
         ])->filters([
             SelectFilter::make('status')->options([
                 AffiliateReferral::STATUS_PENDING => 'Menunggu',
@@ -54,6 +58,44 @@ class AffiliateReferralsTable
                 ->visible(fn (AffiliateReferral $record): bool => $record->status === AffiliateReferral::STATUS_PENDING
                     && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
                 ->action(fn (AffiliateReferral $record) => $record->update(['status' => AffiliateReferral::STATUS_REJECTED])),
+            Action::make('markPayoutPaid')
+                ->label('Tandai Dibayar')
+                ->color('success')
+                ->icon('heroicon-o-check-circle')
+                ->requiresConfirmation()
+                ->visible(fn (AffiliateReferral $record): bool => $record->status === AffiliateReferral::STATUS_APPROVED
+                    && $record->payouts()->where('status', AffiliatePayout::STATUS_PENDING)->exists()
+                    && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
+                ->schema([
+                    Select::make('payout_id')->label('Payout')
+                        ->options(fn (AffiliateReferral $record): array => $record->payouts()
+                            ->where('status', AffiliatePayout::STATUS_PENDING)
+                            ->orderBy('payout_date')->get()
+                            ->mapWithKeys(fn (AffiliatePayout $payout): array => [$payout->id => 'Rp '.number_format((float) $payout->amount, 2, ',', '.').' — '.$payout->payout_date->format('d/m/Y')])
+                            ->all())->required(),
+                ])
+                ->action(function (AffiliateReferral $record, array $data): void {
+                    app(UpdateAffiliatePayoutStatus::class)->handle(Auth::user(), (int) $data['payout_id'], AffiliatePayout::STATUS_PAID);
+                    Notification::make()->title('Payout ditandai sudah dibayar.')->success()->send();
+                }),
+            Action::make('cancelPayout')
+                ->label('Batalkan Payout')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->visible(fn (AffiliateReferral $record): bool => $record->payouts()->where('status', AffiliatePayout::STATUS_PENDING)->exists()
+                    && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
+                ->schema([
+                    Select::make('payout_id')->label('Payout')
+                        ->options(fn (AffiliateReferral $record): array => $record->payouts()
+                            ->where('status', AffiliatePayout::STATUS_PENDING)
+                            ->orderBy('payout_date')->get()
+                            ->mapWithKeys(fn (AffiliatePayout $payout): array => [$payout->id => 'Rp '.number_format((float) $payout->amount, 2, ',', '.').' — '.$payout->payout_date->format('d/m/Y')])
+                            ->all())->required(),
+                ])
+                ->action(function (AffiliateReferral $record, array $data): void {
+                    app(UpdateAffiliatePayoutStatus::class)->handle(Auth::user(), (int) $data['payout_id'], AffiliatePayout::STATUS_CANCELLED);
+                    Notification::make()->title('Payout berhasil dibatalkan.')->success()->send();
+                }),
             Action::make('recordPayout')
                 ->label('Catat Payout')
                 ->icon('heroicon-o-banknotes')
