@@ -120,7 +120,7 @@ class EdcMachineResource extends Resource
                     ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
             ])
             ->recordActions([
-                EditAction::make()->visible(fn (): bool => static::canCreate()),
+                EditAction::make()\n                    ->visible(fn (): bool => static::canCreate())\n                    ->using(function (EdcMachine $record, array $data): EdcMachine {\n                        $user = Auth::user();\n\n                        abort_unless($user instanceof User, 403);\n\n                        return app(ManageEdcMachine::class)->update($user, $record, $data);\n                    }),
             ]);
     }
 
