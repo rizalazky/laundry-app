@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\Orders\ChangeOrderStatus;
 use App\Actions\Orders\CreateOrder as CreateOrderAction;
 use App\Actions\Orders\RecordPayment;
+use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
@@ -520,6 +521,42 @@ class OrderModuleTest extends TestCase
             'order_id' => $order->id,
             'method' => 'edc_credit',
             'amount' => '5000.00',
+        ]);
+    }
+    public function test_orders_default_to_pos_and_integrations_can_set_a_supported_order_source(): void
+    {
+        $cashier = $this->staff('cashier');
+
+        $posOrder = app(CreateOrderAction::class)->handle(
+            branch: $this->branch,
+            user: $cashier,
+            customerId: $this->customer->id,
+            items: [['service_id' => $this->service->id, 'quantity' => 1]],
+        );
+
+        $omnichannelOrder = app(CreateOrderAction::class)->handle(
+            branch: $this->branch,
+            user: $cashier,
+            customerId: $this->customer->id,
+            items: [['service_id' => $this->service->id, 'quantity' => 2]],
+            source: OrderSource::Omnichannel,
+        );
+
+        $loyaltyAppOrder = app(CreateOrderAction::class)->handle(
+            branch: $this->branch,
+            user: $cashier,
+            customerId: $this->customer->id,
+            items: [['service_id' => $this->service->id, 'quantity' => 3]],
+            source: OrderSource::LoyaltyApp,
+        );
+
+        $this->assertSame(OrderSource::Pos, $posOrder->order_source);
+        $this->assertSame(OrderSource::Omnichannel, $omnichannelOrder->order_source);
+        $this->assertSame(OrderSource::LoyaltyApp, $loyaltyAppOrder->order_source);
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $omnichannelOrder->id,
+            'order_source' => 'omnichannel',
         ]);
     }
 }
