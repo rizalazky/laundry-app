@@ -280,4 +280,99 @@ class PromoVoucherCheckoutTest extends TestCase
         $this->assertSame(0, Order::query()->count());
     }
 
+
+    public function test_fixed_amount_promotion_applies_exact_amount_and_never_exceeds_subtotal(): void
+    {
+        $promo = $this->makePromo([
+            'reward_type' => Promo::REWARD_FIXED,
+            'reward_value' => 15000,
+            'rules' => [],
+        ]);
+        $this->makeVoucher($promo, ['code' => 'FIXED15']);
+
+        $order = $this->createOrder('FIXED15');
+
+        $this->assertSame('70000.00', $order->subtotal);
+        $this->assertSame('15000.00', $order->promo_discount);
+        $this->assertSame('55000.00', $order->total);
+
+        $cappedPromo = $this->makePromo([
+            'name' => 'Promo Gratis',
+            'reward_type' => Promo::REWARD_FIXED,
+            'reward_value' => 100000,
+            'rules' => [],
+        ]);
+        $this->makeVoucher($cappedPromo, ['code' => 'FREEORDER']);
+
+        $freeOrder = $this->createOrder('FREEORDER');
+
+        $this->assertSame('70000.00', $freeOrder->subtotal);
+        $this->assertSame('70000.00', $freeOrder->promo_discount);
+        $this->assertSame('0.00', $freeOrder->total);
+    }
+
+    public function test_percentage_promotion_rounds_discount_to_two_decimal_places_using_half_up(): void
+    {
+        $this->service->update(['price' => 7001]);
+
+        $promo = $this->makePromo([
+            'reward_value' => 12.35,
+            'rules' => [],
+        ]);
+        $this->makeVoucher($promo, ['code' => 'ROUND1235']);
+
+        $order = $this->createOrder('ROUND1235');
+
+        $this->assertSame('70010.00', $order->subtotal);
+        $this->assertSame('8646.24', $order->promo_discount);
+        $this->assertSame('61363.76', $order->total);
+    }
+
+    public function test_promotion_requires_valid_positive_reward_values(): void
+    {
+        $invalidPercentage = $this->makePromo([
+            'reward_value' => 100.01,
+            'rules' => [],
+        ]);
+        $percentageVoucher = $this->makeVoucher($invalidPercentage, ['code' => 'TOOMUCH']);
+
+        try {
+            $this->createOrder('TOOMUCH');
+            $this->fail('A percentage reward above 100 must be rejected.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Persentase promo harus lebih dari 0 dan maksimal 100%.', $exception->getMessage());
+        }
+
+        $zeroFixedPromo = $this->makePromo([
+            'reward_type' => Promo::REWARD_FIXED,
+            'reward_value' => 0,
+            'rules' => [],
+        ]);
+        $fixedVoucher = $this->makeVoucher($zeroFixedPromo, ['code' => 'ZEROAMOUNT']);
+
+        try {
+            $this->createOrder('ZEROAMOUNT');
+            $this->fail('A fixed reward of zero must be rejected.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Nominal promo harus lebih dari 0.', $exception->getMessage());
+        }
+
+        $this->assertSame(0, Order::query()->count());
+        $this->assertSame(0, $percentageVoucher->fresh()->used_count);
+        $this->assertSame(0, $fixedVoucher->fresh()->used_count);
+    }
+
+    public function test_promotion_minimum_order_accepts_subtotal_equal_to_the_threshold(): void
+    {
+        $promo = $this->makePromo(['rules' => ['minimum_order' => '70000']]);
+        $voucher = $this->makeVoucher($promo, ['code' => 'EXACTMIN']);
+
+        $order = $this->createOrder('EXACTMIN');
+
+        $this->assertSame('70000.00', $order->subtotal);
+        $this->assertSame('7000.00', $order->promo_discount);
+        $this->assertSame('63000.00', $order->total);
+        $this->assertSame(1, $voucher->fresh()->used_count);
+    }
+
 }
