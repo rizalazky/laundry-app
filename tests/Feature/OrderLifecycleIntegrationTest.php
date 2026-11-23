@@ -13,6 +13,7 @@ use App\Filament\App\Pages\PointOfSale;
 use App\Filament\App\Pages\WorkshopOperator;
 use App\Models\Branch;
 use App\Models\CourierTask;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Permission;
 use App\Models\ProductionLog;
@@ -44,7 +45,7 @@ class OrderLifecycleIntegrationTest extends TestCase
         ]);
         $outlet->syncWorkshops([$workshop->id]);
 
-        $customer = \App\Models\Customer::factory()->for($tenant)->create([
+        $customer = Customer::factory()->for($tenant)->create([
             'name' => 'Pelanggan Integrasi',
             'address' => 'Jl. Integrasi No. 10',
         ]);
@@ -54,7 +55,7 @@ class OrderLifecycleIntegrationTest extends TestCase
             'estimated_hours' => 24,
         ]);
 
-        $cashier = $this->staff($tenant, $outlet, 'cashier', ['orders.create']);
+        $cashier = $this->staff($tenant, $outlet, 'cashier', ['orders.create', 'orders.view']);
         $operator = $this->staff($tenant, $workshop, 'operator', ['orders.view']);
         $courier = $this->staff($tenant, $outlet, 'courier', ['courier_tasks.update']);
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
