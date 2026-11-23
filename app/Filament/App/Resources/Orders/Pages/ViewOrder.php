@@ -2,8 +2,10 @@
 
 namespace App\Filament\App\Resources\Orders\Pages;
 
+use App\Actions\CourierTasks\CreateCourierTask;
 use App\Actions\Orders\ChangeOrderStatus;
 use App\Actions\Orders\RecordPayment;
+use App\Enums\CourierTaskType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
@@ -31,7 +33,8 @@ class ViewOrder extends ViewRecord
         return [
             $this->printReceiptAction(),
             $this->recordPaymentAction(),
-            $this->changeStatusAction(),\n            $this->assignCourierTaskAction(),
+            $this->changeStatusAction(),
+            $this->assignCourierTaskAction(),
             $this->refundAction(),
         ];
     }
