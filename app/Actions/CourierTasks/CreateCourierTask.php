@@ -29,7 +29,7 @@ class CreateCourierTask
             throw new DomainException('Akun pengguna tidak ditemukan.');
         }
 
-        $this->authorization->authorizeOrder(
+        if (! $actor->hasPermissionTo('courier_tasks.manage')) {\n            throw new DomainException('Anda tidak memiliki izin untuk menugaskan kurir.');\n        }\n\n        $this->authorization->authorizeOrder(
             $actor,
             $order,
             ['tenant_owner', 'branch_manager', 'cashier'],
