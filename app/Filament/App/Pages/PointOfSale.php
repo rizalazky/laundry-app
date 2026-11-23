@@ -62,6 +62,8 @@ class PointOfSale extends Page implements HasForms
 
     public ?int $lastCreatedOrderId = null;
 
+    public ?int $selectedWorkshopId = null;
+
     public static function canAccess(): bool
     {
         $user = Auth::user();
@@ -159,6 +161,24 @@ class PointOfSale extends Page implements HasForms
                     ->afterStateUpdated(fn ($state) => $this->customerId = filled($state) ? (int) $state : null),
             ])
             ->statePath('customerForm');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function workshopOptions(): array
+    {
+        $branch = $this->currentBranch();
+
+        if ($branch->is_workshop) {
+            return [];
+        }
+
+        return $branch->workshops()
+            ->where('branches.is_active', true)
+            ->orderBy('branches.name')
+            ->pluck('branches.name', 'branches.id')
+            ->all();
     }
 
     public function currentBranchName(): string
@@ -412,6 +432,7 @@ class PointOfSale extends Page implements HasForms
             'cart' => ['required', 'array', 'min:1'],
             'cart.*' => ['required', 'numeric', 'gt:0'],
             'discount' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
+            'selectedWorkshopId' => ['nullable', 'integer'],
             'paymentLines' => ['array'],
             'paymentLines.*.amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
             'paymentLines.*.method' => ['required', 'in:'.implode(',', array_keys(PaymentMethod::options()))],
@@ -474,6 +495,7 @@ class PointOfSale extends Page implements HasForms
                         $lines,
                     ),
                     discount: (string) $discount,
+                    workshopId: $this->selectedWorkshopId,
                 );
 
                 foreach ($this->paymentLines as $line) {
