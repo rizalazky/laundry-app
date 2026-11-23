@@ -6,6 +6,8 @@ use App\Actions\Analytics\GetBusinessPerformanceAnalytics;
 use App\Enums\OrderStatus;
 use App\Models\Attendance;
 use App\Models\Branch;
+use App\Models\CommissionLog;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Permission;
@@ -137,7 +139,7 @@ class BusinessPerformanceAnalyticsTest extends TestCase
         $otherBranch = Branch::factory()->for($tenant)->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $worker = User::factory()->for($tenant)->withRole('operator')->create(['name' => 'Commission Worker']);
-        $customer = \\App\\Models\\Customer::factory()->for($tenant)->create();
+        $customer = Customer::factory()->for($tenant)->create();
         $service = Service::factory()->for($tenant)->create();
 
         $order = Order::factory()->create([
