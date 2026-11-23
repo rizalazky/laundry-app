@@ -5,6 +5,8 @@ namespace App\Filament\App\Resources\ActivityLogs;
 use App\Filament\App\Resources\ActivityLogs\Pages\ListActivityLogs;
 use App\Models\ActivityLog;
 use App\Models\Attendance;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -67,7 +69,17 @@ class ActivityLogResource extends Resource
             ->whereIn('branch_id', $managedBranchIds)
             ->select('attendances.id');
 
-        return $query->where(function (Builder $subjects) use ($visibleStaffIds, $visibleAttendanceIds): void {
+        $visibleOrderIds = Order::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->whereIn('branch_id', $managedBranchIds)
+            ->select('orders.id');
+
+        $visiblePaymentIds = Payment::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->whereIn('branch_id', $managedBranchIds)
+            ->select('payments.id');
+
+        return $query->where(function (Builder $subjects) use ($visibleStaffIds, $visibleAttendanceIds, $visibleOrderIds, $visiblePaymentIds): void {
             $subjects
                 ->where(function (Builder $staff) use ($visibleStaffIds): void {
                     $staff
@@ -78,6 +90,16 @@ class ActivityLogResource extends Resource
                     $attendance
                         ->where('subject_type', Attendance::class)
                         ->whereIn('subject_id', $visibleAttendanceIds);
+                })
+                ->orWhere(function (Builder $orders) use ($visibleOrderIds): void {
+                    $orders
+                        ->where('subject_type', Order::class)
+                        ->whereIn('subject_id', $visibleOrderIds);
+                })
+                ->orWhere(function (Builder $payments) use ($visiblePaymentIds): void {
+                    $payments
+                        ->where('subject_type', Payment::class)
+                        ->whereIn('subject_id', $visiblePaymentIds);
                 });
         });
     }
