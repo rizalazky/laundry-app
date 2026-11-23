@@ -64,6 +64,7 @@ class UsersTable
                         : [
                             'cashier' => 'Kasir',
                             'operator' => 'Operator Produksi',
+                            'courier' => 'Kurir',
                         ]),
 
                 TernaryFilter::make('is_active')
