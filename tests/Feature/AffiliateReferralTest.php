@@ -56,6 +56,31 @@ class AffiliateReferralTest extends TestCase
         app(UpdateAffiliatePayoutStatus::class)->handle($otherOwner, $payout->id, AffiliatePayout::STATUS_PAID);
     }
 
+    public function test_cashier_cannot_forge_tenant_owner_role_to_update_affiliate_payout(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, Tenant::factory()->create()->id, 10);
+        $payout = $referral->payouts()->create([
+            'tenant_id' => $tenant->id,
+            'amount' => '50000.00',
+            'payout_date' => now()->toDateString(),
+            'status' => AffiliatePayout::STATUS_PENDING,
+        ]);
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
+        $this->actingAs($cashier);
+
+        $forgedActor = clone $cashier;
+        $forgedActor->setAttribute('role', 'tenant_owner');
+
+        $this->expectException(ValidationException::class);
+
+        app(UpdateAffiliatePayoutStatus::class)->handle(
+            $forgedActor,
+            $payout->id,
+            AffiliatePayout::STATUS_PAID,
+        );
+    }
+
     public function test_tenant_can_be_registered_as_an_affiliate_referral(): void
     {
         $referrer = Tenant::factory()->create();
