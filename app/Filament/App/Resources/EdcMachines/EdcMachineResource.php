@@ -4,9 +4,11 @@ namespace App\Filament\App\Resources\EdcMachines;
 
 use App\Filament\App\Resources\EdcMachines\Pages\CreateEdcMachine;
 use App\Filament\App\Resources\EdcMachines\Pages\ListEdcMachines;
+use App\Actions\Accounting\ManageEdcMachine;
 use App\Models\BankAccount;
 use App\Models\Branch;
 use App\Models\EdcMachine;
+use App\Models\User;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
@@ -120,7 +122,15 @@ class EdcMachineResource extends Resource
                     ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
             ])
             ->recordActions([
-                EditAction::make()\n                    ->visible(fn (): bool => static::canCreate())\n                    ->using(function (EdcMachine $record, array $data): EdcMachine {\n                        $user = Auth::user();\n\n                        abort_unless($user instanceof User, 403);\n\n                        return app(ManageEdcMachine::class)->update($user, $record, $data);\n                    }),
+                EditAction::make()
+                    ->visible(fn (): bool => static::canCreate())
+                    ->using(function (EdcMachine $record, array $data): EdcMachine {
+                        $user = Auth::user();
+
+                        abort_unless($user instanceof User, 403);
+
+                        return app(ManageEdcMachine::class)->update($user, $record, $data);
+                    }),
             ]);
     }
 
