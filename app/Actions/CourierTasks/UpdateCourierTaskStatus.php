@@ -25,6 +25,19 @@ class UpdateCourierTaskStatus
             $isAssignedCourier = (int) $locked->courier_id === (int) $actor->getKey();
             $isManager = in_array($actor->role, ['tenant_owner', 'branch_manager'], true);
 
+            if ($isAssignedCourier && $actor->role === 'courier') {
+                $hasCurrentBranchAccess = $locked->order()
+                    ->whereIn('branch_id', $actor->branches()
+                        ->where('branches.tenant_id', $actor->tenant_id)
+                        ->where('branches.is_active', true)
+                        ->select('branches.id'))
+                    ->exists();
+
+                if (! $hasCurrentBranchAccess) {
+                    throw new DomainException('Anda tidak lagi ditugaskan ke cabang order ini.');
+                }
+            }
+
             if (! $isAssignedCourier && ! $isManager) {
                 throw new DomainException('Hanya kurir yang ditugaskan atau pengelola cabang yang dapat memperbarui tugas ini.');
             }
