@@ -209,6 +209,37 @@ class BusinessPerformanceAnalyticsTest extends TestCase
         ], $analytics['employees'][0]);
     }
 
+    public function test_employees_with_attendance_but_no_production_are_included(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $employee = User::factory()->for($tenant)->withRole('operator')->create(['name' => 'Attendance Only']);
+        Attendance::factory()->forUser($employee)->forBranch($branch)->create([
+            'clock_in' => '2026-11-12 08:00:00',
+        ]);
+
+        $this->actingAs($owner);
+
+        $analytics = app(GetBusinessPerformanceAnalytics::class)->handle(
+            $tenant->id,
+            CarbonImmutable::parse('2026-11-01 00:00:00'),
+            CarbonImmutable::parse('2026-11-30 23:59:59'),
+            $branch->id,
+        );
+
+        $this->assertCount(1, $analytics['employees']);
+        $this->assertSame([
+            'user_id' => $employee->id,
+            'employee_name' => 'Attendance Only',
+            'assigned_orders' => 0,
+            'production_stages' => 0,
+            'completed_stages' => 0,
+            'attendance_records' => 1,
+            'commission_earned' => '0.00',
+        ], $analytics['employees'][0]);
+    }
+
     public function test_branch_manager_is_limited_to_assigned_branch_analytics(): void
     {
         $tenant = Tenant::factory()->create();
