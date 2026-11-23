@@ -110,6 +110,38 @@ class WorkshopOperatorTest extends TestCase
         ]);
     }
 
+    public function test_operator_from_another_mapped_workshop_cannot_progress_the_order(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $outlet = Branch::factory()->for($tenant)->create(['code' => 'OUT-30', 'is_workshop' => false]);
+        $assignedWorkshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-30', 'is_workshop' => true]);
+        $otherWorkshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-31', 'is_workshop' => true]);
+        $outlet->syncWorkshops([$assignedWorkshop->id, $otherWorkshop->id]);
+
+        $order = Order::factory()->for($outlet)->create([
+            'invoice_no' => 'OUT-30-0001',
+            'workshop_id' => $assignedWorkshop->id,
+        ]);
+
+        $operator = User::factory()->for($tenant)->withRole('operator')->create();
+        $operator->branches()->attach($otherWorkshop);
+
+        $this->actingAs($operator);
+
+        try {
+            app(ChangeOrderStatus::class)->handle(
+                order: $order,
+                to: OrderStatus::Washing,
+                user: $operator,
+                workerId: $operator->id,
+            );
+            $this->fail('An operator assigned to another mapped workshop must not progress this order.');
+        } catch (\DomainException) {
+            $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+            $this->assertDatabaseCount('production_logs', 0);
+        }
+    }
+
     public function test_operator_assigned_to_mapped_workshop_can_update_an_outlet_order(): void
     {
         $tenant = Tenant::factory()->create();
