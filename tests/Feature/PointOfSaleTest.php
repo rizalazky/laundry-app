@@ -8,6 +8,8 @@ use App\Filament\App\Pages\PointOfSale;
 use App\Models\Branch;
 use App\Models\BranchServicePrice;
 use App\Models\Customer;
+use App\Models\CustomerMembership;
+use App\Models\MemberTier;
 use App\Models\Order;
 use App\Models\Permission;
 use App\Models\RolePermission;
@@ -113,6 +115,60 @@ class PointOfSaleTest extends TestCase
             ->assertNotified('Order berhasil dibuat');
 
         $this->assertSame($secondWorkshop->id, Order::query()->sole()->workshop_id);
+    }
+
+    public function test_customer_option_displays_the_active_tenant_wide_membership_tier(): void
+    {
+        $tier = MemberTier::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Gold',
+            'price' => 100000,
+            'duration_days' => 30,
+            'discount_percent' => 15,
+            'is_active' => true,
+        ]);
+
+        CustomerMembership::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'member_tier_id' => $tier->id,
+            'started_at' => now()->subDay(),
+            'expired_at' => now()->addDays(29),
+            'status' => CustomerMembership::STATUS_ACTIVE,
+        ]);
+
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->assertSee('Gold Member');
+    }
+
+    public function test_customer_option_does_not_display_an_expired_membership(): void
+    {
+        $tier = MemberTier::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Silver',
+            'price' => 50000,
+            'duration_days' => 30,
+            'discount_percent' => 10,
+            'is_active' => true,
+        ]);
+
+        CustomerMembership::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'member_tier_id' => $tier->id,
+            'started_at' => now()->subDays(31),
+            'expired_at' => now()->subDay(),
+            'status' => CustomerMembership::STATUS_ACTIVE,
+        ]);
+
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->assertDontSee('Silver Member');
     }
 
     public function test_cart_action_is_available_after_selecting_a_customer(): void
