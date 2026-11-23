@@ -10,6 +10,8 @@ use App\Filament\App\Resources\Users\Pages\CreateUser;
 use App\Models\ActivityLog;
 use App\Models\Branch;
 use App\Models\Permission;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
@@ -132,18 +134,29 @@ class ActivityLogTest extends TestCase
         $visibleLog = $logger->record($manager, 'staff.updated', $assignedEmployee, ['role' => 'cashier']);
         $outsideLog = $logger->record($manager, 'staff.updated', $outsideEmployee, ['role' => 'cashier']);
 
+        $assignedOrder = Order::factory()->for($assignedBranch)->create();
+        $visibleOrderLog = $logger->record($manager, 'order.status_changed', $assignedOrder);
+        $visiblePayment = Payment::factory()->for($assignedOrder)->create();
+        $visiblePaymentLog = $logger->record($manager, 'payment.recorded', $visiblePayment);
+
+        $outsideOrder = Order::factory()->for($unassignedBranch)->create();
+        $outsideOrderLog = $logger->record($manager, 'order.status_changed', $outsideOrder);
+
         [, $foreignOwner, $foreignEmployee] = $this->foreignContext();
         $this->actingAs($foreignOwner);
         $foreignLog = app(ActivityLogger::class)->record($foreignOwner, 'staff.updated', $foreignEmployee);
         $this->actingAs($manager);
 
         $this->assertTrue(ActivityLogResource::canAccess());
-        $this->assertSame(
-            [$visibleLog->id],
-            ActivityLogResource::getEloquentQuery()->pluck('id')->all(),
+        $visibleIds = ActivityLogResource::getEloquentQuery()->pluck('id')->all();
+
+        $this->assertEqualsCanonicalizing(
+            [$visibleLog->id, $visibleOrderLog->id, $visiblePaymentLog->id],
+            $visibleIds,
         );
-        $this->assertNotContains($outsideLog->id, ActivityLogResource::getEloquentQuery()->pluck('id')->all());
-        $this->assertNotContains($foreignLog->id, ActivityLogResource::getEloquentQuery()->pluck('id')->all());
+        $this->assertNotContains($outsideLog->id, $visibleIds);
+        $this->assertNotContains($outsideOrderLog->id, $visibleIds);
+        $this->assertNotContains($foreignLog->id, $visibleIds);
     }
 
     public function test_cashier_cannot_open_activity_log_resource(): void
