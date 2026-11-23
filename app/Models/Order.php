@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
@@ -28,6 +29,7 @@ class Order extends Model
         'customer_id',
         'created_by',
         'invoice_no',
+        'order_source',
         'order_date',
         'due_at',
         'subtotal',
@@ -45,6 +47,7 @@ class Order extends Model
     {
         return [
             'status' => OrderStatus::class,
+            'order_source' => OrderSource::class,
             'payment_status' => PaymentStatus::class,
             'order_date' => 'datetime',
             'due_at' => 'datetime',
