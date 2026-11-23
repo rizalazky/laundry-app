@@ -17,6 +17,21 @@ use Illuminate\Support\Facades\DB;
 class CreateJournal
 {
     /**
+     * Source references owned by automated accounting workflows.
+     * Manual journals must not claim these keys because doing so can block
+     * the corresponding source transaction from posting its own journal.
+     */
+    public const SYSTEM_REFERENCE_TYPES = [
+        'order',
+        'order_cancellation',
+        'payment',
+        'expense',
+        'cash_settlement',
+        'investor_profit_sharing',
+        'bank_transfer',
+    ];
+
+    /**
      * @param  list<array{account_code: string, debit: string|int, credit: string|int}>  $entries
      *
      * @throws DomainException
