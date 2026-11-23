@@ -7,6 +7,8 @@ use App\Models\ActivityLog;
 use App\Models\Attendance;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\StockMovement;
+use App\Models\Journal;
 use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -79,7 +81,17 @@ class ActivityLogResource extends Resource
             ->whereIn('branch_id', $managedBranchIds)
             ->select('payments.id');
 
-        return $query->where(function (Builder $subjects) use ($visibleStaffIds, $visibleAttendanceIds, $visibleOrderIds, $visiblePaymentIds): void {
+        $visibleStockMovementIds = StockMovement::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->whereIn('branch_id', $managedBranchIds)
+            ->select('stock_movements.id');
+
+        $visibleJournalIds = Journal::query()
+            ->where('tenant_id', $actor->tenant_id)
+            ->whereIn('branch_id', $managedBranchIds)
+            ->select('journals.id');
+
+        return $query->where(function (Builder $subjects) use ($visibleStaffIds, $visibleAttendanceIds, $visibleOrderIds, $visiblePaymentIds, $visibleStockMovementIds, $visibleJournalIds): void {
             $subjects
                 ->where(function (Builder $staff) use ($visibleStaffIds): void {
                     $staff
@@ -100,6 +112,16 @@ class ActivityLogResource extends Resource
                     $payments
                         ->where('subject_type', Payment::class)
                         ->whereIn('subject_id', $visiblePaymentIds);
+                })
+                ->orWhere(function (Builder $movements) use ($visibleStockMovementIds): void {
+                    $movements
+                        ->where('subject_type', StockMovement::class)
+                        ->whereIn('subject_id', $visibleStockMovementIds);
+                })
+                ->orWhere(function (Builder $journals) use ($visibleJournalIds): void {
+                    $journals
+                        ->where('subject_type', Journal::class)
+                        ->whereIn('subject_id', $visibleJournalIds);
                 });
         });
     }
