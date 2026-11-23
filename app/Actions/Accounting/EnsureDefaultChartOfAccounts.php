@@ -26,6 +26,7 @@ class EnsureDefaultChartOfAccounts
         ['code' => '3000', 'name' => 'Modal Pemilik', 'account_type' => 'equity'],
         ['code' => '3100', 'name' => 'Prive', 'account_type' => 'equity'],
         ['code' => '3200', 'name' => 'Saldo Laba', 'account_type' => 'equity'],
+        ['code' => '3300', 'name' => 'Distribusi Laba Investor', 'account_type' => 'equity'],
         ['code' => '4000', 'name' => 'Pendapatan Jasa Laundry', 'account_type' => 'revenue'],
         ['code' => '4100', 'name' => 'Pendapatan Lain-lain', 'account_type' => 'revenue'],
         ['code' => '5000', 'name' => 'Beban Bahan', 'account_type' => 'expense'],
