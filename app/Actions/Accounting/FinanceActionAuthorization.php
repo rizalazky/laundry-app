@@ -3,6 +3,7 @@
 namespace App\Actions\Accounting;
 
 use App\Models\Branch;
+use App\Models\Tenant;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 
@@ -35,11 +36,15 @@ class FinanceActionAuthorization
             return $branch;
         }
 
+        $tenant = Tenant::query()->find($tenantId);
+
         if (
             ! $actor->is_active
             || $actor->tenant_id === null
             || (int) $actor->tenant_id !== $tenantId
             || ! $actor->hasPermissionTo('finance.manage')
+            || $tenant === null
+            || ! $tenant->hasActiveSubscription()
         ) {
             throw new DomainException('Anda tidak memiliki izin untuk mencatat transaksi keuangan pada tenant ini.');
         }
