@@ -439,6 +439,12 @@ class PointOfSale extends Page implements HasForms
             'paymentLines.*.reference' => ['nullable', 'string', 'max:255'],
         ]);
 
+        if (count($this->workshopOptions()) > 1 && $this->selectedWorkshopId === null) {
+            throw ValidationException::withMessages([
+                'selectedWorkshopId' => 'Pilih workshop tujuan untuk order ini.',
+            ]);
+        }
+
         $branch = $this->currentBranch();
         $customer = $this->selectedCustomer();
 
