@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Brick\Math\BigDecimal;
 use Brick\Math\Exception\NumberFormatException;
 use Brick\Math\Exception\RoundingNecessaryException;
@@ -20,7 +21,10 @@ use Illuminate\Support\Facades\DB;
 
 class RecordPayment
 {
-    public function __construct(private OrderActionAuthorization $authorization) {}
+    public function __construct(
+        private OrderActionAuthorization $authorization,
+        private ActivityLogger $activityLogger,
+    ) {}
 
     /**
      * Append a payment or refund to the order ledger and refresh the order's
@@ -115,6 +119,18 @@ class RecordPayment
             app(PostPaymentToAccounting::class)->handle($payment);
 
             $locked->recalculatePayment();
+
+            $this->activityLogger->record($user, $type === PaymentType::Refund ? 'payment.refunded' : 'payment.recorded', $payment, [
+                'order_id' => $locked->getKey(),
+                'invoice_no' => $locked->invoice_no,
+                'branch_id' => $locked->branch_id,
+                'type' => $type->value,
+                'method' => $method->value,
+                'amount' => $payment->amount,
+                'paid_at' => $payment->paid_at?->toISOString(),
+                'reference' => $payment->reference,
+            ]);
+
             $order->refresh();
 
             return $payment;
