@@ -295,6 +295,24 @@ class CourierTaskTest extends TestCase
     /**
      * @return array{Tenant, Branch, Customer, Order, User, User}
      */
+
+    public function test_courier_task_status_action_rejects_a_forged_owner_actor_when_authenticated_as_courier(): void
+    {
+        [, , , $order, $owner, $courier] = $this->business();
+        $task = CourierTask::query()->create([
+            'tenant_id' => $order->tenant_id,
+            'order_id' => $order->id,
+            'courier_id' => $courier->id,
+            'created_by' => $owner->id,
+            'task_type' => CourierTaskType::Pickup,
+            'address' => 'Jl. Mawar No. 10',
+            'status' => CourierTaskStatus::Assigned,
+        ]);
+        $this->actingAs($courier);
+        $this->expectException(DomainException::class);
+        app(UpdateCourierTaskStatus::class)->handle($task, CourierTaskStatus::Cancelled, $owner);
+    }
+
     private function business(): array
     {
         $tenant = Tenant::factory()->create();
