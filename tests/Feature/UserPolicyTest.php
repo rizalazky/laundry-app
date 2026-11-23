@@ -84,6 +84,29 @@ class UserPolicyTest extends TestCase
         $this->assertFalse($policy->delete($manager, $manager));
     }
 
+    public function test_branch_manager_can_manage_couriers_assigned_to_their_branches(): void
+    {
+        $tenant = $this->createTenant('laundry-courier-policy');
+        $branch = $tenant->branches()->create([
+            'code' => 'COURIER',
+            'name' => 'Courier Branch',
+            'is_active' => true,
+        ]);
+
+        $manager = $this->createUser($tenant, 'branch_manager');
+        $courier = $this->createUser($tenant, 'courier');
+        $manager->branches()->attach($branch);
+        $courier->branches()->attach($branch);
+
+        $this->grantPermission($tenant, 'branch_manager', 'staff.view');
+        $this->grantPermission($tenant, 'branch_manager', 'staff.manage');
+
+        $policy = new UserPolicy();
+
+        $this->assertTrue($policy->view($manager, $courier));
+        $this->assertTrue($policy->update($manager, $courier));
+    }
+
     public function test_user_can_access_only_active_branches_in_own_tenant(): void
     {
         $tenant = $this->createTenant('laundry-access-test');
