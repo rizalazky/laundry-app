@@ -134,6 +134,23 @@ class CourierTaskTest extends TestCase
         $this->assertNotNull($completed->completed_at);
     }
 
+    public function test_operator_cannot_be_assigned_as_a_courier_even_when_in_the_same_branch(): void
+    {
+        [, , , $order, $owner] = $this->business();
+        $operator = User::factory()->for($order->tenant)->withRole('operator')->create();
+        $operator->branches()->attach($order->branch_id);
+
+        $this->expectException(DomainException::class);
+
+        app(CreateCourierTask::class)->handle(
+            order: $order,
+            type: CourierTaskType::Pickup,
+            address: 'Jl. Mawar No. 10',
+            courierId: (int) $operator->id,
+            user: $owner,
+        );
+    }
+
     public function test_staff_cannot_be_assigned_as_courier_outside_the_order_branch(): void
     {
         [, , , $order, $owner] = $this->business();
