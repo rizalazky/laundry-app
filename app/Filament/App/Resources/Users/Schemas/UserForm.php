@@ -70,6 +70,16 @@ class UserForm
                             ->required()
                             ->live(),
 
+                        TextInput::make('monthly_base_salary')
+                            ->label('Gaji Pokok Bulanan')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(9999999999999.99)
+                            ->prefix('Rp')
+                            ->default('0.00')
+                            ->required()
+                            ->helperText('Nilai ini menjadi dasar perhitungan payroll dan akan disimpan sebagai snapshot saat payroll dibuat.'),
+
                         Toggle::make('is_active')
                             ->label('Akun Aktif')
                             ->default(true)
