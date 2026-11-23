@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\CommissionLog;
 use App\Models\Customer;
+use App\Models\Promo;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Permission;
@@ -19,6 +20,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class BusinessPerformanceAnalyticsTest extends TestCase
