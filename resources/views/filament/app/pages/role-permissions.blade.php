@@ -4,6 +4,7 @@
             'branch_manager' => 'Branch Manager',
             'cashier' => 'Kasir',
             'operator' => 'Operator Produksi',
+            'courier' => 'Kurir',
         ];
 
         $selectedCount = count($selectedPermissions);
