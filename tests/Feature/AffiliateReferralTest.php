@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Actions\Affiliates\RegisterAffiliateReferral;
+use App\Actions\Affiliates\UpdateAffiliatePayoutStatus;
+use App\Models\AffiliatePayout;
 use App\Models\AffiliateReferral;
+use App\Models\User;
 use App\Models\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
