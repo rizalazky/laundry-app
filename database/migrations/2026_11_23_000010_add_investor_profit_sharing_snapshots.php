@@ -10,7 +10,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('profit_sharings', function (Blueprint $table) {
-            $table->decimal('share_percent_snapshot', 5, 2)->after('net_profit_base');
+            $table->decimal('share_percent_snapshot', 5, 2)->default(0)->after('net_profit_base');
             $table->unsignedBigInteger('journal_id')->nullable()->after('paid_at');
             $table->unique(['journal_id', 'tenant_id'], 'profit_sharings_journal_tenant_unique');
             $table->foreign(['journal_id', 'tenant_id'], 'profit_sharings_journal_tenant_foreign')
@@ -39,6 +39,5 @@ return new class extends Migration
             $table->dropColumn(['share_percent_snapshot', 'journal_id']);
         });
 
-        DB::table('chart_of_accounts')->where('code', '3300')->where('is_system', true)->delete();
     }
 };
