@@ -37,6 +37,29 @@ class OrderResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Order';
 
+    public static function getEloquentQuery(): Builder
+    {
+        $user = Auth::user();
+
+        $query = parent::getEloquentQuery()
+            ->where('tenant_id', $user?->tenant_id);
+
+        if ($user === null || $user->tenant_id === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->role === 'tenant_owner') {
+            return $query;
+        }
+
+        $assignedBranchIds = $user->branches()
+            ->where('branches.tenant_id', $user->tenant_id)
+            ->where('branches.is_active', true)
+            ->select('branches.id');
+
+        return $query->whereIn('branch_id', $assignedBranchIds);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return OrderForm::configure($schema);
