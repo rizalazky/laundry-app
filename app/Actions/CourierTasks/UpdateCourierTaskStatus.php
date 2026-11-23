@@ -6,12 +6,17 @@ use App\Enums\CourierTaskStatus;
 use App\Models\CourierTask;
 use App\Models\User;
 use DomainException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class UpdateCourierTaskStatus
 {
     public function handle(CourierTask $task, CourierTaskStatus $to, User $user): CourierTask
     {
+        if (Auth::hasUser() && (int) Auth::id() !== (int) $user->getKey()) {
+            throw new DomainException('Anda tidak memiliki akses ke tugas kurir ini.');
+        }
+
         $actor = User::query()->find($user->getKey());
 
         if ($actor === null || ! $actor->is_active || (int) $actor->tenant_id !== (int) $task->tenant_id) {
