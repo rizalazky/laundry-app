@@ -16,7 +16,7 @@ return new class extends Migration
                 'cashier',
                 'operator',
                 'courier',
-            ])->default('cashier')->change();
+            ])->change();
         });
     }
 
