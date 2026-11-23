@@ -31,20 +31,25 @@ class CustomerMembershipResource extends Resource
         return $user !== null
             && $user->is_active
             && $user->tenant_id !== null
-            && in_array($user->role, ['tenant_owner', 'branch_manager'], true)
+            && in_array($user->role, ['tenant_owner', 'branch_manager', 'cashier'], true)
             && $user->hasPermissionTo('memberships.view');
     }
 
     public static function canCreate(): bool
     {
-        return Auth::user()?->hasPermissionTo('memberships.manage') ?? false;
+        $user = Auth::user();
+
+        return $user !== null
+            && $user->is_active
+            && in_array($user->role, ['tenant_owner', 'branch_manager', 'cashier'], true)
+            && $user->hasPermissionTo('memberships.manage');
     }
 
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
             ->where('tenant_id', Auth::user()?->tenant_id)
-            ->with(['customer', 'memberTier']);
+            ->with(['customer', 'memberTier', 'activatedBy', 'activatedAtBranch', 'replacedByMembership']);
     }
 
     public static function form(Schema $schema): Schema
