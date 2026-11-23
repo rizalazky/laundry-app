@@ -12,9 +12,9 @@ return new class extends Migration
         Schema::table('orders', function (Blueprint $table): void {
             $table->decimal('manual_discount', 12, 2)->default(0)->after('discount');
             $table->foreignId('customer_membership_id')->nullable()->after('customer_id')
-                ->constrained('customer_memberships')->nullOnDelete();
+                ->constrained('customer_memberships')->restrictOnDelete();
             $table->foreignId('member_tier_id')->nullable()->after('customer_membership_id')
-                ->constrained('member_tiers')->nullOnDelete();
+                ->constrained('member_tiers')->restrictOnDelete();
             $table->string('member_tier_name_snapshot')->nullable()->after('member_tier_id');
             $table->decimal('membership_discount_percent_snapshot', 5, 2)->default(0)->after('member_tier_name_snapshot');
             $table->decimal('membership_discount', 12, 2)->default(0)->after('membership_discount_percent_snapshot');
