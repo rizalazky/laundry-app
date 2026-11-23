@@ -23,7 +23,7 @@ class CourierTaskTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_owner_can_assign_pickup_to_active_staff_at_the_order_branch(): void
+    public function test_owner_can_assign_pickup_to_a_courier_assigned_to_the_order_branch(): void
     {
         [$tenant, $branch, $customer, $order, $owner, $courier] = $this->business();
 
@@ -121,7 +121,7 @@ class CourierTaskTest extends TestCase
         ]);
         RolePermission::query()->create([
             'tenant_id' => $order->tenant_id,
-            'role' => 'operator',
+            'role' => 'courier',
             'permission_id' => $permission->id,
         ]);
 
@@ -138,7 +138,7 @@ class CourierTaskTest extends TestCase
     {
         [, , , $order, $owner] = $this->business();
         $otherBranch = Branch::factory()->for($order->tenant)->create();
-        $courier = User::factory()->for($order->tenant)->withRole('operator')->create();
+        $courier = User::factory()->for($order->tenant)->withRole('courier')->create();
         $courier->branches()->attach($otherBranch);
 
         $this->expectException(DomainException::class);
@@ -167,7 +167,7 @@ class CourierTaskTest extends TestCase
             'status' => OrderStatus::Received,
         ]);
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
-        $courier = User::factory()->for($tenant)->withRole('operator')->create();
+        $courier = User::factory()->for($tenant)->withRole('courier')->create();
         $courier->branches()->attach($branch);
 
         return [$tenant, $branch, $customer, $order, $owner, $courier];
