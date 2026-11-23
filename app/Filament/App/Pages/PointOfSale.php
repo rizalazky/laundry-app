@@ -418,7 +418,7 @@ class PointOfSale extends Page implements HasForms
         }
 
         try {
-            $promotion = app(\\App\\Actions\\Orders\\ResolveOrderPromotion::class)->handle(
+            $promotion = app(\App\Actions\Orders\ResolveOrderPromotion::class)->handle(
                 tenantId: (int) $this->currentBranch()->tenant_id,
                 voucherCode: $this->voucherCode,
                 subtotal: BigDecimal::of($this->subtotal()),
@@ -441,7 +441,7 @@ class PointOfSale extends Page implements HasForms
         }
 
         try {
-            app(\\App\\Actions\\Orders\\ResolveOrderPromotion::class)->handle(
+            app(\App\Actions\Orders\ResolveOrderPromotion::class)->handle(
                 tenantId: (int) $this->currentBranch()->tenant_id,
                 voucherCode: $this->voucherCode,
                 subtotal: BigDecimal::of($this->subtotal()),
