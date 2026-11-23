@@ -179,6 +179,34 @@ class FinanceManagementTest extends TestCase
     }
 
 
+    public function test_manual_journal_cannot_claim_system_owned_source_references(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        foreach (CreateJournal::SYSTEM_REFERENCE_TYPES as $referenceType) {
+            Livewire::test(ManualJournal::class)
+                ->set('journalDate', '2026-11-22T09:00')
+                ->set('branchId', (string) $branch->id)
+                ->set('description', 'Manual journal reference collision probe')
+                ->set('referenceType', strtoupper($referenceType))
+                ->set('referenceId', '999')
+                ->set('entries', [
+                    ['account_code' => '1000', 'debit' => '100000.00', 'credit' => '0.00'],
+                    ['account_code' => '3000', 'debit' => '0.00', 'credit' => '100000.00'],
+                ])
+                ->call('createJournal')
+                ->assertHasErrors('referenceType');
+        }
+
+        $this->assertSame(0, Journal::query()->where('tenant_id', $tenant->id)->count());
+    }
+
     public function test_cash_settlement_create_page_posts_the_settlement_and_balanced_journal(): void
     {
         $tenant = Tenant::factory()->create();

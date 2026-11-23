@@ -23,10 +23,12 @@
             <div>
                 <label class="mb-1 block text-sm font-medium">Tipe Referensi (opsional)</label>
                 <input type="text" wire:model="referenceType" maxlength="100" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-800" placeholder="opening_balance">
+                @error('referenceType') <p class="mt-1 text-sm text-danger-600">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="mb-1 block text-sm font-medium">ID Referensi (opsional)</label>
                 <input type="number" min="1" wire:model="referenceId" class="w-full rounded-lg border-gray-300 text-sm dark:border-gray-600 dark:bg-gray-800">
+                @error('referenceId') <p class="mt-1 text-sm text-danger-600">{{ $message }}</p> @enderror
             </div>
         </div>
 
