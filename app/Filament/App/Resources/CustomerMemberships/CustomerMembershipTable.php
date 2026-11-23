@@ -21,7 +21,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
 class CustomerMembershipTable
