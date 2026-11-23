@@ -3,6 +3,7 @@
 namespace App\Filament\App\Resources\AffiliateReferrals\Tables;
 
 use App\Actions\Affiliates\RegisterAffiliateReferral;
+use App\Actions\Affiliates\UpdateAffiliatePayoutStatus;
 use App\Models\AffiliatePayout;
 use App\Models\AffiliateReferral;
 use App\Models\Tenant;
