@@ -9,6 +9,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $driver = DB::connection()->getDriverName();
+
+        // SQLite rebuilds the orders table when adding foreign-key constraints.
+        // Triggers on orders/branches/tenants that reference the table must be
+        // temporarily removed so SQLite can drop the old table during the rebuild.
+        if ($driver === 'sqlite') {
+            $this->dropSqliteOrderRelatedTriggers();
+        }
+
         Schema::table('orders', function (Blueprint $table): void {
             $table->decimal('manual_discount', 12, 2)->default(0)->after('discount');
             $table->foreignId('customer_membership_id')->nullable()->after('customer_id')
@@ -20,7 +29,9 @@ return new class extends Migration
             $table->decimal('membership_discount', 12, 2)->default(0)->after('membership_discount_percent_snapshot');
         });
 
-        $driver = DB::connection()->getDriverName();
+        if ($driver === 'sqlite') {
+            $this->restoreSqliteOrderRelatedTriggers();
+        }
 
         if ($driver === 'sqlite') {
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_financial_snapshot_update');
@@ -79,6 +90,10 @@ return new class extends Migration
             DB::unprepared('DROP TRIGGER IF EXISTS orders_prevent_financial_snapshot_update');
         }
 
+        if ($driver === 'sqlite') {
+            $this->dropSqliteOrderRelatedTriggers();
+        }
+
         Schema::table('orders', function (Blueprint $table): void {
             $table->dropForeign(['member_tier_id']);
             $table->dropForeign(['customer_membership_id']);
@@ -91,6 +106,10 @@ return new class extends Migration
                 'manual_discount',
             ]);
         });
+
+        if ($driver === 'sqlite') {
+            $this->restoreSqliteOrderRelatedTriggers();
+        }
 
         // Recreate the original guard after rolling back the membership snapshot columns.
         if ($driver === 'sqlite') {
@@ -122,5 +141,61 @@ return new class extends Migration
                 END
             SQL);
         }
+    }
+
+    private function dropSqliteOrderRelatedTriggers(): void
+    {
+        foreach ([
+            'branches_prevent_delete_with_orders',
+            'tenants_prevent_delete_with_orders',
+            'orders_prevent_replace',
+            'orders_prevent_delete',
+        ] as $trigger) {
+            DB::unprepared("DROP TRIGGER IF EXISTS {$trigger}");
+        }
+    }
+
+    private function restoreSqliteOrderRelatedTriggers(): void
+    {
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER branches_prevent_delete_with_orders
+            BEFORE DELETE ON branches
+            WHEN EXISTS (SELECT 1 FROM orders WHERE branch_id = OLD.id)
+            BEGIN
+                SELECT RAISE(ABORT, 'Branches with historical orders cannot be deleted.');
+            END;
+        SQL);
+
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER tenants_prevent_delete_with_orders
+            BEFORE DELETE ON tenants
+            WHEN EXISTS (SELECT 1 FROM orders WHERE tenant_id = OLD.id)
+            BEGIN
+                SELECT RAISE(ABORT, 'Tenants with historical orders cannot be deleted.');
+            END;
+        SQL);
+
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER orders_prevent_replace
+            BEFORE INSERT ON orders
+            WHEN EXISTS (
+                SELECT 1 FROM orders WHERE id = NEW.id
+            ) OR EXISTS (
+                SELECT 1 FROM orders
+                WHERE tenant_id = NEW.tenant_id
+                  AND invoice_no = NEW.invoice_no
+            )
+            BEGIN
+                SELECT RAISE(ABORT, 'Order financial snapshots cannot be replaced.');
+            END;
+        SQL);
+
+        DB::unprepared(<<<'SQL'
+            CREATE TRIGGER orders_prevent_delete
+            BEFORE DELETE ON orders
+            BEGIN
+                SELECT RAISE(ABORT, 'Orders with historical snapshots cannot be deleted.');
+            END;
+        SQL);
     }
 };
