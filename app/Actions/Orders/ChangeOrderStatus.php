@@ -91,7 +91,7 @@ class ChangeOrderStatus
                 ->where('order_id', $locked->getKey())->whereNull('finished_at')
                 ->lockForUpdate()->update(['finished_at' => $transitionedAt, 'updated_at' => $transitionedAt]);
 
-            $productionStage = $this->productionStageFor($to);
+            if ($to === OrderStatus::Ready) {\n                app(AwardOrderCommissions::class)->handle($locked, $transitionedAt);\n            }\n\n            $productionStage = $this->productionStageFor($to);
 
             if ($productionStage !== null) {
                 ProductionLog::query()->create([
