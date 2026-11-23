@@ -30,6 +30,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         'password',
         'role',
         'is_active',
+        'monthly_base_salary',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -40,6 +41,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'monthly_base_salary' => 'decimal:2',
         ];
     }
 
