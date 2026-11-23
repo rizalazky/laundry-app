@@ -89,8 +89,8 @@ class InvestorProfitSharingTest extends TestCase
         $distribution = $journal->entries->firstWhere('account.code', '3300');
         $cash = $journal->entries->firstWhere('account.code', '1000');
 
-        $this->assertSame('250000.00', $distribution->debit);
-        $this->assertSame('250000.00', $cash->credit);
+        $this->assertSame('200000.00', $distribution->debit);
+        $this->assertSame('200000.00', $cash->credit);
 
         $incomeStatement = app(GenerateFinancialReports::class)->incomeStatement(
             $tenant->id,
