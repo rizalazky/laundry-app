@@ -25,8 +25,8 @@ class CreateUser extends CreateRecord
 
         $data['tenant_id'] = $user->tenant_id;
         $data['role'] = $user->role === 'branch_manager'
-            ? (in_array($data['role'] ?? null, ['cashier', 'operator'], true) ? $data['role'] : 'cashier')
-            : (in_array($data['role'] ?? null, ['branch_manager', 'cashier', 'operator'], true) ? $data['role'] : 'cashier');
+            ? (in_array($data['role'] ?? null, ['cashier', 'operator', 'courier'], true) ? $data['role'] : 'cashier')
+            : (in_array($data['role'] ?? null, ['branch_manager', 'cashier', 'operator', 'courier'], true) ? $data['role'] : 'cashier');
 
         return $data;
     }

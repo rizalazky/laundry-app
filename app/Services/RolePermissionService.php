@@ -20,6 +20,7 @@ class RolePermissionService
         'branch_manager',
         'cashier',
         'operator',
+        'courier',
     ];
 
     /**

@@ -33,11 +33,19 @@ class UsersTable
                 TextColumn::make('role')
                     ->label('Role')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'branch_manager' => 'Branch Manager',
+                        'cashier' => 'Kasir',
+                        'operator' => 'Operator Produksi',
+                        'courier' => 'Kurir',
+                        default => $state,
+                    })
                     ->color(fn (string $state): string => match ($state) {
                         'tenant_owner' => 'primary',
                         'branch_manager' => 'warning',
                         'cashier' => 'success',
                         'operator' => 'info',
+                        'courier' => 'warning',
                         default => 'gray',
                     }),
 
@@ -58,10 +66,12 @@ class UsersTable
                             'branch_manager' => 'Branch Manager',
                             'cashier' => 'Kasir',
                             'operator' => 'Operator Produksi',
+                            'courier' => 'Kurir',
                         ]
                         : [
                             'cashier' => 'Kasir',
                             'operator' => 'Operator Produksi',
+                            'courier' => 'Kurir',
                         ]),
 
                 TernaryFilter::make('is_active')

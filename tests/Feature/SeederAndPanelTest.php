@@ -59,6 +59,14 @@ class SeederAndPanelTest extends TestCase
         $this->assertNull($superAdmin->tenant_id);
     }
 
+    public function test_courier_can_access_the_app_panel(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $courier = User::factory()->for($tenant)->withRole('courier')->create();
+
+        $this->assertTrue($courier->canAccessPanel(Filament::getPanel('app')));
+    }
+
     public function test_app_panel_uses_branch_as_tenant_ownership_relationship(): void
     {
         $this->assertSame('branch', Filament::getPanel('app')->getTenantOwnershipRelationshipName());

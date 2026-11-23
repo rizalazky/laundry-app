@@ -54,7 +54,7 @@ class UserResource extends Resource
                 ->pluck('branches.id');
 
             $query
-                ->whereIn('role', ['cashier', 'operator'])
+                ->whereIn('role', ['cashier', 'operator', 'courier'])
                 ->whereHas(
                     'branches',
                     fn (Builder $branches) => $branches->whereIn('branches.id', $managedBranchIds)

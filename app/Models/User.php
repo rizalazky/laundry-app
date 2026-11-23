@@ -82,7 +82,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
 
         return match ($panel->getId()) {
             'admin' => $this->role === 'super_admin',
-            'app' => in_array($this->role, ['tenant_owner', 'branch_manager', 'cashier', 'operator'], true)
+            'app' => in_array($this->role, ['tenant_owner', 'branch_manager', 'cashier', 'operator', 'courier'], true)
                 && $this->tenant_id !== null,
             default => false,
         };

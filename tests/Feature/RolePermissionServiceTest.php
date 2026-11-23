@@ -92,6 +92,23 @@ class RolePermissionServiceTest extends TestCase
         }
     }
 
+    public function test_courier_is_a_configurable_role(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $permission = Permission::query()->create([
+            'name' => 'Lihat Tugas Kurir',
+            'slug' => 'courier_tasks.view',
+            'group' => 'Operasional',
+        ]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
+        $service = new RolePermissionService();
+        $service->sync($tenant, 'courier', [$permission->id]);
+
+        $this->assertSame([$permission->id], $service->permissionIdsFor($tenant, 'courier'));
+    }
+
     public function test_tenant_owner_permissions_cannot_be_restricted_by_the_matrix(): void
     {
         $tenant = Tenant::factory()->create();

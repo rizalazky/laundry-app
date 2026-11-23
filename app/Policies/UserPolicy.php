@@ -80,7 +80,7 @@ class UserPolicy
             return true;
         }
 
-        if ($user->role !== 'branch_manager' || ! in_array($model->role, ['cashier', 'operator'], true)) {
+        if ($user->role !== 'branch_manager' || ! in_array($model->role, ['cashier', 'operator', 'courier'], true)) {
             return false;
         }
 

@@ -34,7 +34,7 @@ class CourierTaskResource extends Resource
         return $user !== null
             && $user->is_active
             && $user->tenant_id !== null
-            && in_array($user->role, ['tenant_owner', 'branch_manager', 'cashier', 'operator'], true)
+            && in_array($user->role, ['tenant_owner', 'branch_manager', 'courier'], true)
             && $user->hasPermissionTo('courier_tasks.view');
     }
 
@@ -58,7 +58,14 @@ class CourierTaskResource extends Resource
             return $query->whereHas('order', fn (Builder $orders) => $orders->whereIn('branch_id', $branchIds));
         }
 
-        return $query->where('courier_id', $user?->getKey());
+        $branchIds = $user?->branches()
+            ->where('branches.tenant_id', $user->tenant_id)
+            ->where('branches.is_active', true)
+            ->pluck('branches.id') ?? collect();
+
+        return $query
+            ->where('courier_id', $user?->getKey())
+            ->whereHas('order', fn (Builder $orders) => $orders->whereIn('branch_id', $branchIds));
     }
 
     public static function table(Table $table): Table

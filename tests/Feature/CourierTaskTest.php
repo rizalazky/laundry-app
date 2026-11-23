@@ -23,7 +23,7 @@ class CourierTaskTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_owner_can_assign_pickup_to_active_staff_at_the_order_branch(): void
+    public function test_owner_can_assign_pickup_to_a_courier_assigned_to_the_order_branch(): void
     {
         [$tenant, $branch, $customer, $order, $owner, $courier] = $this->business();
 
@@ -121,7 +121,7 @@ class CourierTaskTest extends TestCase
         ]);
         RolePermission::query()->create([
             'tenant_id' => $order->tenant_id,
-            'role' => 'operator',
+            'role' => 'courier',
             'permission_id' => $permission->id,
         ]);
 
@@ -134,11 +134,49 @@ class CourierTaskTest extends TestCase
         $this->assertNotNull($completed->completed_at);
     }
 
+    public function test_courier_cannot_update_a_task_after_being_removed_from_its_branch(): void
+    {
+        [, $branch, , $order, $owner, $courier] = $this->business();
+        $task = CourierTask::query()->create([
+            'tenant_id' => $order->tenant_id,
+            'order_id' => $order->id,
+            'courier_id' => $courier->id,
+            'created_by' => $owner->id,
+            'task_type' => CourierTaskType::Pickup,
+            'address' => 'Jl. Mawar No. 10',
+            'status' => CourierTaskStatus::Assigned,
+        ]);
+
+        $courier->branches()->detach($branch);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Anda tidak lagi ditugaskan ke cabang order ini.');
+
+        app(UpdateCourierTaskStatus::class)->handle($task, CourierTaskStatus::InProgress, $courier);
+    }
+
+    public function test_operator_cannot_be_assigned_as_a_courier_even_when_in_the_same_branch(): void
+    {
+        [, , , $order, $owner] = $this->business();
+        $operator = User::factory()->for($order->tenant)->withRole('operator')->create();
+        $operator->branches()->attach($order->branch_id);
+
+        $this->expectException(DomainException::class);
+
+        app(CreateCourierTask::class)->handle(
+            order: $order,
+            type: CourierTaskType::Pickup,
+            address: 'Jl. Mawar No. 10',
+            courierId: (int) $operator->id,
+            user: $owner,
+        );
+    }
+
     public function test_staff_cannot_be_assigned_as_courier_outside_the_order_branch(): void
     {
         [, , , $order, $owner] = $this->business();
         $otherBranch = Branch::factory()->for($order->tenant)->create();
-        $courier = User::factory()->for($order->tenant)->withRole('operator')->create();
+        $courier = User::factory()->for($order->tenant)->withRole('courier')->create();
         $courier->branches()->attach($otherBranch);
 
         $this->expectException(DomainException::class);
@@ -167,7 +205,7 @@ class CourierTaskTest extends TestCase
             'status' => OrderStatus::Received,
         ]);
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
-        $courier = User::factory()->for($tenant)->withRole('operator')->create();
+        $courier = User::factory()->for($tenant)->withRole('courier')->create();
         $courier->branches()->attach($branch);
 
         return [$tenant, $branch, $customer, $order, $owner, $courier];
