@@ -138,7 +138,9 @@ class OrderReceiptTest extends TestCase
             ->assertSee('LUNAS')
             ->assertDontSee('SISA TAGIHAN');
 
-        $record->handle($order, 1500, PaymentMethod::Cash, $this->staff('branch_manager'), PaymentType::Refund);
+        $manager = $this->staff('branch_manager');
+        $this->actingAs($manager);
+        $record->handle($order, 1500, PaymentMethod::Cash, $manager, PaymentType::Refund);
 
         $this->actingAs($cashier)
             ->get(route('orders.receipt', $order))
