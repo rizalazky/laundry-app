@@ -13,6 +13,46 @@ class AffiliateReferralTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_pending_payout_can_be_marked_paid_once(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
+        $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, $referred->id, 10);
+        $referral->update(['status' => AffiliateReferral::STATUS_APPROVED]);
+        $payout = $referral->payouts()->create([
+            'tenant_id' => $tenant->id,
+            'amount' => '125000.00',
+            'payout_date' => now()->toDateString(),
+            'status' => AffiliatePayout::STATUS_PENDING,
+        ]);
+        $owner = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'tenant_owner', 'is_active' => true]);
+
+        $updated = app(UpdateAffiliatePayoutStatus::class)->handle($owner, $payout->id, AffiliatePayout::STATUS_PAID);
+
+        $this->assertSame(AffiliatePayout::STATUS_PAID, $updated->status);
+        $this->assertDatabaseHas('affiliate_payouts', ['id' => $payout->id, 'status' => AffiliatePayout::STATUS_PAID]);
+
+        $this->expectException(ValidationException::class);
+        app(UpdateAffiliatePayoutStatus::class)->handle($owner, $payout->id, AffiliatePayout::STATUS_PAID);
+    }
+
+    public function test_payout_status_changes_are_scoped_to_the_referrer_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, Tenant::factory()->create()->id, 10);
+        $payout = $referral->payouts()->create([
+            'tenant_id' => $tenant->id,
+            'amount' => '50000.00',
+            'payout_date' => now()->toDateString(),
+            'status' => AffiliatePayout::STATUS_PENDING,
+        ]);
+        $otherOwner = User::factory()->create(['tenant_id' => $otherTenant->id, 'role' => 'tenant_owner', 'is_active' => true]);
+
+        $this->expectException(ValidationException::class);
+        app(UpdateAffiliatePayoutStatus::class)->handle($otherOwner, $payout->id, AffiliatePayout::STATUS_PAID);
+    }
+
     public function test_tenant_can_be_registered_as_an_affiliate_referral(): void
     {
         $referrer = Tenant::factory()->create();
