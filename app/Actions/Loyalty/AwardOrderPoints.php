@@ -37,7 +37,6 @@ class AwardOrderPoints
                 ->where('started_at', '<=', now())
                 ->where('expired_at', '>', now())
                 ->with('memberTier')
-                ->orderByDesc('expired_at')
                 ->first();
 
             $rules = LoyaltyPointRule::query()->withoutGlobalScope('tenant')
@@ -48,12 +47,9 @@ class AwardOrderPoints
                 ->where('ends_at', '>', now());
 
             if ($membership !== null) {
-                $tierRule = (clone $rules)->where('target_type', LoyaltyPointRule::TARGET_MEMBER_TIER)
-                    ->where('member_tier_id', $membership->member_tier_id)->first();
-
-                $rule = $tierRule
-                    ?? (clone $rules)->where('target_type', LoyaltyPointRule::TARGET_ALL_MEMBERS)->first()
-                    ?? (clone $rules)->where('target_type', LoyaltyPointRule::TARGET_ALL_CUSTOMERS)->first();
+                $rule = (clone $rules)->where('target_type', LoyaltyPointRule::TARGET_MEMBER_TIER)
+                    ->where('member_tier_id', $membership->member_tier_id)->first()
+                    ?? (clone $rules)->where('target_type', LoyaltyPointRule::TARGET_ALL_MEMBERS)->first();
             } else {
                 $rule = (clone $rules)->where('target_type', LoyaltyPointRule::TARGET_ALL_CUSTOMERS)->first();
             }
@@ -74,9 +70,7 @@ class AwardOrderPoints
 
             $stepCents = (int) round(((float) $rule->amount_step) * 100);
             $totalCents = (int) round(((float) $lockedOrder->total) * 100);
-            $points = $stepCents > 0
-                ? intdiv($totalCents, $stepCents) * $rule->points_per_step
-                : 0;
+            $points = $stepCents > 0 ? intdiv($totalCents, $stepCents) * $rule->points_per_step : 0;
 
             if ($points < 1) {
                 return null;
@@ -86,7 +80,7 @@ class AwardOrderPoints
                 'loyalty_points' => (int) $customer->loyalty_points + $points,
             ])->save();
 
-            return PointLog::query()->withoutGlobalScope('tenant')->create([
+            $log = PointLog::query()->withoutGlobalScope('tenant')->create([
                 'tenant_id' => $lockedOrder->tenant_id,
                 'customer_id' => $customer->id,
                 'transaction_id' => $lockedOrder->id,
@@ -96,6 +90,20 @@ class AwardOrderPoints
                 'description' => 'Poin otomatis: '.$rule->name,
                 'expires_at' => $rule->ends_at,
             ]);
+
+            DB::table('loyalty_point_lots')->insert([
+                'tenant_id' => $lockedOrder->tenant_id,
+                'customer_id' => $customer->id,
+                'loyalty_point_rule_id' => $rule->id,
+                'transaction_id' => $lockedOrder->id,
+                'points_awarded' => $points,
+                'points_remaining' => $points,
+                'expires_at' => $rule->ends_at,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return $log;
         });
     }
 }
