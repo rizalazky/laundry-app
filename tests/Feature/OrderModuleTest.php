@@ -102,6 +102,72 @@ class OrderModuleTest extends TestCase
         Filament::setTenant($branch ?? $this->branch);
     }
 
+    public function test_order_is_automatically_assigned_when_outlet_has_one_active_workshop(): void
+    {
+        $workshop = Branch::factory()->for($this->tenant)->create([
+            'code' => 'WSH-01',
+            'is_workshop' => true,
+        ]);
+        $this->branch->syncWorkshops([$workshop->id]);
+
+        $order = $this->makeOrder();
+
+        $this->assertSame($workshop->id, $order->workshop_id);
+    }
+
+    public function test_order_requires_an_explicit_workshop_when_outlet_has_multiple_workshops(): void
+    {
+        $firstWorkshop = Branch::factory()->for($this->tenant)->create([
+            'code' => 'WSH-01',
+            'is_workshop' => true,
+        ]);
+        $secondWorkshop = Branch::factory()->for($this->tenant)->create([
+            'code' => 'WSH-02',
+            'is_workshop' => true,
+        ]);
+        $this->branch->syncWorkshops([$firstWorkshop->id, $secondWorkshop->id]);
+
+        try {
+            $this->makeOrder();
+            $this->fail('An order must require an explicit workshop when multiple workshops are mapped.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Pilih workshop tujuan untuk order ini.', $exception->getMessage());
+        }
+
+        $order = app(CreateOrderAction::class)->handle(
+            branch: $this->branch,
+            user: $this->staff('cashier'),
+            customerId: $this->customer->id,
+            items: [['service_id' => $this->service->id, 'quantity' => 1]],
+            workshopId: $secondWorkshop->id,
+        );
+
+        $this->assertSame($secondWorkshop->id, $order->workshop_id);
+    }
+
+    public function test_order_cannot_be_assigned_to_a_workshop_not_mapped_to_its_outlet(): void
+    {
+        $workshop = Branch::factory()->for($this->tenant)->create([
+            'code' => 'WSH-01',
+            'is_workshop' => true,
+        ]);
+
+        try {
+            app(CreateOrderAction::class)->handle(
+                branch: $this->branch,
+                user: $this->staff('cashier'),
+                customerId: $this->customer->id,
+                items: [['service_id' => $this->service->id, 'quantity' => 1]],
+                workshopId: $workshop->id,
+            );
+            $this->fail('An order must not be assigned to an unmapped workshop.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Workshop yang dipilih tidak aktif atau tidak terhubung ke outlet ini.', $exception->getMessage());
+        }
+
+        $this->assertSame(0, Order::query()->count());
+    }
+
     public function test_quantity_with_more_than_two_decimals_is_rounded_before_calculating_subtotal(): void
     {
         $order = app(CreateOrderAction::class)->handle(

@@ -45,6 +45,7 @@ class CreateOrder extends CreateRecord
                 dueAt: filled($data['due_at'] ?? null) ? Carbon::parse($data['due_at']) : null,
                 initialPayment: $initialPayment,
                 voucherCode: $data['voucher_code'] ?? null,
+                workshopId: filled($data['workshop_id'] ?? null) ? (int) $data['workshop_id'] : null,
             );
         } catch (DomainException $exception) {
             Notification::make()

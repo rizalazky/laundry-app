@@ -96,17 +96,9 @@ class OrderActionAuthorization
                 throw new DomainException('Masa aktif langganan bisnis Anda telah berakhir atau bisnis sedang tidak aktif.');
             }
 
-            $allowedBranchIds = [$branch->getKey()];
-
-            if (! $branch->is_workshop) {
-                $allowedBranchIds = [
-                    ...$allowedBranchIds,
-                    ...$branch->workshops()
-                        ->where('branches.is_active', true)
-                        ->pluck('branches.id')
-                        ->all(),
-                ];
-            }
+            $allowedBranchIds = $lockedOrder->workshop_id !== null
+                ? [$lockedOrder->workshop_id]
+                : [$branch->getKey()];
 
             $operatorHasLocationAccess = $actor->branches()
                 ->whereIn('branches.id', $allowedBranchIds)

@@ -48,6 +48,7 @@ class CreateOrder
         ?array $initialPayment = null,
         ?string $voucherCode = null,
         OrderSource $source = OrderSource::Pos,
+        ?int $workshopId = null,
     ): Order {
         if ($items === []) {
             throw new DomainException('Order harus memiliki minimal satu layanan.');
@@ -59,7 +60,25 @@ class CreateOrder
             ['tenant_owner', 'branch_manager', 'cashier'],
         );
 
-        return DB::transaction(function () use ($branch, $user, $customerId, $items, $discount, $notes, $dueAt, $initialPayment, $voucherCode, $source): Order {
+        return DB::transaction(function () use ($branch, $user, $customerId, $items, $discount, $notes, $dueAt, $initialPayment, $voucherCode, $source, $workshopId): Order {
+            $mappedWorkshops = $branch->is_workshop
+                ? collect()
+                : $branch->workshops()
+                    ->where('branches.is_active', true)
+                    ->get(['branches.id', 'branches.name']);
+
+            if ($workshopId !== null && ! $mappedWorkshops->contains('id', $workshopId)) {
+                throw new DomainException('Workshop yang dipilih tidak aktif atau tidak terhubung ke outlet ini.');
+            }
+
+            if ($workshopId === null && $mappedWorkshops->count() === 1) {
+                $workshopId = (int) $mappedWorkshops->sole()->getKey();
+            }
+
+            if ($workshopId === null && $mappedWorkshops->count() > 1) {
+                throw new DomainException('Pilih workshop tujuan untuk order ini.');
+            }
+
             $customer = Customer::query()
                 ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $branch->tenant_id)
@@ -146,6 +165,7 @@ class CreateOrder
             $order = Order::query()->create([
                 'tenant_id' => $branch->tenant_id,
                 'branch_id' => $branch->getKey(),
+                'workshop_id' => $workshopId,
                 'customer_id' => $customer->getKey(),
                 'created_by' => $user->getKey(),
                 'invoice_no' => $this->generateInvoiceNumber->handle($branch, $orderDate),
@@ -187,6 +207,7 @@ class CreateOrder
             $this->activityLogger->recordForAuthorizedActor($user, 'order.created', $order, [
                 'invoice_no' => $order->invoice_no,
                 'branch_id' => $order->branch_id,
+                'workshop_id' => $order->workshop_id,
                 'customer_id' => $order->customer_id,
                 'order_source' => $order->order_source->value,
                 'total' => $order->total,

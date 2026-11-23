@@ -7,7 +7,6 @@ use App\Actions\Accounting\ReverseOrderRevenue;
 use App\Actions\Loyalty\AwardOrderPoints;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
-use App\Models\Branch;
 use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\ProductionLog;
@@ -51,15 +50,9 @@ class ChangeOrderStatus
                 ->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
             if ($workerId !== null) {
-                $orderBranch = Branch::query()->where('tenant_id', $locked->tenant_id)->find($locked->branch_id);
-                $allowedWorkerBranchIds = [$locked->branch_id];
-
-                if ($orderBranch !== null && ! $orderBranch->is_workshop) {
-                    $allowedWorkerBranchIds = [
-                        ...$allowedWorkerBranchIds,
-                        ...$orderBranch->workshops()->where('branches.is_active', true)->pluck('branches.id')->all(),
-                    ];
-                }
+                $allowedWorkerBranchIds = $locked->workshop_id !== null
+                    ? [$locked->workshop_id]
+                    : [$locked->branch_id];
 
                 $workerIsAssignedToOrderLocation = User::query()->whereKey($workerId)
                     ->where('tenant_id', $locked->tenant_id)->where('role', 'operator')->where('is_active', true)
@@ -130,6 +123,7 @@ class ChangeOrderStatus
             $this->activityLogger->recordForAuthorizedActor($actor, 'order.status_changed', $locked, [
                 'invoice_no' => $locked->invoice_no,
                 'branch_id' => $locked->branch_id,
+                'workshop_id' => $locked->workshop_id,
                 'from_status' => $from->value,
                 'to_status' => $to->value,
                 'worker_id' => $workerId,

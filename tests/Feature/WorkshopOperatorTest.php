@@ -25,12 +25,20 @@ class WorkshopOperatorTest extends TestCase
 
         $outlet = Branch::factory()->for($tenant)->create(['code' => 'OUT-01', 'is_workshop' => false]);
         $workshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-01', 'is_workshop' => true]);
+        $secondWorkshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-02', 'is_workshop' => true]);
         $unmappedOutlet = Branch::factory()->for($tenant)->create(['code' => 'OUT-02', 'is_workshop' => false]);
         $foreignOutlet = Branch::factory()->for($otherTenant)->create(['code' => 'OUT-03', 'is_workshop' => false]);
 
-        $outlet->syncWorkshops([$workshop->id]);
+        $outlet->syncWorkshops([$workshop->id, $secondWorkshop->id]);
 
-        $mappedOrder = Order::factory()->for($outlet)->create(['invoice_no' => 'OUT-01-0001']);
+        $mappedOrder = Order::factory()->for($outlet)->create([
+            'invoice_no' => 'OUT-01-0001',
+            'workshop_id' => $workshop->id,
+        ]);
+        $secondWorkshopOrder = Order::factory()->for($outlet)->create([
+            'invoice_no' => 'OUT-01-0002',
+            'workshop_id' => $secondWorkshop->id,
+        ]);
         $unmappedOrder = Order::factory()->for($unmappedOutlet)->create(['invoice_no' => 'OUT-02-0001']);
         $foreignOrder = Order::factory()->for($foreignOutlet)->create(['invoice_no' => 'OUT-03-0001']);
 
@@ -42,8 +50,15 @@ class WorkshopOperatorTest extends TestCase
 
         Livewire::test(WorkshopOperator::class)
             ->assertSee($mappedOrder->invoice_no)
+            ->assertDontSee($secondWorkshopOrder->invoice_no)
             ->assertDontSee($unmappedOrder->invoice_no)
             ->assertDontSee($foreignOrder->invoice_no);
+
+        Filament::setTenant($secondWorkshop);
+
+        Livewire::test(WorkshopOperator::class)
+            ->assertSee($secondWorkshopOrder->invoice_no)
+            ->assertDontSee($mappedOrder->invoice_no);
     }
 
     public function test_barcode_scan_selects_an_order_and_starts_a_production_stage_with_a_workshop_worker(): void
@@ -53,7 +68,10 @@ class WorkshopOperatorTest extends TestCase
         $workshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-10', 'is_workshop' => true]);
         $outlet->syncWorkshops([$workshop->id]);
 
-        $order = Order::factory()->for($outlet)->create(['invoice_no' => 'OUT-10-0001']);
+        $order = Order::factory()->for($outlet)->create([
+            'invoice_no' => 'OUT-10-0001',
+            'workshop_id' => $workshop->id,
+        ]);
 
         $worker = User::factory()->for($tenant)->withRole('operator')->create(['name' => 'Operator Workshop']);
         $worker->branches()->attach($workshop);
@@ -92,6 +110,38 @@ class WorkshopOperatorTest extends TestCase
         ]);
     }
 
+    public function test_operator_from_another_mapped_workshop_cannot_progress_the_order(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $outlet = Branch::factory()->for($tenant)->create(['code' => 'OUT-30', 'is_workshop' => false]);
+        $assignedWorkshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-30', 'is_workshop' => true]);
+        $otherWorkshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-31', 'is_workshop' => true]);
+        $outlet->syncWorkshops([$assignedWorkshop->id, $otherWorkshop->id]);
+
+        $order = Order::factory()->for($outlet)->create([
+            'invoice_no' => 'OUT-30-0001',
+            'workshop_id' => $assignedWorkshop->id,
+        ]);
+
+        $operator = User::factory()->for($tenant)->withRole('operator')->create();
+        $operator->branches()->attach($otherWorkshop);
+
+        $this->actingAs($operator);
+
+        try {
+            app(ChangeOrderStatus::class)->handle(
+                order: $order,
+                to: OrderStatus::Washing,
+                user: $operator,
+                workerId: $operator->id,
+            );
+            $this->fail('An operator assigned to another mapped workshop must not progress this order.');
+        } catch (\DomainException) {
+            $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+            $this->assertDatabaseCount('production_logs', 0);
+        }
+    }
+
     public function test_operator_assigned_to_mapped_workshop_can_update_an_outlet_order(): void
     {
         $tenant = Tenant::factory()->create();
@@ -99,7 +149,10 @@ class WorkshopOperatorTest extends TestCase
         $workshop = Branch::factory()->for($tenant)->create(['code' => 'WSH-20', 'is_workshop' => true]);
         $outlet->syncWorkshops([$workshop->id]);
 
-        $order = Order::factory()->for($outlet)->create(['invoice_no' => 'OUT-20-0001']);
+        $order = Order::factory()->for($outlet)->create([
+            'invoice_no' => 'OUT-20-0001',
+            'workshop_id' => $workshop->id,
+        ]);
 
         $operator = User::factory()->for($tenant)->withRole('operator')->create();
         $operator->branches()->attach($workshop);
