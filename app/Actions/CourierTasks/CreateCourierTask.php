@@ -64,7 +64,7 @@ class CreateCourierTask
             $courierIsAssignedToBranch = User::query()
                 ->whereKey($courierId)
                 ->where('tenant_id', $lockedOrder->tenant_id)
-                ->whereIn('role', ['cashier', 'operator'])
+                ->where('role', 'courier')
                 ->where('is_active', true)
                 ->whereHas('branches', fn ($query) => $query
                     ->whereKey($lockedOrder->branch_id)
