@@ -44,9 +44,10 @@ class PayrollAuthorization
                 ->where('branches.is_active', true)
                 ->pluck('branches.id');
 
+            // Include inactive assignments in this comparison so a manager cannot
+            // process staff who are also attached to an out-of-scope branch.
             $employeeBranchIds = $employee->branches()
                 ->where('branches.tenant_id', $actor->tenant_id)
-                ->where('branches.is_active', true)
                 ->pluck('branches.id');
 
             if (
