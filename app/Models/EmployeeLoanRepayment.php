@@ -14,6 +14,7 @@ class EmployeeLoanRepayment extends Model
     protected $fillable = [
         'tenant_id',
         'employee_loan_id',
+        'payroll_id',
         'recorded_by',
         'amount',
         'paid_at',
@@ -31,6 +32,11 @@ class EmployeeLoanRepayment extends Model
     public function employeeLoan(): BelongsTo
     {
         return $this->belongsTo(EmployeeLoan::class);
+    }
+
+    public function payroll(): BelongsTo
+    {
+        return $this->belongsTo(Payroll::class);
     }
 
     public function recorder(): BelongsTo
