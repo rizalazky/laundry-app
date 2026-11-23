@@ -129,7 +129,22 @@ class PayrollResource extends Resource
                     ->color('success')
                     ->visible(fn (Payroll $record): bool => static::canManage() && $record->status === 'draft')
                     ->requiresConfirmation()
-                    ->action(fn (Payroll $record) => app(\App\Actions\Payroll\MarkPayrollPaid::class)->handle(Auth::user(), (int) $record->getKey())),
+                    ->action(function (Payroll $record): void {
+                        try {
+                            app(\App\Actions\Payroll\MarkPayrollPaid::class)->handle(Auth::user(), (int) $record->getKey());
+
+                            \Filament\Notifications\Notification::make()
+                                ->title('Payroll berhasil ditandai dibayar.')
+                                ->success()
+                                ->send();
+                        } catch (\DomainException $exception) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Payroll gagal dibayar.')
+                                ->body($exception->getMessage())
+                                ->danger()
+                                ->send();
+                        }
+                    }),
             ]);
     }
 
