@@ -88,6 +88,33 @@ class PointOfSaleTest extends TestCase
             ->assertDontSee('Pilih pelanggan terlebih dahulu');
     }
 
+    public function test_pos_requires_and_saves_a_workshop_when_multiple_are_mapped(): void
+    {
+        $firstWorkshop = Branch::factory()->for($this->tenant)->create([
+            'code' => 'WSH-01',
+            'is_workshop' => true,
+        ]);
+        $secondWorkshop = Branch::factory()->for($this->tenant)->create([
+            'code' => 'WSH-02',
+            'is_workshop' => true,
+        ]);
+        $this->branch->syncWorkshops([$firstWorkshop->id, $secondWorkshop->id]);
+
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
+            ->call('createOrder')
+            ->assertHasErrors(['selectedWorkshopId'])
+            ->set('selectedWorkshopId', $secondWorkshop->id)
+            ->call('createOrder')
+            ->assertHasNoErrors()
+            ->assertNotified('Order berhasil dibuat');
+
+        $this->assertSame($secondWorkshop->id, Order::query()->sole()->workshop_id);
+    }
+
     public function test_cart_action_is_available_after_selecting_a_customer(): void
     {
         $this->actAsCashier();
