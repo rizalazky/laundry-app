@@ -54,15 +54,17 @@ class UserForm
                                     'branch_manager' => 'Branch Manager (Kepala Cabang)',
                                     'cashier' => 'Kasir (POS & Pembayaran)',
                                     'operator' => 'Operator Produksi (Cuci & Setrika)',
+                                    'courier' => 'Kurir (Pickup & Delivery)',
                                 ]
                                 : [
                                     'cashier' => 'Kasir (POS & Pembayaran)',
                                     'operator' => 'Operator Produksi (Cuci & Setrika)',
+                                    'courier' => 'Kurir (Pickup & Delivery)',
                                 ])
                             ->rules(fn (): array => [
                                 Rule::in(Auth::user()?->role === 'tenant_owner'
-                                    ? ['branch_manager', 'cashier', 'operator']
-                                    : ['cashier', 'operator']),
+                                    ? ['branch_manager', 'cashier', 'operator', 'courier']
+                                    : ['cashier', 'operator', 'courier']),
                             ])
                             ->default('cashier')
                             ->required()
