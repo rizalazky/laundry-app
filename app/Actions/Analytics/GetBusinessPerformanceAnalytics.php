@@ -129,7 +129,7 @@ class GetBusinessPerformanceAnalytics
             ->where('users.tenant_id', $tenantId)
             ->whereBetween('attendances.clock_in', [$from, $to])
             ->when($branchId !== null, fn ($query) => $query->where('attendances.branch_id', $branchId))
-            ->select('attendances.user_id')
+            ->select('attendances.user_id', 'users.name as employee_name')
             ->selectRaw('COUNT(attendances.id) as attendance_records')
             ->groupBy('attendances.user_id')
             ->get()
@@ -153,6 +153,7 @@ class GetBusinessPerformanceAnalytics
         // production stage start, so include employees found by either query.
         $employeeIds = $production->pluck('user_id')
             ->merge($commissions->keys())
+            ->merge($attendance->keys())
             ->unique()
             ->values();
 
@@ -160,14 +161,15 @@ class GetBusinessPerformanceAnalytics
             ->map(function (int $userId) use ($production, $commissions, $attendance): array {
                 $productionRow = $production->get($userId);
                 $commissionRow = $commissions->get($userId);
+                $attendanceRow = $attendance->get($userId);
 
                 return [
                     'user_id' => $userId,
-                    'employee_name' => $productionRow?->employee_name ?? $commissionRow?->employee_name ?? '—',
+                    'employee_name' => $productionRow?->employee_name ?? $commissionRow?->employee_name ?? $attendanceRow?->employee_name ?? '—',
                     'assigned_orders' => (int) ($productionRow->assigned_orders ?? 0),
                     'production_stages' => (int) ($productionRow->production_stages ?? 0),
                     'completed_stages' => (int) ($productionRow->completed_stages ?? 0),
-                    'attendance_records' => (int) ($attendance->get($userId)->attendance_records ?? 0),
+                    'attendance_records' => (int) ($attendanceRow->attendance_records ?? 0),
                     'commission_earned' => $this->money((string) ($commissionRow->commission_earned ?? '0')),
                 ];
             })
