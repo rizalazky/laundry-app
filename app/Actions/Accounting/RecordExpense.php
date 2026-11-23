@@ -3,7 +3,6 @@
 namespace App\Actions\Accounting;
 
 use App\Models\BankAccount;
-use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Expense;
 use Brick\Math\BigDecimal;
@@ -73,15 +72,7 @@ class RecordExpense
             $spentAt,
             $createdBy,
         ): Expense {
-            $branch = Branch::withoutGlobalScope('tenant')
-                ->where('tenant_id', $tenantId)
-                ->where('is_active', true)
-                ->whereKey($branchId)
-                ->first();
-
-            if ($branch === null) {
-                throw new DomainException('Cabang tidak ditemukan, nonaktif, atau bukan milik tenant ini.');
-            }
+            $branch = app(FinanceActionAuthorization::class)->authorizeBranch($tenantId, $branchId);
 
             $expenseAccount = ChartOfAccount::withoutGlobalScope('tenant')
                 ->where('tenant_id', $tenantId)
