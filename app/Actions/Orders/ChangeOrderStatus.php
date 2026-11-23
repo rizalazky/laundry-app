@@ -6,8 +6,11 @@ use App\Actions\Accounting\PostOrderRevenue;
 use App\Actions\Accounting\ReverseOrderRevenue;
 use App\Actions\Commissions\AwardOrderCommissions;
 use App\Actions\Loyalty\AwardOrderPoints;
+use App\Enums\CourierTaskStatus;
+use App\Enums\CourierTaskType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Models\CourierTask;
 use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\ProductionLog;
@@ -75,6 +78,44 @@ class ChangeOrderStatus
 
             if (! $locked->status->canMoveTo($to)) {
                 throw new DomainException('Status tidak bisa diubah dari "'.$locked->status->label().'" ke "'.$to->label().'".');
+            }
+
+            if ($to === OrderStatus::Washing) {
+                $hasPickupTask = CourierTask::query()
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->where('order_id', $locked->getKey())
+                    ->where('task_type', CourierTaskType::Pickup->value)
+                    ->exists();
+
+                $pickupCompleted = CourierTask::query()
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->where('order_id', $locked->getKey())
+                    ->where('task_type', CourierTaskType::Pickup->value)
+                    ->where('status', CourierTaskStatus::Completed->value)
+                    ->exists();
+
+                if ($hasPickupTask && ! $pickupCompleted) {
+                    throw new DomainException('Tugas pickup harus diselesaikan sebelum order masuk ke proses produksi.');
+                }
+            }
+
+            if ($to === OrderStatus::Completed) {
+                $hasDeliveryTask = CourierTask::query()
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->where('order_id', $locked->getKey())
+                    ->where('task_type', CourierTaskType::Delivery->value)
+                    ->exists();
+
+                $deliveryCompleted = CourierTask::query()
+                    ->where('tenant_id', $locked->tenant_id)
+                    ->where('order_id', $locked->getKey())
+                    ->where('task_type', CourierTaskType::Delivery->value)
+                    ->where('status', CourierTaskStatus::Completed->value)
+                    ->exists();
+
+                if ($hasDeliveryTask && ! $deliveryCompleted) {
+                    throw new DomainException('Tugas delivery harus diselesaikan sebelum order ditandai selesai.');
+                }
             }
 
             if ($to === OrderStatus::Completed && $locked->payment_status !== PaymentStatus::Paid) {
