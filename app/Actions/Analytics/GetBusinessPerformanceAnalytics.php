@@ -25,7 +25,7 @@ class GetBusinessPerformanceAnalytics
      *   summary: array{orders: int, completed_orders: int, turnover: string, average_order_value: string},
      *   outlets: array<int, array{branch_id: int, branch_name: string, orders: int, completed_orders: int, turnover: string, average_order_value: string}>,
      *   services: array<int, array{service_id: int, service_name: string, orders: int, quantity: string, gross_value: string}>,
-     *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_records: int}>
+     *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_records: int, commission_earned: string}>
      * }
      *
      * @throws DomainException
@@ -134,15 +134,43 @@ class GetBusinessPerformanceAnalytics
             ->get()
             ->keyBy('user_id');
 
-        $employees = $production
-            ->map(fn (object $row): array => [
-                'user_id' => (int) $row->user_id,
-                'employee_name' => $row->employee_name,
-                'assigned_orders' => (int) $row->assigned_orders,
-                'production_stages' => (int) $row->production_stages,
-                'completed_stages' => (int) $row->completed_stages,
-                'attendance_records' => (int) ($attendance->get($row->user_id)->attendance_records ?? 0),
-            ])
+        $commissions = DB::table('commission_logs')
+            ->join('orders', 'orders.id', '=', 'commission_logs.order_id')
+            ->join('users', 'users.id', '=', 'commission_logs.user_id')
+            ->where('commission_logs.tenant_id', $tenantId)
+            ->where('orders.tenant_id', $tenantId)
+            ->where('users.tenant_id', $tenantId)
+            ->whereBetween('commission_logs.earned_at', [$from, $to])
+            ->when($branchId !== null, fn ($query) => $query->where('orders.branch_id', $branchId))
+            ->select('users.id as user_id', 'users.name as employee_name')
+            ->selectRaw('SUM(commission_logs.amount) as commission_earned')
+            ->groupBy('users.id', 'users.name')
+            ->get()
+            ->keyBy('user_id');
+
+        // Commission can be earned in a different reporting period from the
+        // production stage start, so include employees found by either query.
+        $employeeIds = $production->pluck('user_id')
+            ->merge($commissions->keys())
+            ->unique()
+            ->values();
+
+        $employees = $employeeIds
+            ->map(function (int $userId) use ($production, $commissions, $attendance): array {
+                $productionRow = $production->get()->firstWhere('user_id', $userId);
+                $commissionRow = $commissions->get($userId);
+
+                return [
+                    'user_id' => $userId,
+                    'employee_name' => $productionRow?->employee_name ?? $commissionRow?->employee_name ?? '—',
+                    'assigned_orders' => (int) ($productionRow->assigned_orders ?? 0),
+                    'production_stages' => (int) ($productionRow->production_stages ?? 0),
+                    'completed_stages' => (int) ($productionRow->completed_stages ?? 0),
+                    'attendance_records' => (int) ($attendance->get($userId)->attendance_records ?? 0),
+                    'commission_earned' => $this->money((string) ($commissionRow->commission_earned ?? '0')),
+                ];
+            })
+            ->sortByDesc('commission_earned')
             ->values()
             ->all();
 
