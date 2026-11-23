@@ -13,11 +13,11 @@ use Illuminate\Support\Facades\DB;
 class GetBusinessPerformanceAnalytics
 {
     /**
-     * Build operational performance metrics from order, service and production records.
+     * Build operational performance metrics from order, service, production, attendance and commission records.
      *
      * Turnover is based on non-cancelled order totals, not payment receipts.
      * Service value uses stored line subtotals before order-level discounts.
-     * Employee productivity is based on production-stage assignments, not sales attribution.
+     * Employee production metrics use stage assignments; attendance and commission totals use their own recorded timestamps.
      *
      * @return array{
      *   from: string,
@@ -150,7 +150,7 @@ class GetBusinessPerformanceAnalytics
             ->keyBy('user_id');
 
         // Commission can be earned in a different reporting period from the
-        // production stage start, so include employees found by either query.
+        // production stage start, so include employees found by any of the reporting queries.
         $employeeIds = $production->pluck('user_id')
             ->merge($commissions->keys())
             ->merge($attendance->keys())
