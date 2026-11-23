@@ -15,6 +15,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class InvestorProfitSharingTest extends TestCase
