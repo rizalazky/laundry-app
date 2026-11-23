@@ -131,7 +131,7 @@ class GetBusinessPerformanceAnalytics
             ->when($branchId !== null, fn ($query) => $query->where('attendances.branch_id', $branchId))
             ->select('attendances.user_id', 'users.name as employee_name')
             ->selectRaw('COUNT(attendances.id) as attendance_records')
-            ->groupBy('attendances.user_id')
+            ->groupBy('attendances.user_id', 'users.name')
             ->get()
             ->keyBy('user_id');
 
