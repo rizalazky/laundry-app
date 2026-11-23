@@ -114,7 +114,16 @@ class ManualJournal extends Page
             'journalDate' => ['required', 'date'],
             'branchId' => ['nullable', 'string'],
             'description' => ['required', 'string', 'max:2000'],
-            'referenceType' => ['nullable', 'string', 'max:100'],
+            'referenceType' => [
+                'nullable',
+                'string',
+                'max:100',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (in_array(strtolower(trim((string) $value)), CreateJournal::SYSTEM_REFERENCE_TYPES, true)) {
+                        $fail('Tipe referensi ini dikhususkan untuk jurnal otomatis.');
+                    }
+                },
+            ],
             'referenceId' => ['nullable', 'integer', 'min:1'],
             'entries' => ['required', 'array', 'min:2'],
             'entries.*.account_code' => ['required', 'string', 'max:30'],
