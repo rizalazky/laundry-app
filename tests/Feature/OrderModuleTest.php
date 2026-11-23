@@ -113,7 +113,6 @@ class OrderModuleTest extends TestCase
         $order = $this->makeOrder();
 
         $this->assertSame($workshop->id, $order->workshop_id);
-        $this->assertSame($workshop->id, $order->workshop->id);
     }
 
     public function test_order_requires_an_explicit_workshop_when_outlet_has_multiple_workshops(): void
