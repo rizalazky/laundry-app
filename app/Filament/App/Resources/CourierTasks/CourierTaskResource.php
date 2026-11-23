@@ -34,7 +34,7 @@ class CourierTaskResource extends Resource
         return $user !== null
             && $user->is_active
             && $user->tenant_id !== null
-            && in_array($user->role, ['tenant_owner', 'branch_manager', 'cashier', 'operator'], true)
+            && in_array($user->role, ['tenant_owner', 'branch_manager', 'courier'], true)
             && $user->hasPermissionTo('courier_tasks.view');
     }
 
