@@ -6,6 +6,7 @@ use App\Filament\App\Resources\Payrolls\Pages\ListPayrolls;
 use App\Models\Payroll;
 use App\Models\User;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -121,7 +122,15 @@ class PayrollResource extends Resource
                     ->formatStateUsing(fn (string $state): string => $state === 'paid' ? 'Dibayar' : 'Draft'),
                 TextColumn::make('paid_at')->label('Tanggal Dibayar')->dateTime('d M Y H:i')->placeholder('Belum dibayar'),
             ])
-            ->recordActions([]);
+            ->recordActions([
+                Action::make('markPaid')
+                    ->label('Tandai Dibayar')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn (Payroll $record): bool => static::canManage() && $record->status === 'draft')
+                    ->requiresConfirmation()
+                    ->action(fn (Payroll $record) => app(\App\Actions\Payroll\MarkPayrollPaid::class)->handle(Auth::user(), (int) $record->getKey())),
+            ]);
     }
 
     public static function getPages(): array
