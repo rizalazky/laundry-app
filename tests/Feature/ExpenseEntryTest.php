@@ -1,17 +1,17 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Actions\\Accounting\\RecordExpense;
-use App\\Models\\BankAccount;
-use App\\Models\\Branch;
-use App\\Models\\ChartOfAccount;
-use App\\Models\\Expense;
-use App\\Models\\Journal;
-use App\\Models\\Tenant;
+use App\Actions\Accounting\RecordExpense;
+use App\Models\BankAccount;
+use App\Models\Branch;
+use App\Models\ChartOfAccount;
+use App\Models\Expense;
+use App\Models\Journal;
+use App\Models\Tenant;
 use DomainException;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Tests\\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class ExpenseEntryTest extends TestCase
 {

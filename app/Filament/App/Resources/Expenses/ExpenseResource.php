@@ -1,28 +1,28 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\Expenses;
+namespace App\Filament\App\Resources\Expenses;
 
-use App\\Filament\\App\\Resources\\Expenses\\Pages\\CreateExpense;
-use App\\Filament\\App\\Resources\\Expenses\\Pages\\ListExpenses;
-use App\\Models\\BankAccount;
-use App\\Models\\Branch;
-use App\\Models\\ChartOfAccount;
-use App\\Models\\Expense;
+use App\Filament\App\Resources\Expenses\Pages\CreateExpense;
+use App\Filament\App\Resources\Expenses\Pages\ListExpenses;
+use App\Models\BankAccount;
+use App\Models\Branch;
+use App\Models\ChartOfAccount;
+use App\Models\Expense;
 use BackedEnum;
-use Filament\\Facades\\Filament;
-use Filament\\Forms\\Components\\DateTimePicker;
-use Filament\\Forms\\Components\\Select;
-use Filament\\Forms\\Components\\TextInput;
-use Filament\\Forms\\Components\\Textarea;
-use Filament\\Resources\\Resource;
-use Filament\\Schemas\\Components\\Section;
-use Filament\\Schemas\\Components\\Utilities\\Get;
-use Filament\\Schemas\\Schema;
-use Filament\\Tables\\Columns\\TextColumn;
-use Filament\\Tables\\Filters\\SelectFilter;
-use Filament\\Tables\\Table;
-use Illuminate\\Database\\Eloquent\\Builder;
-use Illuminate\\Support\\Facades\\Auth;
+use Filament\Facades\Filament;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class ExpenseResource extends Resource

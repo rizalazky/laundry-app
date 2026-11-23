@@ -1,20 +1,20 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\Expenses\\Pages;
+namespace App\Filament\App\Resources\Expenses\Pages;
 
-use App\\Actions\\Accounting\\RecordExpense;
-use App\\Filament\\App\\Resources\\Expenses\\ExpenseResource;
-use App\\Models\\Branch;
-use App\\Models\\Expense;
-use App\\Models\\User;
+use App\Actions\Accounting\RecordExpense;
+use App\Filament\App\Resources\Expenses\ExpenseResource;
+use App\Models\Branch;
+use App\Models\Expense;
+use App\Models\User;
 use DomainException;
-use Filament\\Facades\\Filament;
-use Filament\\Notifications\\Notification;
-use Filament\\Resources\\Pages\\CreateRecord;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Support\\Carbon;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Validation\\ValidationException;
+use Filament\Facades\Filament;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreateExpense extends CreateRecord
 {

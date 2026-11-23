@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\Expenses\\Pages;
+namespace App\Filament\App\Resources\Expenses\Pages;
 
-use App\\Filament\\App\\Resources\\Expenses\\ExpenseResource;
-use Filament\\Actions\\CreateAction;
-use Filament\\Resources\\Pages\\ListRecords;
+use App\Filament\App\Resources\Expenses\ExpenseResource;
+use Filament\Actions\CreateAction;
+use Filament\Resources\Pages\ListRecords;
 
 class ListExpenses extends ListRecords
 {

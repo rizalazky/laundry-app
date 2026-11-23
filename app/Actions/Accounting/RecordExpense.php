@@ -1,18 +1,18 @@
 <?php
 
-namespace App\\Actions\\Accounting;
+namespace App\Actions\Accounting;
 
-use App\\Models\\BankAccount;
-use App\\Models\\Branch;
-use App\\Models\\ChartOfAccount;
-use App\\Models\\Expense;
-use Brick\\Math\\BigDecimal;
-use Brick\\Math\\Exception\\NumberFormatException;
-use Brick\\Math\\Exception\\RoundingNecessaryException;
-use Carbon\\CarbonInterface;
+use App\Models\BankAccount;
+use App\Models\Branch;
+use App\Models\ChartOfAccount;
+use App\Models\Expense;
+use Brick\Math\BigDecimal;
+use Brick\Math\Exception\NumberFormatException;
+use Brick\Math\Exception\RoundingNecessaryException;
+use Carbon\CarbonInterface;
 use DomainException;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class RecordExpense
 {
