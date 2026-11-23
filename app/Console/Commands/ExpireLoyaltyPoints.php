@@ -11,47 +11,50 @@ class ExpireLoyaltyPoints extends Command
 {
     protected $signature = 'loyalty:expire-points';
 
-    protected $description = 'Expire loyalty points after their earning program ends';
+    protected $description = 'Expire remaining loyalty points after their earning program ends';
 
     public function handle(): int
     {
-        PointLog::query()->withoutGlobalScope('tenant')
-            ->where('type', PointLog::TYPE_EARN)
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', now())
-            ->whereNull('expired_at')
-            ->orderBy('id')
-            ->chunkById(100, function ($logs): void {
-                foreach ($logs as $log) {
-                    DB::transaction(function () use ($log): void {
-                        $lockedLog = PointLog::query()->withoutGlobalScope('tenant')
-                            ->lockForUpdate()->find($log->id);
+        DB::table('loyalty_point_lots')->where('points_remaining', '>', 0)
+            ->where('expires_at', '<=', now())->whereNull('expired_at')
+            ->orderBy('id')->chunkById(100, function ($lots): void {
+                foreach ($lots as $lot) {
+                    DB::transaction(function () use ($lot): void {
+                        $lockedLot = DB::table('loyalty_point_lots')->where('id', $lot->id)
+                            ->lockForUpdate()->first();
 
-                        if ($lockedLog === null || $lockedLog->expired_at !== null || $lockedLog->expires_at?->isFuture()) {
+                        if ($lockedLot === null || $lockedLot->expired_at !== null
+                            || (int) $lockedLot->points_remaining < 1) {
                             return;
                         }
 
                         $customer = Customer::query()->withoutGlobalScope('tenant')
-                            ->where('tenant_id', $lockedLog->tenant_id)
-                            ->lockForUpdate()->find($lockedLog->customer_id);
+                            ->where('tenant_id', $lockedLot->tenant_id)
+                            ->lockForUpdate()->find($lockedLot->customer_id);
 
                         if ($customer === null) {
                             return;
                         }
 
-                        $points = min((int) $lockedLog->points, (int) $customer->loyalty_points);
-                        $customer->forceFill(['loyalty_points' => (int) $customer->loyalty_points - $points])->save();
-                        $lockedLog->forceFill(['expired_at' => now()])->save();
+                        $points = (int) $lockedLot->points_remaining;
+                        $customer->forceFill([
+                            'loyalty_points' => max(0, (int) $customer->loyalty_points - $points),
+                        ])->save();
 
-                        if ($points > 0) {
-                            PointLog::query()->withoutGlobalScope('tenant')->create([
-                                'tenant_id' => $lockedLog->tenant_id,
-                                'customer_id' => $customer->id,
-                                'type' => PointLog::TYPE_EXPIRED,
-                                'points' => $points,
-                                'description' => 'Poin kedaluwarsa dari program poin.',
-                            ]);
-                        }
+                        DB::table('loyalty_point_lots')->where('id', $lockedLot->id)->update([
+                            'points_remaining' => 0,
+                            'expired_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        PointLog::query()->withoutGlobalScope('tenant')->create([
+                            'tenant_id' => $lockedLot->tenant_id,
+                            'customer_id' => $customer->id,
+                            'loyalty_point_rule_id' => $lockedLot->loyalty_point_rule_id,
+                            'type' => PointLog::TYPE_EXPIRED,
+                            'points' => $points,
+                            'description' => 'Poin kedaluwarsa dari program poin.',
+                        ]);
                     });
                 }
             });
