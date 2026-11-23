@@ -30,26 +30,32 @@ class RegisterCustomerMembership
             ]);
         }
 
-        app(OrderActionAuthorization::class)->authorizeBranch(
-            $actor,
+        $canonicalActor = User::query()->find($actor->getKey());
+
+        if (! $canonicalActor) {
+            throw new AuthorizationException('Akun pengguna tidak ditemukan.');
+        }
+
+        $authorizedBranch = app(OrderActionAuthorization::class)->authorizeBranch(
+            $canonicalActor,
             $branch,
             ['tenant_owner', 'branch_manager', 'cashier'],
         );
 
-        if (! $actor->hasPermissionTo('memberships.manage')) {
+        if (! $canonicalActor->hasPermissionTo('memberships.manage')) {
             throw new AuthorizationException('Anda tidak memiliki izin untuk mengaktifkan membership pelanggan.');
         }
 
         return DB::transaction(function () use (
-            $actor,
-            $branch,
+            $canonicalActor,
+            $authorizedBranch,
             $customerId,
             $memberTierId,
             $startedAt,
             $confirmReplacement,
         ): CustomerMembership {
             $customer = Customer::query()
-                ->where('tenant_id', $actor->tenant_id)
+                ->where('tenant_id', $canonicalActor->tenant_id)
                 ->lockForUpdate()
                 ->find($customerId);
 
@@ -60,7 +66,7 @@ class RegisterCustomerMembership
             }
 
             $tier = MemberTier::query()
-                ->where('tenant_id', $actor->tenant_id)
+                ->where('tenant_id', $canonicalActor->tenant_id)
                 ->where('is_active', true)
                 ->lockForUpdate()
                 ->find($memberTierId);
@@ -81,7 +87,7 @@ class RegisterCustomerMembership
             }
 
             CustomerMembership::query()
-                ->where('tenant_id', $actor->tenant_id)
+                ->where('tenant_id', $canonicalActor->tenant_id)
                 ->where('customer_id', $customer->id)
                 ->where('status', CustomerMembership::STATUS_ACTIVE)
                 ->where('expired_at', '<=', $activatedAt)
@@ -91,7 +97,7 @@ class RegisterCustomerMembership
                 ]);
 
             $activeMembership = CustomerMembership::query()
-                ->where('tenant_id', $actor->tenant_id)
+                ->where('tenant_id', $canonicalActor->tenant_id)
                 ->where('customer_id', $customer->id)
                 ->where('status', CustomerMembership::STATUS_ACTIVE)
                 ->where('started_at', '<=', $activatedAt)
@@ -109,15 +115,15 @@ class RegisterCustomerMembership
             }
 
             $newMembership = CustomerMembership::query()->create([
-                'tenant_id' => $actor->tenant_id,
+                'tenant_id' => $canonicalActor->tenant_id,
                 'customer_id' => $customer->id,
                 'member_tier_id' => $tier->id,
                 'started_at' => $startsAt,
                 'expired_at' => $startsAt->copy()->addDays($tier->duration_days),
                 'status' => CustomerMembership::STATUS_ACTIVE,
-                'activated_by' => $actor->getKey(),
+                'activated_by' => $canonicalActor->getKey(),
                 'activated_at' => $activatedAt,
-                'activated_at_branch_id' => $branch->getKey(),
+                'activated_at_branch_id' => $authorizedBranch->getKey(),
             ]);
 
             if ($activeMembership) {
