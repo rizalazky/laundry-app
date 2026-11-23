@@ -37,12 +37,22 @@ class LoyaltyPointRule extends Model
     protected static function booted(): void
     {
         static::saving(function (self $rule): void {
+            if (! in_array($rule->target_type, [
+                self::TARGET_ALL_CUSTOMERS, self::TARGET_ALL_MEMBERS, self::TARGET_MEMBER_TIER,
+            ], true)) {
+                throw ValidationException::withMessages(['target_type' => 'Target program poin tidak valid.']);
+            }
+
             if ($rule->target_type === self::TARGET_MEMBER_TIER && $rule->member_tier_id === null) {
                 throw ValidationException::withMessages(['member_tier_id' => 'Pilih jenis member untuk target program ini.']);
             }
 
             if ($rule->target_type !== self::TARGET_MEMBER_TIER) {
                 $rule->member_tier_id = null;
+            }
+
+            if ((float) $rule->amount_step <= 0 || (int) $rule->points_per_step < 1) {
+                throw ValidationException::withMessages(['amount_step' => 'Nilai kelipatan dan poin harus lebih besar dari nol.']);
             }
 
             if ($rule->starts_at === null || $rule->ends_at === null || $rule->ends_at->lessThanOrEqualTo($rule->starts_at)) {
@@ -53,8 +63,8 @@ class LoyaltyPointRule extends Model
                 $branch = Branch::query()->where('tenant_id', $rule->tenant_id)
                     ->lockForUpdate()->find($rule->branch_id);
 
-                if ($branch === null || $branch->is_workshop) {
-                    throw ValidationException::withMessages(['branch_id' => 'Pilih outlet dari tenant ini, bukan workshop.']);
+                if ($branch === null || $branch->is_workshop || ! $branch->is_active) {
+                    throw ValidationException::withMessages(['branch_id' => 'Pilih outlet aktif dari tenant ini, bukan workshop.']);
                 }
 
                 if ($rule->target_type === self::TARGET_MEMBER_TIER) {
