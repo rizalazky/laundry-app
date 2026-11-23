@@ -127,7 +127,7 @@ class ChangeOrderStatus
                 'from_status' => $from, 'to_status' => $to, 'note' => $note,
             ]);
 
-            $this->activityLogger->record($actor, 'order.status_changed', $locked, [
+            $this->activityLogger->recordForAuthorizedActor($actor, 'order.status_changed', $locked, [
                 'invoice_no' => $locked->invoice_no,
                 'branch_id' => $locked->branch_id,
                 'from_status' => $from->value,
