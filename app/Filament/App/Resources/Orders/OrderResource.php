@@ -53,7 +53,7 @@ class OrderResource extends Resource
     public static function getRelations(): array
     {
         return [
-            PaymentsRelationManager::class,
+            PaymentsRelationManager::class,\n            CommissionLogsRelationManager::class,
             StatusLogsRelationManager::class,
             ProductionLogsRelationManager::class,
         ];
