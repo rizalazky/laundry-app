@@ -58,7 +58,6 @@ class OrderResource extends Resource
             PaymentsRelationManager::class,
             CommissionLogsRelationManager::class,
             CourierTasksRelationManager::class,
-            CourierTasksRelationManager::class,
             StatusLogsRelationManager::class,
             ProductionLogsRelationManager::class,
         ];
