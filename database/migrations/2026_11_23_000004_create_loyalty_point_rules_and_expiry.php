@@ -26,6 +26,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
+            $table->unique(['id', 'tenant_id'], 'loyalty_point_rules_id_tenant_unique');
             $table->index(['tenant_id', 'branch_id', 'is_active', 'starts_at', 'ends_at'], 'loyalty_rules_branch_period_index');
             $table->index(['tenant_id', 'target_type', 'member_tier_id'], 'loyalty_rules_target_index');
             $table->foreign(['branch_id', 'tenant_id'], 'loyalty_rules_branch_tenant_foreign')
