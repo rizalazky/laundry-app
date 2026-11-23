@@ -8,10 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('branches', function (Blueprint $table) {
-            $table->unique(['id', 'tenant_id'], 'branches_id_tenant_unique');
-        });
-
         Schema::create('loyalty_point_rules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
@@ -81,8 +77,5 @@ return new class extends Migration
 
         Schema::dropIfExists('loyalty_point_rules');
 
-        Schema::table('branches', function (Blueprint $table) {
-            $table->dropUnique('branches_id_tenant_unique');
-        });
     }
 };
