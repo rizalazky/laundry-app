@@ -169,6 +169,27 @@ class ActivityLogTest extends TestCase
         $this->assertFalse(ActivityLogResource::canAccess());
     }
 
+
+    public function test_authorized_action_can_record_the_explicit_actor_when_auth_context_differs(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $authenticatedOwner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $cashierActor = User::factory()->for($tenant)->withRole('cashier')->create();
+
+        $this->actingAs($authenticatedOwner);
+
+        $log = app(ActivityLogger::class)->recordForAuthorizedActor(
+            $cashierActor,
+            'order.created',
+            $cashierActor,
+            ['source' => 'authorized_action'],
+        );
+
+        $this->assertSame($cashierActor->id, $log->user_id);
+        $this->assertSame($tenant->id, $log->tenant_id);
+        $this->assertSame($cashierActor->id, $log->subject_id);
+    }
+
     public function test_activity_logger_rejects_a_subject_from_another_tenant(): void
     {
         $tenant = Tenant::factory()->create();
