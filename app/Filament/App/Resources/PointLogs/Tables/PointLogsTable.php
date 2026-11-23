@@ -23,13 +23,19 @@ class PointLogsTable
             TextColumn::make('created_at')->label('Tanggal')->dateTime('d M Y H:i')->sortable(),
             TextColumn::make('customer.name')->label('Pelanggan')->searchable()->sortable(),
             TextColumn::make('type')->label('Jenis')->badge()
-                ->formatStateUsing(fn (string $state): string => $state === PointLog::TYPE_EARN ? 'Poin Masuk' : 'Penukaran'),
+                ->formatStateUsing(fn (string $state): string => match ($state) {
+                    PointLog::TYPE_EARN => 'Poin Masuk',
+                    PointLog::TYPE_REDEEM => 'Penukaran',
+                    PointLog::TYPE_EXPIRED => 'Kedaluwarsa',
+                    default => $state,
+                }),
             TextColumn::make('points')->label('Poin')->numeric(),
             TextColumn::make('description')->label('Keterangan')->wrap(),
         ])->filters([
             SelectFilter::make('type')->label('Jenis')->options([
                 PointLog::TYPE_EARN => 'Poin Masuk',
                 PointLog::TYPE_REDEEM => 'Penukaran',
+                PointLog::TYPE_EXPIRED => 'Kedaluwarsa',
             ]),
         ])->headerActions([
             Action::make('awardPoints')
