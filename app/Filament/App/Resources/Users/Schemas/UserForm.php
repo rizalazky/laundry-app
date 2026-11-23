@@ -109,6 +109,25 @@ class UserForm
                                 }
                             )
                             ->columns(2)
+                            ->rules(function (): array {
+                                $user = Auth::user();
+
+                                $rule = Rule::exists('branches', 'id')
+                                    ->where('tenant_id', $user?->tenant_id)
+                                    ->where('is_active', true);
+
+                                if ($user?->role === 'branch_manager') {
+                                    $allowedBranchIds = $user->branches()
+                                        ->where('branches.tenant_id', $user->tenant_id)
+                                        ->where('branches.is_active', true)
+                                        ->pluck('branches.id')
+                                        ->all();
+
+                                    $rule->whereIn('id', $allowedBranchIds);
+                                }
+
+                                return [$rule];
+                            })
                             ->required(fn ($get): bool => $get('role') !== 'tenant_owner'),
                     ]),
             ]);
