@@ -58,6 +58,10 @@ class CustomerMembershipTable
                     ->label('Diaktifkan oleh')
                     ->placeholder('—'),
 
+                TextColumn::make('activatedAtBranch.name')
+                    ->label('Outlet aktivasi')
+                    ->placeholder('—'),
+
                 TextColumn::make('activated_at')
                     ->label('Waktu aktivasi')
                     ->dateTime('d M Y H:i')
@@ -150,7 +154,14 @@ class CustomerMembershipTable
                                     return 'Pelanggan tidak memiliki membership aktif. Membership baru akan diaktifkan setelah pembayaran dikonfirmasi.';
                                 }
 
-                                return "Customer ini masih memiliki membership {$membership->memberTier?->name}. Jika dilanjutkan, membership {$membership->memberTier?->name} akan digantikan dengan tier yang dipilih.";
+                                $newTier = MemberTier::query()
+                                    ->where('tenant_id', Auth::user()?->tenant_id)
+                                    ->find($get('member_tier_id'));
+
+                                $oldTierName = $membership->memberTier?->name ?? 'membership aktif';
+                                $newTierName = $newTier?->name ?? 'tier baru';
+
+                                return "Customer ini masih memiliki membership {$oldTierName}. Jika dilanjutkan, membership {$oldTierName} akan digantikan dengan {$newTierName}.";
                             }),
 
                         Select::make('member_tier_id')
