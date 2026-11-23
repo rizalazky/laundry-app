@@ -4,6 +4,7 @@ namespace App\Actions\Affiliates;
 
 use App\Models\AffiliatePayout;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -11,7 +12,16 @@ class UpdateAffiliatePayoutStatus
 {
     public function handle(User $user, int $payoutId, string $nextStatus): AffiliatePayout
     {
-        if (! $user->is_active || $user->role !== 'tenant_owner' || ! $user->hasPermissionTo('affiliates.manage')) {
+        if (Auth::hasUser() && (int) Auth::id() !== (int) $user->getKey()) {
+            throw ValidationException::withMessages([
+                'payout' => 'Kamu tidak memiliki akses untuk mengelola payout afiliasi.',
+            ]);
+        }
+
+        $actor = User::query()->find($user->getKey());
+
+        if ($actor === null || ! $actor->is_active || $actor->role !== 'tenant_owner'
+            || ! $actor->hasPermissionTo('affiliates.manage')) {
             throw ValidationException::withMessages([
                 'payout' => 'Kamu tidak memiliki akses untuk mengelola payout afiliasi.',
             ]);
@@ -23,9 +33,9 @@ class UpdateAffiliatePayoutStatus
             ]);
         }
 
-        return DB::transaction(function () use ($user, $payoutId, $nextStatus): AffiliatePayout {
+        return DB::transaction(function () use ($actor, $payoutId, $nextStatus): AffiliatePayout {
             $payout = AffiliatePayout::query()
-                ->where('tenant_id', $user->tenant_id)
+                ->where('tenant_id', $actor->tenant_id)
                 ->lockForUpdate()
                 ->find($payoutId);
 
