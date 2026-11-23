@@ -120,7 +120,8 @@ class GetBusinessPerformanceAnalytics
             ->selectRaw('SUM(CASE WHEN production_logs.finished_at IS NOT NULL THEN 1 ELSE 0 END) as completed_stages')
             ->groupBy('users.id', 'users.name')
             ->orderByDesc('completed_stages')
-            ->get();
+            ->get()
+            ->keyBy('user_id');
 
         $attendance = DB::table('attendances')
             ->join('users', 'users.id', '=', 'attendances.user_id')
@@ -157,7 +158,7 @@ class GetBusinessPerformanceAnalytics
 
         $employees = $employeeIds
             ->map(function (int $userId) use ($production, $commissions, $attendance): array {
-                $productionRow = $production->get()->firstWhere('user_id', $userId);
+                $productionRow = $production->get($userId);
                 $commissionRow = $commissions->get($userId);
 
                 return [
