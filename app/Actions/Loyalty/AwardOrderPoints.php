@@ -68,8 +68,8 @@ class AwardOrderPoints
                 return null;
             }
 
-            $stepCents = (int) round(((float) $rule->amount_step) * 100);
-            $totalCents = (int) round(((float) $lockedOrder->total) * 100);
+            $stepCents = (int) str_replace('.', '', (string) $rule->amount_step);
+            $totalCents = (int) str_replace('.', '', (string) $lockedOrder->total);
             $points = $stepCents > 0 ? intdiv($totalCents, $stepCents) * $rule->points_per_step : 0;
 
             if ($points < 1) {
