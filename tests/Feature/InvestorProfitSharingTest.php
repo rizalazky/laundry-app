@@ -173,7 +173,7 @@ class InvestorProfitSharingTest extends TestCase
             $this->assertStringContainsString('Cabang tidak ditemukan', $exception->getMessage());
         }
 
-        $foreignSharing = ProfitSharing::withoutGlobalScope('tenant')->create([
+        $foreignSharingId = DB::table('profit_sharings')->insertGetId([
             'tenant_id' => $otherTenant->id,
             'investor_id' => $otherInvestor->id,
             'period_month' => '2026-10',
@@ -181,7 +181,10 @@ class InvestorProfitSharingTest extends TestCase
             'share_percent_snapshot' => '20.00',
             'payout_amount' => '20000.00',
             'status' => ProfitSharing::STATUS_DRAFT,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+        $foreignSharing = ProfitSharing::withoutGlobalScope('tenant')->findOrFail($foreignSharingId);
 
         try {
             app(MarkProfitSharingPaid::class)->handle($tenant->id, $foreignSharing->id, '1000');
