@@ -31,7 +31,7 @@ class ViewOrder extends ViewRecord
         return [
             $this->printReceiptAction(),
             $this->recordPaymentAction(),
-            $this->changeStatusAction(),
+            $this->changeStatusAction(),\n            $this->assignCourierTaskAction(),
             $this->refundAction(),
         ];
     }
@@ -45,6 +45,67 @@ class ViewOrder extends ViewRecord
             ->authorize('view')
             ->url(fn (Order $record): string => route('orders.receipt', $record))
             ->openUrlInNewTab();
+    }
+
+
+    private function assignCourierTaskAction(): Action
+    {
+        return Action::make('assignCourierTask')
+            ->label('Tugaskan Kurir')
+            ->icon('heroicon-o-truck')
+            ->color('info')
+            ->authorize('view')
+            ->visible(fn (Order $record): bool => in_array($record->status, [OrderStatus::Received, OrderStatus::Ready], true)
+                && Auth::user()?->hasPermissionTo('courier_tasks.manage') === true)
+            ->modalHeading('Buat Tugas Pickup / Delivery')
+            ->schema(fn (Order $record): array => [
+                Select::make('task_type')
+                    ->label('Jenis Tugas')
+                    ->options($record->status === OrderStatus::Ready
+                        ? [CourierTaskType::Delivery->value => CourierTaskType::Delivery->label()]
+                        : [CourierTaskType::Pickup->value => CourierTaskType::Pickup->label()])
+                    ->default($record->status === OrderStatus::Ready ? CourierTaskType::Delivery->value : CourierTaskType::Pickup->value)
+                    ->required()
+                    ->native(false),
+                Select::make('courier_id')
+                    ->label('Kurir')
+                    ->options(fn (Order $record): array => User::query()
+                        ->where('tenant_id', $record->tenant_id)
+                        ->whereIn('role', ['cashier', 'operator'])
+                        ->where('is_active', true)
+                        ->whereHas('branches', fn ($query) => $query
+                            ->whereKey($record->branch_id)
+                            ->where('branches.tenant_id', $record->tenant_id)
+                            ->where('branches.is_active', true))
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->required()
+                    ->native(false),
+                Textarea::make('address')
+                    ->label('Alamat Pickup / Delivery')
+                    ->default(fn (Order $record): ?string => $record->customer?->address)
+                    ->rows(3)
+                    ->required()
+                    ->maxLength(2000),
+            ])
+            ->action(function (array $data, Order $record): void {
+                try {
+                    app(CreateCourierTask::class)->handle(
+                        order: $record,
+                        type: CourierTaskType::from($data['task_type']),
+                        address: $data['address'],
+                        courierId: (int) $data['courier_id'],
+                        user: Auth::user(),
+                    );
+
+                    Notification::make()->title('Tugas kurir berhasil dibuat.')->success()->send();
+                    $this->record->refresh();
+                } catch (DomainException $exception) {
+                    Notification::make()->title('Gagal membuat tugas kurir.')->body($exception->getMessage())->danger()->send();
+                }
+            });
     }
 
     private function recordPaymentAction(): Action
