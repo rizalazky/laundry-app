@@ -12,10 +12,12 @@ use App\Models\CustomerMembership;
 use App\Models\MemberTier;
 use App\Models\Order;
 use App\Models\Permission;
+use App\Models\Promo;
 use App\Models\RolePermission;
 use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\Voucher;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -169,6 +171,62 @@ class PointOfSaleTest extends TestCase
         Livewire::test(PointOfSale::class)
             ->call('selectCustomer', $this->customer->id)
             ->assertDontSee('Silver Member');
+    }
+
+
+    public function test_pos_displays_membership_and_applied_voucher_discount_breakdown(): void
+    {
+        $tier = MemberTier::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Gold',
+            'price' => 100000,
+            'duration_days' => 30,
+            'discount_percent' => 10,
+            'is_active' => true,
+        ]);
+
+        CustomerMembership::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'member_tier_id' => $tier->id,
+            'started_at' => now()->subDay(),
+            'expired_at' => now()->addDays(29),
+            'status' => CustomerMembership::STATUS_ACTIVE,
+        ]);
+
+        $promo = Promo::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Promo Hemat',
+            'category' => Promo::CATEGORY_GENERAL,
+            'reward_type' => Promo::REWARD_PERCENT,
+            'reward_value' => 10,
+            'is_active' => true,
+            'rules' => [],
+        ]);
+
+        Voucher::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'promo_id' => $promo->id,
+            'code' => 'HEMAT10',
+            'voucher_type' => Voucher::TYPE_GENERAL,
+            'quota' => 5,
+            'used_count' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->actAsCashier();
+
+        Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id)
+            ->set('voucherCode', 'HEMAT10')
+            ->assertSee('Diskon Membership')
+            ->assertSee('Gold')
+            ->assertSee('Voucher diterapkan')
+            ->assertSee('Promo Hemat')
+            ->assertSee('HEMAT10')
+            ->assertSee('Total diskon')
+            ->assertSee('Rp 1.400');
     }
 
     public function test_cart_action_is_available_after_selecting_a_customer(): void

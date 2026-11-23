@@ -58,6 +58,8 @@ class PointOfSale extends Page implements HasForms
 
     public string $discount = '0';
 
+    public string $voucherCode = '';
+
     public bool $paymentModalOpen = false;
 
     public array $paymentLines = [];
@@ -374,13 +376,103 @@ class PointOfSale extends Page implements HasForms
         return (string) BigDecimal::of($this->discount)->toScale(2, RoundingMode::HalfUp);
     }
 
+    public function membershipDiscountDetails(): ?array
+    {
+        $customer = $this->selectedCustomer();
+        if ($customer === null) {
+            return null;
+        }
+
+        $membership = $customer->memberships->first();
+        $tier = $membership?->memberTier;
+
+        if ($membership === null || $tier === null) {
+            return null;
+        }
+
+        return [
+            'membership_id' => (int) $membership->getKey(),
+            'tier_id' => (int) $tier->getKey(),
+            'tier_name' => $tier->name,
+            'discount_percent' => (string) $tier->discount_percent,
+        ];
+    }
+
+    public function membershipDiscountAmount(): string
+    {
+        $details = $this->membershipDiscountDetails();
+        if ($details === null) {
+            return '0.00';
+        }
+
+        $percent = BigDecimal::of($details['discount_percent']);
+        return (string) BigDecimal::of($this->subtotal())
+            ->multipliedBy($percent)
+            ->dividedBy(100, 2, RoundingMode::HalfUp);
+    }
+
+    public function voucherPreview(): ?array
+    {
+        if (blank($this->voucherCode) || BigDecimal::of($this->subtotal())->isZero()) {
+            return null;
+        }
+
+        try {
+            $promotion = app(\App\Actions\Orders\ResolveOrderPromotion::class)->handle(
+                tenantId: (int) $this->currentBranch()->tenant_id,
+                voucherCode: $this->voucherCode,
+                subtotal: BigDecimal::of($this->subtotal()),
+            );
+
+            return [
+                'promo_name' => $promotion['promo']->name,
+                'voucher_code' => $promotion['voucher']->code,
+                'discount' => (string) $promotion['discount'],
+            ];
+        } catch (DomainException) {
+            return null;
+        }
+    }
+
+    public function voucherPreviewError(): ?string
+    {
+        if (blank($this->voucherCode) || BigDecimal::of($this->subtotal())->isZero()) {
+            return null;
+        }
+
+        try {
+            app(\App\Actions\Orders\ResolveOrderPromotion::class)->handle(
+                tenantId: (int) $this->currentBranch()->tenant_id,
+                voucherCode: $this->voucherCode,
+                subtotal: BigDecimal::of($this->subtotal()),
+            );
+
+            return null;
+        } catch (DomainException $exception) {
+            return $exception->getMessage();
+        }
+    }
+
+    public function promoDiscountAmount(): string
+    {
+        return $this->voucherPreview()['discount'] ?? '0.00';
+    }
+
+    public function totalDiscountAmount(): string
+    {
+        return (string) BigDecimal::of($this->discountAmount())
+            ->plus($this->membershipDiscountAmount())
+            ->plus($this->promoDiscountAmount())
+            ->toScale(2, RoundingMode::HalfUp);
+    }
+
     public function grandTotal(): string
     {
         $subtotal = BigDecimal::of($this->subtotal());
-        $discount = BigDecimal::of($this->discountAmount());
+        $discount = BigDecimal::of($this->totalDiscountAmount());
 
         return (string) ($discount->isGreaterThan($subtotal) || $discount->isLessThan(0)
-            ? $subtotal
+            ? BigDecimal::zero()
             : $subtotal->minus($discount))->toScale(2);
     }
 
@@ -454,6 +546,7 @@ class PointOfSale extends Page implements HasForms
             'cart' => ['required', 'array', 'min:1'],
             'cart.*' => ['required', 'numeric', 'gt:0'],
             'discount' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
+            'voucherCode' => ['nullable', 'string', 'max:100'],
             'selectedWorkshopId' => ['nullable', 'integer'],
             'paymentLines' => ['array'],
             'paymentLines.*.amount' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
@@ -523,6 +616,7 @@ class PointOfSale extends Page implements HasForms
                         $lines,
                     ),
                     discount: (string) $discount,
+                    voucherCode: filled($this->voucherCode) ? $this->voucherCode : null,
                     workshopId: $this->selectedWorkshopId,
                 );
 
@@ -555,6 +649,7 @@ class PointOfSale extends Page implements HasForms
         $this->lastCreatedOrderId = (int) $order->getKey();
         $this->cart = [];
         $this->discount = '0';
+        $this->voucherCode = '';
         $this->customerId = null;
         $this->customerForm = ['customerId' => null];
         $this->paymentLines = [];

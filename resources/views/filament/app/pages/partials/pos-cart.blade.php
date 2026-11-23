@@ -39,10 +39,34 @@
                         <span>Subtotal</span>
                         <span class="font-medium tabular-nums">Rp {{ number_format((float) $livewire->subtotal(), 0, ',', '.') }}</span>
                     </div>
+                    @if ($membership = $livewire->membershipDiscountDetails())
+                        <div class="flex items-center justify-between gap-3 text-sm">
+                            <span class="text-gray-600 dark:text-gray-300">Diskon Membership · {{ $membership['tier_name'] }} ({{ rtrim(rtrim(number_format((float) $membership['discount_percent'], 2, ',', '.'), '0'), ',') }}%)</span>
+                            <span class="font-medium tabular-nums text-success-700 dark:text-success-400">− Rp {{ number_format((float) $livewire->membershipDiscountAmount(), 0, ',', '.') }}</span>
+                        </div>
+                    @endif
+                    <div class="space-y-1">
+                        <label for="pos-voucher" class="mb-1 block text-sm text-gray-600 dark:text-gray-300">Kode Voucher</label>
+                        <div class="flex gap-2">
+                            <x-filament::input id="pos-voucher" type="text" maxlength="100" placeholder="Masukkan kode voucher" wire:model.live.debounce.500ms="voucherCode" class="min-w-0 flex-1 uppercase" />
+                        </div>
+                        @if ($voucher = $livewire->voucherPreview())
+                            <div class="flex items-center justify-between gap-3 text-sm text-success-700 dark:text-success-400">
+                                <span>Voucher diterapkan · {{ $voucher['promo_name'] }} ({{ $voucher['voucher_code'] }})</span>
+                                <span class="font-medium tabular-nums">− Rp {{ number_format((float) $livewire->promoDiscountAmount(), 0, ',', '.') }}</span>
+                            </div>
+                        @elseif ($error = $livewire->voucherPreviewError())
+                            <p class="text-xs text-danger-600">{{ $error }}</p>
+                        @endif
+                    </div>
                     <div>
-                        <label for="pos-discount" class="mb-1 block text-sm text-gray-600 dark:text-gray-300">Diskon (Rp)</label>
+                        <label for="pos-discount" class="mb-1 block text-sm text-gray-600 dark:text-gray-300">Diskon manual (Rp)</label>
                         <x-filament::input id="pos-discount" type="number" min="0" step="1000" wire:model.live.debounce.300ms="discount" class="text-right tabular-nums" />
                         @error('discount') <p class="mt-1 text-xs text-danger-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                        <span>Total diskon</span>
+                        <span class="font-semibold tabular-nums text-success-700 dark:text-success-400">− Rp {{ number_format((float) $livewire->totalDiscountAmount(), 0, ',', '.') }}</span>
                     </div>
                     <div class="flex items-center justify-between border-t border-dashed border-gray-200 pt-3 dark:border-gray-700">
                         <span class="font-semibold text-gray-900 dark:text-white">Total</span>

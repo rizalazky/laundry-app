@@ -6,6 +6,8 @@ use App\Actions\Orders\CreateOrder as CreateOrderAction;
 use App\Filament\App\Resources\Orders\Pages\CreateOrder;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerMembership;
+use App\Models\MemberTier;
 use App\Models\Order;
 use App\Models\Promo;
 use App\Models\Service;
@@ -196,6 +198,46 @@ class PromoVoucherCheckoutTest extends TestCase
 
         $this->assertSame($voucher->id, $order->voucher_id);
         $this->assertSame('63000.00', $order->total);
+        $this->assertSame(1, $voucher->fresh()->used_count);
+    }
+
+
+    public function test_membership_discount_stacks_with_voucher_and_is_saved_as_immutable_snapshots(): void
+    {
+        $tier = MemberTier::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Gold',
+            'price' => 100000,
+            'duration_days' => 30,
+            'discount_percent' => 10,
+            'is_active' => true,
+        ]);
+
+        $membership = CustomerMembership::query()->create([
+            'tenant_id' => $this->tenant->id,
+            'customer_id' => $this->customer->id,
+            'member_tier_id' => $tier->id,
+            'started_at' => now()->subDay(),
+            'expired_at' => now()->addDays(29),
+            'status' => CustomerMembership::STATUS_ACTIVE,
+        ]);
+
+        $promo = $this->makePromo();
+        $voucher = $this->makeVoucher($promo);
+
+        $order = $this->createOrder('HEMAT10', 1000);
+
+        $this->assertSame('70000.00', $order->subtotal);
+        $this->assertSame('1000.00', $order->manual_discount);
+        $this->assertSame('7000.00', $order->membership_discount);
+        $this->assertSame('10.00', $order->membership_discount_percent_snapshot);
+        $this->assertSame('Gold', $order->member_tier_name_snapshot);
+        $this->assertSame($membership->id, $order->customer_membership_id);
+        $this->assertSame($tier->id, $order->member_tier_id);
+        $this->assertSame('7000.00', $order->promo_discount);
+        $this->assertSame('15000.00', $order->discount);
+        $this->assertSame('55000.00', $order->total);
+        $this->assertSame('HEMAT10', $order->voucher_code_snapshot);
         $this->assertSame(1, $voucher->fresh()->used_count);
     }
 
