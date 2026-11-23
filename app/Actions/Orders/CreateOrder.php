@@ -184,7 +184,7 @@ class CreateOrder
                 'to_status' => OrderStatus::Received,
             ]);
 
-            $this->activityLogger->record($user, 'order.created', $order, [
+            $this->activityLogger->recordForAuthorizedActor($user, 'order.created', $order, [
                 'invoice_no' => $order->invoice_no,
                 'branch_id' => $order->branch_id,
                 'customer_id' => $order->customer_id,
