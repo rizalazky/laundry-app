@@ -28,21 +28,23 @@ return new class extends Migration
         });
 
         Schema::table('employee_loan_repayments', function (Blueprint $table): void {
-            $table->foreignId('payroll_id')
-                ->nullable()
-                ->after('employee_loan_id')
-                ->constrained('payrolls')
+            $table->unsignedBigInteger('payroll_id')->nullable()->after('employee_loan_id');
+
+            $table->foreign(['tenant_id', 'payroll_id'], 'employee_loan_repayments_payroll_tenant_fk')
+                ->references(['tenant_id', 'id'])
+                ->on('payrolls')
                 ->restrictOnDelete();
 
-            $table->index(['tenant_id', 'payroll_id']);
+            $table->index(['tenant_id', 'payroll_id'], 'employee_loan_repayments_payroll_idx');
         });
     }
 
     public function down(): void
     {
         Schema::table('employee_loan_repayments', function (Blueprint $table): void {
-            $table->dropIndex(['tenant_id', 'payroll_id']);
-            $table->dropConstrainedForeignId('payroll_id');
+            $table->dropIndex('employee_loan_repayments_payroll_idx');
+            $table->dropForeign('employee_loan_repayments_payroll_tenant_fk');
+            $table->dropColumn('payroll_id');
         });
 
         Schema::dropIfExists('payrolls');
