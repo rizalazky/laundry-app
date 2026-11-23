@@ -2,7 +2,7 @@
     @php
         $analytics = $this->getAnalytics();
         $hasError = isset($analytics['error']);
-        $summary = $analytics['summary'] ?? ['orders' => 0, 'completed_orders' => 0, 'turnover' => '0.00', 'average_order_value' => '0.00'];
+        $summary = $analytics['summary'] ?? ['orders' => 0, 'completed_orders' => 0, 'turnover' => '0.00', 'average_order_value' => '0.00', 'expenses_total' => '0.00', 'promo_discount_total' => '0.00'];
         $outlets = $analytics['outlets'] ?? [];
         $services = $analytics['services'] ?? [];
         $employees = $analytics['employees'] ?? [];
