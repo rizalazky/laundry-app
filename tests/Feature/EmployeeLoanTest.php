@@ -161,7 +161,8 @@ class EmployeeLoanTest extends TestCase
 
     public function test_loan_action_ignores_forged_owner_role_on_authenticated_user_model(): void
     {
-        [$tenant, $cashier, $employee] = $this->context();
+        [$tenant, , $employee] = $this->context();
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
         $this->actingAs($cashier);
 
         $forgedActor = new User();
