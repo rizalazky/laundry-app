@@ -119,6 +119,7 @@ class PointOfSale extends Page implements HasForms
                         $branch = $this->currentBranch();
 
                         return Customer::query()
+                            ->with(['memberships' => $this->activeMembershipsConstraint()])
                             ->where('tenant_id', $branch->tenant_id)
                             ->where(function ($query) use ($search): void {
                                 $query->where('name', 'like', "%{$search}%")
@@ -138,6 +139,7 @@ class PointOfSale extends Page implements HasForms
                         }
 
                         $customer = Customer::query()
+                            ->with(['memberships' => $this->activeMembershipsConstraint()])
                             ->where('tenant_id', $this->currentBranch()->tenant_id)
                             ->find($value);
 
@@ -205,19 +207,37 @@ class PointOfSale extends Page implements HasForms
         }
 
         return Customer::query()
+            ->with(['memberships' => $this->activeMembershipsConstraint()])
             ->where('tenant_id', $this->currentBranch()->tenant_id)
             ->find($this->customerId);
     }
 
+    private function activeMembershipsConstraint(): \\Closure
+    {
+        return fn ($query) => $query
+            ->where('status', CustomerMembership::STATUS_ACTIVE)
+            ->where('started_at', '<=', now())
+            ->where('expired_at', '>', now())
+            ->with('memberTier')
+            ->orderByDesc('started_at');
+    }
+
     private function customerOptionLabel(Customer $customer): string
     {
+        $membership = $customer->memberships->first();
+        $memberTierName = $membership?->memberTier?->name;
+        $membershipBadge = filled($memberTierName)
+            ? '<span class="inline-flex w-fit rounded-full bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:bg-primary-400/10 dark:text-primary-300">'.e($memberTierName).' Member</span>'
+            : '';
+
         $name = e($customer->name);
         $phone = e($customer->phone ?: 'Nomor HP belum diisi');
 
         return <<<HTML
-            <div class="flex flex-col gap-0.5">
+            <div class="flex flex-col gap-1">
                 <span class="font-medium">{$name}</span>
                 <span class="text-xs text-gray-500">{$phone}</span>
+                {$membershipBadge}
             </div>
             HTML;
     }
