@@ -12,13 +12,17 @@ use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\ProductionLog;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Brick\Math\BigDecimal;
 use DomainException;
 use Illuminate\Support\Facades\DB;
 
 class ChangeOrderStatus
 {
-    public function __construct(private OrderActionAuthorization $authorization) {}
+    public function __construct(
+        private OrderActionAuthorization $authorization,
+        private ActivityLogger $activityLogger,
+    ) {}
 
     /**
      * @throws DomainException
@@ -121,6 +125,16 @@ class ChangeOrderStatus
                 'order_id' => $locked->getKey(), 'user_id' => $actor->getKey(),
                 'worker_id' => $workerId, 'machine_code' => $machineCode,
                 'from_status' => $from, 'to_status' => $to, 'note' => $note,
+            ]);
+
+            $this->activityLogger->record($actor, 'order.status_changed', $locked, [
+                'invoice_no' => $locked->invoice_no,
+                'branch_id' => $locked->branch_id,
+                'from_status' => $from->value,
+                'to_status' => $to->value,
+                'worker_id' => $workerId,
+                'machine_code' => $machineCode,
+                'note' => $note,
             ]);
 
             $order->refresh();
