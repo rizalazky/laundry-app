@@ -38,6 +38,7 @@ class UsersTable
                         'branch_manager' => 'warning',
                         'cashier' => 'success',
                         'operator' => 'info',
+                        'courier' => 'warning',
                         default => 'gray',
                     }),
 
@@ -58,6 +59,7 @@ class UsersTable
                             'branch_manager' => 'Branch Manager',
                             'cashier' => 'Kasir',
                             'operator' => 'Operator Produksi',
+                            'courier' => 'Kurir',
                         ]
                         : [
                             'cashier' => 'Kasir',
