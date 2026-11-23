@@ -85,7 +85,7 @@
                     <div class="rounded-xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
                         <x-filament::icon icon="heroicon-o-inbox" class="mx-auto h-8 w-8 text-gray-400" />
                         <p class="mt-2 font-medium text-gray-700 dark:text-gray-300">Belum ada order pada antrean ini</p>
-                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Order dari outlet yang terhubung akan muncul di sini.</p>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Order yang ditugaskan ke workshop ini akan muncul di sini.</p>
                     </div>
                 @endforelse
             </section>
