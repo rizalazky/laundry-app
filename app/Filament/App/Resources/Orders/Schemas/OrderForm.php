@@ -26,6 +26,14 @@ class OrderForm
     public static function configure(Schema $schema): Schema
     {
         $tenantId = Auth::user()?->tenant_id;
+        $branch = Filament::getTenant();
+        $workshopOptions = $branch instanceof Branch && ! $branch->is_workshop
+            ? $branch->workshops()
+                ->where('branches.is_active', true)
+                ->orderBy('branches.name')
+                ->pluck('branches.name', 'branches.id')
+                ->all()
+            : [];
 
         return $schema
             ->components([
@@ -50,6 +58,18 @@ class OrderForm
                                 ->find($value)
                                 ?->name),
                     ]),
+
+                Section::make('Workshop Tujuan')
+                    ->schema([
+                        Select::make('workshop_id')
+                            ->label('Workshop')
+                            ->options($workshopOptions)
+                            ->placeholder('Pilih workshop tujuan')
+                            ->default(count($workshopOptions) === 1 ? (int) array_key_first($workshopOptions) : null)
+                            ->required(count($workshopOptions) > 1)
+                            ->native(false),
+                    ])
+                    ->visible($workshopOptions !== []),
 
                 Section::make('Layanan')
                     ->schema([
