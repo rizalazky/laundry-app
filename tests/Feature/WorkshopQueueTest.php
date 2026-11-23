@@ -27,6 +27,8 @@ class WorkshopQueueTest extends TestCase
             OrderStatus::Ironing->value,
             OrderStatus::Packing->value,
             OrderStatus::Ready->value,
+            OrderStatus::Completed->value,
+            OrderStatus::Cancelled->value,
         ], array_keys($tabs));
 
         $this->assertSame('all', (new ListOrders())->getDefaultActiveTab());

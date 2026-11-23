@@ -36,6 +36,8 @@ class ListOrders extends ListRecords
             OrderStatus::Ironing,
             OrderStatus::Packing,
             OrderStatus::Ready,
+            OrderStatus::Completed,
+            OrderStatus::Cancelled,
         ] as $status) {
             $tabs[$status->value] = Tab::make($status->label())
                 ->modifyQueryUsing(
