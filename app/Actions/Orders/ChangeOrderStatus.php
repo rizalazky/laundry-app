@@ -80,40 +80,34 @@ class ChangeOrderStatus
                 throw new DomainException('Status tidak bisa diubah dari "'.$locked->status->label().'" ke "'.$to->label().'".');
             }
 
-            if ($to === OrderStatus::Washing) {
-                $hasPickupTask = CourierTask::query()
+            $productionStage = $this->productionStageFor($to);
+
+            if ($productionStage !== null || $to === OrderStatus::Ready) {
+                $pickupTasks = CourierTask::query()
                     ->where('tenant_id', $locked->tenant_id)
                     ->where('order_id', $locked->getKey())
                     ->where('task_type', CourierTaskType::Pickup->value)
-                    ->exists();
+                    ->lockForUpdate()
+                    ->get(['id', 'status']);
 
-                $pickupCompleted = CourierTask::query()
-                    ->where('tenant_id', $locked->tenant_id)
-                    ->where('order_id', $locked->getKey())
-                    ->where('task_type', CourierTaskType::Pickup->value)
-                    ->where('status', CourierTaskStatus::Completed->value)
-                    ->exists();
-
-                if ($hasPickupTask && ! $pickupCompleted) {
+                if ($pickupTasks->isNotEmpty() && ! $pickupTasks->contains(
+                    fn (CourierTask $task): bool => $task->status === CourierTaskStatus::Completed
+                )) {
                     throw new DomainException('Tugas pickup harus diselesaikan sebelum order masuk ke proses produksi.');
                 }
             }
 
             if ($to === OrderStatus::Completed) {
-                $hasDeliveryTask = CourierTask::query()
+                $deliveryTasks = CourierTask::query()
                     ->where('tenant_id', $locked->tenant_id)
                     ->where('order_id', $locked->getKey())
                     ->where('task_type', CourierTaskType::Delivery->value)
-                    ->exists();
+                    ->lockForUpdate()
+                    ->get(['id', 'status']);
 
-                $deliveryCompleted = CourierTask::query()
-                    ->where('tenant_id', $locked->tenant_id)
-                    ->where('order_id', $locked->getKey())
-                    ->where('task_type', CourierTaskType::Delivery->value)
-                    ->where('status', CourierTaskStatus::Completed->value)
-                    ->exists();
-
-                if ($hasDeliveryTask && ! $deliveryCompleted) {
+                if ($deliveryTasks->isNotEmpty() && ! $deliveryTasks->contains(
+                    fn (CourierTask $task): bool => $task->status === CourierTaskStatus::Completed
+                )) {
                     throw new DomainException('Tugas delivery harus diselesaikan sebelum order ditandai selesai.');
                 }
             }
