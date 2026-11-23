@@ -158,4 +158,40 @@ class PromoVoucherTest extends TestCase
         $this->assertSame(0, $limited->remainingQuota());
         $this->assertNull($unlimited->remainingQuota());
     }
+
+    public function test_voucher_form_rejects_a_promo_from_another_tenant_even_when_state_is_tampered(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $branch = $tenant->branches()->create(['code' => 'PUSAT', 'name' => 'Pusat', 'is_active' => true]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $foreignPromo = Promo::query()->create([
+            'tenant_id' => $foreignTenant->id,
+            'name' => 'Promo Tenant Asing',
+            'category' => Promo::CATEGORY_GENERAL,
+            'reward_type' => Promo::REWARD_FIXED,
+            'reward_value' => 10000,
+        ]);
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        Livewire::test(CreateVoucher::class)
+            ->fillForm([
+                'code' => 'FOREIGNPROMO',
+                'voucher_type' => Voucher::TYPE_GENERAL,
+                'promo_id' => $foreignPromo->id,
+                'quota' => 10,
+                'is_active' => true,
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['promo_id']);
+
+        $this->assertDatabaseMissing('vouchers', [
+            'tenant_id' => $tenant->id,
+            'code' => 'FOREIGNPROMO',
+        ]);
+    }
 }
