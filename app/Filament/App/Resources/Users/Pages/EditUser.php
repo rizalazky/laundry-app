@@ -32,6 +32,7 @@ class EditUser extends EditRecord
             'phone_whatsapp',
             'role',
             'is_active',
+            'monthly_base_salary',
         ]);
     }
 
