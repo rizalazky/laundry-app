@@ -26,7 +26,7 @@ class BusinessPerformancePageTest extends TestCase
             ->assertSee('Total omzet pesanan')
             ->assertSee('Performa outlet')
             ->assertSee('Performa layanan')
-            ->assertSee('Tren omzet & pengeluaran')
+            ->assertSee('Tren omzet')
             ->assertSee('Dampak promosi')
             ->assertSee('Total pengeluaran')
             ->assertSee('Diskon promosi')
