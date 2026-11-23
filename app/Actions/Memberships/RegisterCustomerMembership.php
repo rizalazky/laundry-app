@@ -105,7 +105,6 @@ class RegisterCustomerMembership
                 ->where('tenant_id', $canonicalActor->tenant_id)
                 ->where('customer_id', $customer->id)
                 ->where('status', CustomerMembership::STATUS_ACTIVE)
-                ->where('started_at', '<=', $activatedAt)
                 ->where('expired_at', '>', $activatedAt)
                 ->lockForUpdate()
                 ->with('memberTier')
