@@ -22,7 +22,9 @@ class GetBusinessPerformanceAnalytics
      * @return array{
      *   from: string,
      *   to: string,
-     *   summary: array{orders: int, completed_orders: int, turnover: string, average_order_value: string},
+     *   summary: array{orders: int, completed_orders: int, turnover: string, average_order_value: string, expenses_total: string, promo_discount_total: string},
+     *   daily_trend: array<int, array{date: string, revenue: string, expenses: string}>,
+     *   promo_impact: array<int, array{promo_name: string, orders: int, discount_total: string}>,
      *   outlets: array<int, array{branch_id: int, branch_name: string, orders: int, completed_orders: int, turnover: string, average_order_value: string}>,
      *   services: array<int, array{service_id: int, service_name: string, orders: int, quantity: string, gross_value: string}>,
      *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_records: int, commission_earned: string}>
@@ -56,6 +58,63 @@ class GetBusinessPerformanceAnalytics
 
         $orderCount = (int) ($summary->order_count ?? 0);
         $turnover = BigDecimal::of((string) ($summary->turnover ?? '0'));
+
+        $revenueByDate = (clone $orders)
+            ->selectRaw('DATE(orders.order_date) as report_date')
+            ->selectRaw('SUM(orders.total) as amount')
+            ->groupBy('report_date')
+            ->get()
+            ->keyBy('report_date');
+
+        $expenseQuery = DB::table('expenses')
+            ->where('tenant_id', $tenantId)
+            ->whereBetween('spent_at', [$from, $to]);
+
+        if ($branchId !== null) {
+            $expenseQuery
+                ->whereIn('location_type', ['outlet', 'workshop'])
+                ->where('location_id', $branchId);
+        }
+
+        $expensesByDate = (clone $expenseQuery)
+            ->selectRaw('DATE(spent_at) as report_date')
+            ->selectRaw('SUM(amount) as amount')
+            ->groupBy('report_date')
+            ->get()
+            ->keyBy('report_date');
+
+        $expensesTotal = BigDecimal::of((string) ((clone $expenseQuery)->sum('amount') ?: '0'));
+
+        $dailyTrend = $revenueByDate->keys()
+            ->merge($expensesByDate->keys())
+            ->unique()
+            ->sort()
+            ->map(fn (string $date): array => [
+                'date' => $date,
+                'revenue' => $this->money((string) ($revenueByDate->get($date)->amount ?? '0')),
+                'expenses' => $this->money((string) ($expensesByDate->get($date)->amount ?? '0')),
+            ])
+            ->values()
+            ->all();
+
+        $promoImpact = (clone $orders)
+            ->whereNotNull('orders.promo_id')
+            ->where('orders.promo_discount', '>', 0)
+            ->select('orders.promo_name_snapshot as promo_name')
+            ->selectRaw('COUNT(*) as order_count')
+            ->selectRaw('SUM(orders.promo_discount) as discount_total')
+            ->groupBy('orders.promo_name_snapshot')
+            ->orderByDesc('discount_total')
+            ->get()
+            ->map(fn (object $row): array => [
+                'promo_name' => $row->promo_name ?? 'Promo tidak diketahui',
+                'orders' => (int) $row->order_count,
+                'discount_total' => $this->money((string) $row->discount_total),
+            ])
+            ->values()
+            ->all();
+
+        $promoDiscountTotal = BigDecimal::of((string) ((clone $orders)->sum('orders.promo_discount') ?: '0'));
 
         $outlets = (clone $orders)
             ->join('branches', 'branches.id', '=', 'orders.branch_id')
@@ -185,7 +244,11 @@ class GetBusinessPerformanceAnalytics
                 'completed_orders' => (int) ($summary->completed_orders ?? 0),
                 'turnover' => $this->money((string) $turnover),
                 'average_order_value' => $this->average((string) $turnover, $orderCount),
+                'expenses_total' => $this->money((string) $expensesTotal),
+                'promo_discount_total' => $this->money((string) $promoDiscountTotal),
             ],
+            'daily_trend' => $dailyTrend,
+            'promo_impact' => $promoImpact,
             'outlets' => $outlets,
             'services' => $services,
             'employees' => $employees,

@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\CommissionLog;
 use App\Models\Customer;
+use App\Models\Promo;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Permission;
@@ -19,6 +20,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class BusinessPerformanceAnalyticsTest extends TestCase
@@ -110,6 +112,8 @@ class BusinessPerformanceAnalyticsTest extends TestCase
             'completed_orders' => 1,
             'turnover' => '100000.00',
             'average_order_value' => '50000.00',
+            'expenses_total' => '0.00',
+            'promo_discount_total' => '0.00',
         ], $analytics['summary']);
         $this->assertCount(2, $analytics['outlets']);
         $this->assertSame('Outlet A', $analytics['outlets'][0]['branch_name']);
@@ -348,4 +352,107 @@ class BusinessPerformanceAnalyticsTest extends TestCase
             CarbonImmutable::parse('2026-11-30'),
         );
     }
+
+    public function test_expense_and_promotion_analytics_respect_tenant_and_branch_scope(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branchA = Branch::factory()->for($tenant)->create(['name' => 'Outlet A']);
+        $branchB = Branch::factory()->for($tenant)->create(['name' => 'Outlet B']);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $customer = Customer::factory()->for($tenant)->create();
+        $promo = Promo::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Promo November',
+            'category' => Promo::CATEGORY_GENERAL,
+            'reward_type' => Promo::REWARD_FIXED,
+            'reward_value' => '5000.00',
+            'is_active' => true,
+        ]);
+
+        $orderA = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branchA->id,
+            'customer_id' => $customer->id,
+            'order_date' => '2026-11-10 09:00:00',
+            'total' => '45000.00',
+            'promo_id' => $promo->id,
+            'promo_name_snapshot' => 'Promo November',
+            'promo_discount' => '5000.00',
+        ]);
+
+        Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branchB->id,
+            'customer_id' => $customer->id,
+            'order_date' => '2026-11-11 09:00:00',
+            'total' => '72000.00',
+            'promo_id' => $promo->id,
+            'promo_name_snapshot' => 'Promo November',
+            'promo_discount' => '8000.00',
+        ]);
+
+        $expenseAccountId = DB::table('chart_of_accounts')->insertGetId([
+            'tenant_id' => $tenant->id,
+            'code' => '6100',
+            'name' => 'Beban Operasional',
+            'account_type' => 'expense',
+            'is_system' => false,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ([
+            [$branchA->id, '5000.00', '2026-11-10 12:00:00'],
+            [$branchB->id, '9000.00', '2026-11-11 12:00:00'],
+        ] as [$locationId, $amount, $spentAt]) {
+            DB::table('expenses')->insert([
+                'tenant_id' => $tenant->id,
+                'location_type' => 'outlet',
+                'location_id' => $locationId,
+                'coa_id' => $expenseAccountId,
+                'amount' => $amount,
+                'description' => 'Beban operasional',
+                'spent_at' => $spentAt,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($owner);
+
+        $allBranches = app(GetBusinessPerformanceAnalytics::class)->handle(
+            $tenant->id,
+            CarbonImmutable::parse('2026-11-01 00:00:00'),
+            CarbonImmutable::parse('2026-11-30 23:59:59'),
+        );
+
+        $this->assertSame('14000.00', $allBranches['summary']['expenses_total']);
+        $this->assertSame('13000.00', $allBranches['summary']['promo_discount_total']);
+        $this->assertCount(2, $allBranches['daily_trend']);
+        $this->assertSame([
+            'date' => '2026-11-10',
+            'revenue' => '45000.00',
+            'expenses' => '5000.00',
+        ], $allBranches['daily_trend'][0]);
+        $this->assertSame([
+            'promo_name' => 'Promo November',
+            'orders' => 2,
+            'discount_total' => '13000.00',
+        ], $allBranches['promo_impact'][0]);
+
+        $branchAAnalytics = app(GetBusinessPerformanceAnalytics::class)->handle(
+            $tenant->id,
+            CarbonImmutable::parse('2026-11-01 00:00:00'),
+            CarbonImmutable::parse('2026-11-30 23:59:59'),
+            $branchA->id,
+        );
+
+        $this->assertSame('5000.00', $branchAAnalytics['summary']['expenses_total']);
+        $this->assertSame('5000.00', $branchAAnalytics['summary']['promo_discount_total']);
+        $this->assertCount(1, $branchAAnalytics['daily_trend']);
+        $this->assertSame('45000.00', $branchAAnalytics['daily_trend'][0]['revenue']);
+        $this->assertSame('5000.00', $branchAAnalytics['promo_impact'][0]['discount_total']);
+    }
+
 }
