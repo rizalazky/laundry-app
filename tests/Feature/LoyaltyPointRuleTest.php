@@ -7,7 +7,6 @@ use App\Actions\Loyalty\RedeemCustomerReward;
 use App\Actions\Orders\ChangeOrderStatus;
 use App\Actions\Orders\CreateOrder;
 use App\Actions\Orders\RecordPayment;
-use App\Console\Commands\ExpireLoyaltyPoints;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Models\Branch;
