@@ -480,8 +480,8 @@ class OrderModuleTest extends TestCase
         $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
         $cashier = $this->staff('cashier');
         $foreignOperator = $this->staff('operator', $otherBranch);
+        $order = $this->makeOrder(by: $cashier);
         $this->actAsInPanel($cashier);
-        $order = $this->makeOrder();
 
         Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
             ->callAction('changeStatus', [
