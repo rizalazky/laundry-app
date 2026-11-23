@@ -10,6 +10,8 @@ use App\Filament\App\Resources\Users\Pages\CreateUser;
 use App\Models\ActivityLog;
 use App\Models\Branch;
 use App\Models\Permission;
+use App\Models\Order;
+use App\Models\Payment;
 use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
@@ -132,18 +134,29 @@ class ActivityLogTest extends TestCase
         $visibleLog = $logger->record($manager, 'staff.updated', $assignedEmployee, ['role' => 'cashier']);
         $outsideLog = $logger->record($manager, 'staff.updated', $outsideEmployee, ['role' => 'cashier']);
 
+        $assignedOrder = Order::factory()->for($assignedBranch)->create();
+        $visibleOrderLog = $logger->record($manager, 'order.status_changed', $assignedOrder);
+        $visiblePayment = Payment::factory()->for($assignedOrder)->create();
+        $visiblePaymentLog = $logger->record($manager, 'payment.recorded', $visiblePayment);
+
+        $outsideOrder = Order::factory()->for($unassignedBranch)->create();
+        $outsideOrderLog = $logger->record($manager, 'order.status_changed', $outsideOrder);
+
         [, $foreignOwner, $foreignEmployee] = $this->foreignContext();
         $this->actingAs($foreignOwner);
         $foreignLog = app(ActivityLogger::class)->record($foreignOwner, 'staff.updated', $foreignEmployee);
         $this->actingAs($manager);
 
         $this->assertTrue(ActivityLogResource::canAccess());
-        $this->assertSame(
-            [$visibleLog->id],
-            ActivityLogResource::getEloquentQuery()->pluck('id')->all(),
+        $visibleIds = ActivityLogResource::getEloquentQuery()->pluck('id')->all();
+
+        $this->assertEqualsCanonicalizing(
+            [$visibleLog->id, $visibleOrderLog->id, $visiblePaymentLog->id],
+            $visibleIds,
         );
-        $this->assertNotContains($outsideLog->id, ActivityLogResource::getEloquentQuery()->pluck('id')->all());
-        $this->assertNotContains($foreignLog->id, ActivityLogResource::getEloquentQuery()->pluck('id')->all());
+        $this->assertNotContains($outsideLog->id, $visibleIds);
+        $this->assertNotContains($outsideOrderLog->id, $visibleIds);
+        $this->assertNotContains($foreignLog->id, $visibleIds);
     }
 
     public function test_cashier_cannot_open_activity_log_resource(): void
@@ -154,6 +167,27 @@ class ActivityLogTest extends TestCase
         $this->actingAs($cashier);
 
         $this->assertFalse(ActivityLogResource::canAccess());
+    }
+
+
+    public function test_authorized_action_can_record_the_explicit_actor_when_auth_context_differs(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $authenticatedOwner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $cashierActor = User::factory()->for($tenant)->withRole('cashier')->create();
+
+        $this->actingAs($authenticatedOwner);
+
+        $log = app(ActivityLogger::class)->recordForAuthorizedActor(
+            $cashierActor,
+            'order.created',
+            $cashierActor,
+            ['source' => 'authorized_action'],
+        );
+
+        $this->assertSame($cashierActor->id, $log->user_id);
+        $this->assertSame($tenant->id, $log->tenant_id);
+        $this->assertSame($cashierActor->id, $log->subject_id);
     }
 
     public function test_activity_logger_rejects_a_subject_from_another_tenant(): void

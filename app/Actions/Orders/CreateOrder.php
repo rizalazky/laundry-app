@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Models\OrderStatusLog;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonInterface;
@@ -27,6 +28,7 @@ class CreateOrder
         private RecordPayment $recordPayment,
         private OrderActionAuthorization $authorization,
         private ResolveOrderPromotion $resolveOrderPromotion,
+        private ActivityLogger $activityLogger,
     ) {}
 
     /**
@@ -180,6 +182,14 @@ class CreateOrder
                 'user_id' => $user->getKey(),
                 'from_status' => null,
                 'to_status' => OrderStatus::Received,
+            ]);
+
+            $this->activityLogger->recordForAuthorizedActor($user, 'order.created', $order, [
+                'invoice_no' => $order->invoice_no,
+                'branch_id' => $order->branch_id,
+                'customer_id' => $order->customer_id,
+                'order_source' => $order->order_source->value,
+                'total' => $order->total,
             ]);
 
             if ($initialPayment !== null && BigDecimal::of((string) $initialPayment['amount'])->isGreaterThan(0)) {

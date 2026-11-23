@@ -10,6 +10,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\PaymentType;
 use App\Enums\ServiceUnit;
+use App\Models\ActivityLog;
 use App\Models\Branch;
 use App\Models\BranchServicePrice;
 use App\Models\Customer;
@@ -656,6 +657,90 @@ class OrderActionsTest extends TestCase
             $this->assertSame(OrderStatus::Received, $order->fresh()->status);
             $this->assertDatabaseCount('production_logs', 0);
         }
+    }
+
+
+    public function test_order_creation_records_audit_activity(): void
+    {
+        $order = $this->createOrder();
+
+        $log = ActivityLog::query()->where('action', 'order.created')->sole();
+
+        $this->assertSame($this->cashier->id, $log->user_id);
+        $this->assertSame(Order::class, $log->subject_type);
+        $this->assertSame($order->id, $log->subject_id);
+        $this->assertSame($order->invoice_no, $log->properties['invoice_no']);
+        $this->assertSame($this->branch->id, $log->properties['branch_id']);
+        $this->assertSame('pos', $log->properties['order_source']);
+        $this->assertArrayNotHasKey('notes', $log->properties);
+    }
+
+    public function test_payment_and_refund_events_are_audited_without_duplicate_idempotent_entries(): void
+    {
+        $order = $this->createOrder();
+        $record = app(RecordPayment::class);
+
+        $first = $record->handle(
+            $order,
+            10000,
+            PaymentMethod::Cash,
+            $this->cashier,
+            idempotencyKey: 'audit-payment-001',
+            reference: 'CASH-001',
+        );
+        $record->handle(
+            $order,
+            10000,
+            PaymentMethod::Cash,
+            $this->cashier,
+            idempotencyKey: 'audit-payment-001',
+            reference: 'CASH-001',
+        );
+
+        $paymentLog = ActivityLog::query()->where('action', 'payment.recorded')->sole();
+
+        $this->assertSame(Payment::class, $paymentLog->subject_type);
+        $this->assertSame($first->id, $paymentLog->subject_id);
+        $this->assertSame('10000.00', $paymentLog->properties['amount']);
+        $this->assertSame('cash', $paymentLog->properties['method']);
+        $this->assertSame('CASH-001', $paymentLog->properties['reference']);
+
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+
+        $refund = $record->handle($order, 5000, PaymentMethod::Cash, $manager, PaymentType::Refund);
+        $refundLog = ActivityLog::query()->where('action', 'payment.refunded')->sole();
+
+        $this->assertSame($refund->id, $refundLog->subject_id);
+        $this->assertSame('refund', $refundLog->properties['type']);
+        $this->assertSame('5000.00', $refundLog->properties['amount']);
+        $this->assertSame(1, ActivityLog::query()->where('action', 'payment.recorded')->count());
+    }
+
+    public function test_order_status_transitions_are_audited_with_production_metadata(): void
+    {
+        $order = $this->createOrder();
+        $operator = User::factory()->for($this->tenant)->withRole('operator')->create();
+        $operator->branches()->attach($this->branch);
+
+        app(ChangeOrderStatus::class)->handle(
+            $order,
+            OrderStatus::Washing,
+            $this->cashier,
+            note: 'Mulai proses cuci',
+            workerId: $operator->id,
+            machineCode: 'WASH-01',
+        );
+
+        $log = ActivityLog::query()->where('action', 'order.status_changed')->sole();
+
+        $this->assertSame(Order::class, $log->subject_type);
+        $this->assertSame($order->id, $log->subject_id);
+        $this->assertSame('received', $log->properties['from_status']);
+        $this->assertSame('washing', $log->properties['to_status']);
+        $this->assertSame($operator->id, $log->properties['worker_id']);
+        $this->assertSame('WASH-01', $log->properties['machine_code']);
+        $this->assertSame('Mulai proses cuci', $log->properties['note']);
     }
 
 }
