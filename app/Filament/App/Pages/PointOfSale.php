@@ -4,10 +4,12 @@ namespace App\Filament\App\Pages;
 
 use App\Actions\Orders\CreateOrder as CreateOrderAction;
 use App\Actions\Orders\RecordPayment;
+use Closure;
 use App\Enums\PaymentMethod;
 use App\Enums\ServiceUnit;
 use App\Models\Branch;
 use App\Models\Customer;
+use App\Models\CustomerMembership;
 use App\Models\Order;
 use App\Models\Service;
 use App\Models\User;
@@ -212,7 +214,7 @@ class PointOfSale extends Page implements HasForms
             ->find($this->customerId);
     }
 
-    private function activeMembershipsConstraint(): \\Closure
+    private function activeMembershipsConstraint(): Closure
     {
         return fn ($query) => $query
             ->where('status', CustomerMembership::STATUS_ACTIVE)
