@@ -21,7 +21,7 @@ class RecordEmployeeLoanRepayment
         ?string $notes = null,
     ): EmployeeLoanRepayment {
         return DB::transaction(function () use ($actor, $loanId, $amount, $paidAt, $notes): EmployeeLoanRepayment {
-            $this->authorization->authorizeManager($actor);
+            $actor = $this->authorization->authorizeManager($actor);
 
             $loan = EmployeeLoan::query()
                 ->withoutGlobalScope('tenant')

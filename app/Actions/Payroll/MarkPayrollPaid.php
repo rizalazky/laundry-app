@@ -16,7 +16,7 @@ class MarkPayrollPaid
     public function handle(User $actor, int $payrollId): Payroll
     {
         return DB::transaction(function () use ($actor, $payrollId): Payroll {
-            $this->authorization->authorizeManager($actor);
+            $actor = $this->authorization->authorizeManager($actor);
 
             $payroll = Payroll::query()
                 ->withoutGlobalScope('tenant')

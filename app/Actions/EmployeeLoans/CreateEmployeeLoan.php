@@ -14,7 +14,7 @@ class CreateEmployeeLoan
     public function handle(User $actor, int $employeeId, string|int|float $amount, ?string $notes = null): EmployeeLoan
     {
         return DB::transaction(function () use ($actor, $employeeId, $amount, $notes): EmployeeLoan {
-            $this->authorization->authorizeManager($actor);
+            $actor = $this->authorization->authorizeManager($actor);
 
             $employee = User::query()->find($employeeId);
 

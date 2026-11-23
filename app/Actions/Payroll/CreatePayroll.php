@@ -21,7 +21,7 @@ class CreatePayroll
         string|int|float $loanDeduction = '0',
     ): Payroll {
         return DB::transaction(function () use ($actor, $employeeId, $periodMonth, $loanDeduction): Payroll {
-            $this->authorization->authorizeManager($actor);
+            $actor = $this->authorization->authorizeManager($actor);
             $employee = $this->authorization->authorizeEmployee($actor, $employeeId);
 
             if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $periodMonth)) {

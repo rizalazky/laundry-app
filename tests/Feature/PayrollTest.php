@@ -257,6 +257,35 @@ class PayrollTest extends TestCase
         }
     }
 
+    public function test_payroll_action_ignores_forged_owner_role_on_authenticated_user_model(): void
+    {
+        [$tenant, , $employee] = $this->context();
+        $cashier = User::factory()->for($tenant)->withRole('cashier')->create();
+        $this->actingAs($cashier);
+
+        $forgedActor = new User();
+        $forgedActor->setRawAttributes([
+            'id' => $cashier->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'role' => 'tenant_owner',
+            'is_active' => true,
+        ], true);
+
+        try {
+            app(CreatePayroll::class)->handle(
+                $forgedActor,
+                (int) $employee->getKey(),
+                now()->format('Y-m'),
+                '0.00',
+            );
+            $this->fail('The action must authorize the persisted cashier role, not forged model attributes.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Anda tidak memiliki izin untuk mengelola payroll.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('payrolls', 0);
+    }
+
     private function context(string $baseSalary = '5000000.00'): array
     {
         $tenant = Tenant::factory()->create();
