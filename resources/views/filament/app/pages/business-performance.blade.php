@@ -6,6 +6,10 @@
         $outlets = $analytics['outlets'] ?? [];
         $services = $analytics['services'] ?? [];
         $employees = $analytics['employees'] ?? [];
+        $dailyTrend = $analytics['daily_trend'] ?? [];
+        $promoImpact = $analytics['promo_impact'] ?? [];
+        $maxDailyAmount = max(1, (float) collect($dailyTrend)->max(fn ($row) => max((float) $row['revenue'], (float) $row['expenses'])));
+        $maxPromoDiscount = max(1, (float) collect($promoImpact)->max(fn ($row) => (float) $row['discount_total']));
         $maxOutletTurnover = max(1, (float) collect($outlets)->max(fn ($row) => (float) $row['turnover']));
         $maxServiceValue = max(1, (float) collect($services)->max(fn ($row) => (float) $row['gross_value']));
     @endphp
@@ -17,7 +21,7 @@
         .business-performance__intro p { margin: 0; color: var(--gray-500); font-size: .875rem; line-height: 1.5rem; }
         .business-performance__filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: end; }
         .business-performance__field label { display: block; margin-bottom: .45rem; font-size: .875rem; font-weight: 500; }
-        .business-performance__metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+        .business-performance__metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
         .business-performance__metric { min-width: 0; border: 1px solid var(--fi-border-color, #e5e7eb); border-radius: .75rem; padding: 1rem; }
         .business-performance__metric span { display: block; color: var(--gray-500); font-size: .75rem; }
         .business-performance__metric strong { display: block; margin-top: .4rem; font-size: clamp(1rem, 2vw, 1.35rem); font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -31,6 +35,14 @@
         .business-performance__track { height: .55rem; overflow: hidden; border-radius: 999px; background: var(--gray-100); }
         .dark .business-performance__track { background: rgb(255 255 255 / .1); }
         .business-performance__fill { height: 100%; border-radius: inherit; background: var(--primary-500); }
+        .business-performance__fill--expense { background: var(--danger-500); }
+        .business-performance__fill--promo { background: var(--warning-500); }
+        .business-performance__chart-row { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); gap: .75rem; align-items: center; margin-bottom: 1rem; }
+        .business-performance__chart-label { color: var(--gray-500); font-size: .75rem; white-space: nowrap; }
+        .business-performance__chart-bars { display: flex; flex-direction: column; gap: .35rem; }
+        .business-performance__chart-value { display: flex; align-items: center; gap: .5rem; min-width: 0; font-size: .75rem; font-variant-numeric: tabular-nums; }
+        .business-performance__chart-value strong { flex: 0 0 auto; font-weight: 600; }
+        .business-performance__chart-value .business-performance__track { flex: 1 1 auto; min-width: 2rem; }
         .business-performance__table-wrap { overflow-x: auto; }
         .business-performance__table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
         .business-performance__table th { padding: .7rem .8rem; text-align: left; color: var(--gray-500); font-size: .7rem; font-weight: 600; white-space: nowrap; }
@@ -107,6 +119,67 @@
                     <strong>{{ number_format(count($outlets), 0, ',', '.') }}</strong>
                     <small>Outlet dengan pesanan pada periode ini</small>
                 </div>
+                <div class="business-performance__metric">
+                    <span>Total pengeluaran</span>
+                    <strong>{{ $this->formatMoney($summary['expenses_total']) }}</strong>
+                    <small>Berdasarkan tanggal pengeluaran</small>
+                </div>
+                <div class="business-performance__metric">
+                    <span>Diskon promosi</span>
+                    <strong>{{ $this->formatMoney($summary['promo_discount_total']) }}</strong>
+                    <small>Nilai diskon voucher/promo yang digunakan</small>
+                </div>
+            </div>
+
+            <div class="business-performance__grid">
+                <x-filament::section>
+                    <h3 class="business-performance__section-title">Tren omzet & pengeluaran</h3>
+                    <p class="business-performance__section-note">Perbandingan omzet order non-batal dan pengeluaran berdasarkan tanggal pencatatan.</p>
+                    @forelse ($dailyTrend as $day)
+                        <div class="business-performance__chart-row">
+                            <span class="business-performance__chart-label">{{ \Illuminate\Support\Carbon::parse($day['date'])->format('d M') }}</span>
+                            <div class="business-performance__chart-bars">
+                                <div class="business-performance__chart-value">
+                                    <span class="business-performance__track"><span class="business-performance__fill" style="display:block;width: {{ min(100, ((float) $day['revenue'] / $maxDailyAmount) * 100) }}%"></span></span>
+                                    <strong>{{ $this->formatMoney($day['revenue']) }}</strong>
+                                </div>
+                                <div class="business-performance__chart-value">
+                                    <span class="business-performance__track"><span class="business-performance__fill business-performance__fill--expense" style="display:block;width: {{ min(100, ((float) $day['expenses'] / $maxDailyAmount) * 100) }}%"></span></span>
+                                    <strong>{{ $this->formatMoney($day['expenses']) }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="business-performance__empty">Belum ada omzet atau pengeluaran pada periode ini.</div>
+                    @endforelse
+                    <div class="business-performance__legend">
+                        <span>Omzet pesanan</span>
+                        <span>Pengeluaran</span>
+                    </div>
+                </x-filament::section>
+
+                <x-filament::section>
+                    <h3 class="business-performance__section-title">Dampak promosi</h3>
+                    <p class="business-performance__section-note">Total diskon promo yang tercatat pada nota, dikelompokkan berdasarkan nama promo.</p>
+                    @forelse ($promoImpact as $promo)
+                        <div class="business-performance__bar-list" style="margin-bottom: 1rem;">
+                            <div>
+                                <div class="business-performance__bar-head">
+                                    <span>{{ $promo['promo_name'] }}</span>
+                                    <strong>{{ $this->formatMoney($promo['discount_total']) }}</strong>
+                                </div>
+                                <div class="business-performance__track">
+                                    <div class="business-performance__fill business-performance__fill--promo" style="width: {{ min(100, ((float) $promo['discount_total'] / $maxPromoDiscount) * 100) }}%"></div>
+                                </div>
+                                <div class="business-performance__legend">
+                                    <span>{{ number_format($promo['orders'], 0, ',', '.') }} nota menggunakan promo</span>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="business-performance__empty">Belum ada promo yang digunakan pada periode ini.</div>
+                    @endforelse
+                </x-filament::section>
             </div>
 
             <div class="business-performance__grid">
