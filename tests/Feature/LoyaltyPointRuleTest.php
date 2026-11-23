@@ -120,6 +120,8 @@ class LoyaltyPointRuleTest extends TestCase
         $order = $this->createPaidCompletedOrder();
         $this->assertSame(7, (int) $this->customer->fresh()->loyalty_points);
 
+        $this->actingAs($this->owner);
+
         $reward = PointReward::query()->create([
             'tenant_id' => $this->tenant->id, 'reward_name' => 'Hadiah Mini',
             'points_required' => 2, 'stock' => null, 'is_active' => true,
