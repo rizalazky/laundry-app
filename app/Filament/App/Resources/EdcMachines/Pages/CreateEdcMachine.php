@@ -1,14 +1,14 @@
 <?php
 
-namespace App\\Filament\\App\\Resources\\EdcMachines\\Pages;
+namespace App\Filament\App\Resources\EdcMachines\Pages;
 
-use App\\Actions\\Accounting\\ManageEdcMachine;
-use App\\Filament\\App\\Resources\\EdcMachines\\EdcMachineResource;
-use App\\Models\\User;
-use Filament\\Resources\\Pages\\CreateRecord;
-use Illuminate\\Database\\Eloquent\\Model;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Validation\\ValidationException;
+use App\Actions\Accounting\ManageEdcMachine;
+use App\Filament\App\Resources\EdcMachines\EdcMachineResource;
+use App\Models\User;
+use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreateEdcMachine extends CreateRecord
 {
