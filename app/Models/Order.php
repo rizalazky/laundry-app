@@ -115,6 +115,11 @@ class Order extends Model
         return $this->hasMany(CommissionLog::class);
     }
 
+    public function courierTasks(): HasMany
+    {
+        return $this->hasMany(CourierTask::class);
+    }
+
     public function balanceDue(): string
     {
         return (string) BigDecimal::of($this->total)
