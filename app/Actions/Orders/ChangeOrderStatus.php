@@ -90,8 +90,8 @@ class ChangeOrderStatus
                     ->lockForUpdate()
                     ->get(['id', 'status']);
 
-                if ($pickupTasks->isNotEmpty() && ! $pickupTasks->contains(
-                    fn (CourierTask $task): bool => $task->status === CourierTaskStatus::Completed
+                if ($pickupTasks->contains(
+                    fn (CourierTask $task): bool => $task->status !== CourierTaskStatus::Completed
                 )) {
                     throw new DomainException('Tugas pickup harus diselesaikan sebelum order masuk ke proses produksi.');
                 }
@@ -105,8 +105,8 @@ class ChangeOrderStatus
                     ->lockForUpdate()
                     ->get(['id', 'status']);
 
-                if ($deliveryTasks->isNotEmpty() && ! $deliveryTasks->contains(
-                    fn (CourierTask $task): bool => $task->status === CourierTaskStatus::Completed
+                if ($deliveryTasks->contains(
+                    fn (CourierTask $task): bool => $task->status !== CourierTaskStatus::Completed
                 )) {
                     throw new DomainException('Tugas delivery harus diselesaikan sebelum order ditandai selesai.');
                 }
