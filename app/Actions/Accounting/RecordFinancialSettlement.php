@@ -130,14 +130,7 @@ class RecordFinancialSettlement
                 $idempotencyKey,
                 $payloadHash,
             ): CashSettlement {
-                $branch = Branch::withoutGlobalScope('tenant')
-                    ->where('tenant_id', $tenantId)
-                    ->whereKey($branchId)
-                    ->first();
-
-                if ($branch === null) {
-                    throw new DomainException('Cabang tidak ditemukan pada tenant ini.');
-                }
+                $branch = app(FinanceActionAuthorization::class)->authorizeBranch($tenantId, $branchId);
 
                 $expectedWorkshop = $sourceType === CashSettlement::SOURCE_WORKSHOP_CASH;
 
