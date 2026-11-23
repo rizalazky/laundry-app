@@ -6,6 +6,8 @@ use App\Actions\Analytics\GetBusinessPerformanceAnalytics;
 use App\Enums\OrderStatus;
 use App\Models\Attendance;
 use App\Models\Branch;
+use App\Models\CommissionLog;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Permission;
@@ -126,6 +128,115 @@ class BusinessPerformanceAnalyticsTest extends TestCase
             'production_stages' => 2,
             'completed_stages' => 1,
             'attendance_records' => 1,
+            'commission_earned' => '0.00',
+        ], $analytics['employees'][0]);
+    }
+
+    public function test_employee_commissions_are_reported_by_earned_date_and_selected_branch(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $otherBranch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $worker = User::factory()->for($tenant)->withRole('operator')->create(['name' => 'Commission Worker']);
+        $customer = Customer::factory()->for($tenant)->create();
+        $service = Service::factory()->for($tenant)->create();
+
+        $order = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'customer_id' => $customer->id,
+            'order_date' => '2026-11-10 09:00:00',
+        ]);
+        $item = OrderItem::factory()->create(['order_id' => $order->id, 'service_id' => $service->id]);
+        $productionLog = ProductionLog::factory()->forOrder($order)->forWorker($worker)->create([
+            'started_at' => '2026-10-31 23:00:00',
+            'finished_at' => '2026-11-01 00:30:00',
+        ]);
+
+        CommissionLog::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $worker->id,
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'production_log_id' => $productionLog->id,
+            'service_id' => $service->id,
+            'amount' => '450.00',
+            'earned_at' => '2026-11-05 10:00:00',
+        ]);
+
+        $otherOrder = Order::factory()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $otherBranch->id,
+            'customer_id' => $customer->id,
+            'order_date' => '2026-11-10 09:00:00',
+        ]);
+        $otherItem = OrderItem::factory()->create(['order_id' => $otherOrder->id, 'service_id' => $service->id]);
+        $otherProductionLog = ProductionLog::factory()->forOrder($otherOrder)->forWorker($worker)->create([
+            'started_at' => '2026-10-31 23:00:00',
+            'finished_at' => '2026-11-01 00:30:00',
+        ]);
+
+        CommissionLog::query()->create([
+            'tenant_id' => $tenant->id,
+            'user_id' => $worker->id,
+            'order_id' => $otherOrder->id,
+            'order_item_id' => $otherItem->id,
+            'production_log_id' => $otherProductionLog->id,
+            'service_id' => $service->id,
+            'amount' => '900.00',
+            'earned_at' => '2026-11-06 10:00:00',
+        ]);
+
+        $this->actingAs($owner);
+
+        $analytics = app(GetBusinessPerformanceAnalytics::class)->handle(
+            $tenant->id,
+            CarbonImmutable::parse('2026-11-01 00:00:00'),
+            CarbonImmutable::parse('2026-11-30 23:59:59'),
+            $branch->id,
+        );
+
+        $this->assertCount(1, $analytics['employees']);
+        $this->assertSame([
+            'user_id' => $worker->id,
+            'employee_name' => 'Commission Worker',
+            'assigned_orders' => 0,
+            'production_stages' => 0,
+            'completed_stages' => 0,
+            'attendance_records' => 0,
+            'commission_earned' => '450.00',
+        ], $analytics['employees'][0]);
+    }
+
+    public function test_employees_with_attendance_but_no_production_are_included(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $employee = User::factory()->for($tenant)->withRole('operator')->create(['name' => 'Attendance Only']);
+        Attendance::factory()->forUser($employee)->forBranch($branch)->create([
+            'clock_in' => '2026-11-12 08:00:00',
+        ]);
+
+        $this->actingAs($owner);
+
+        $analytics = app(GetBusinessPerformanceAnalytics::class)->handle(
+            $tenant->id,
+            CarbonImmutable::parse('2026-11-01 00:00:00'),
+            CarbonImmutable::parse('2026-11-30 23:59:59'),
+            $branch->id,
+        );
+
+        $this->assertCount(1, $analytics['employees']);
+        $this->assertSame([
+            'user_id' => $employee->id,
+            'employee_name' => 'Attendance Only',
+            'assigned_orders' => 0,
+            'production_stages' => 0,
+            'completed_stages' => 0,
+            'attendance_records' => 1,
+            'commission_earned' => '0.00',
         ], $analytics['employees'][0]);
     }
 

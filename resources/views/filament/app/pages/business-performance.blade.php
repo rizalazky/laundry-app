@@ -162,7 +162,7 @@
 
             <x-filament::section>
                 <h3 class="business-performance__section-title">Produktivitas karyawan</h3>
-                <p class="business-performance__section-note">Aktivitas dihitung dari penugasan tahap produksi, bukan atribusi penjualan per karyawan. Kehadiran adalah jumlah catatan clock-in pada periode ini.</p>
+                <p class="business-performance__section-note">Aktivitas dihitung dari penugasan tahap produksi. Komisi dihitung berdasarkan tanggal komisi diperoleh; karyawan tetap ditampilkan meski tahap produksinya dimulai di luar periode laporan.</p>
                 <div class="business-performance__table-wrap">
                     <table class="business-performance__table">
                         <thead>
@@ -172,6 +172,7 @@
                                 <th class="numeric">Tahap produksi</th>
                                 <th class="numeric">Tahap selesai</th>
                                 <th class="numeric">Catatan kehadiran</th>
+                                <th class="numeric">Komisi diperoleh</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -182,9 +183,10 @@
                                     <td class="numeric">{{ number_format($employee['production_stages'], 0, ',', '.') }}</td>
                                     <td class="numeric">{{ number_format($employee['completed_stages'], 0, ',', '.') }}</td>
                                     <td class="numeric">{{ number_format($employee['attendance_records'], 0, ',', '.') }}</td>
+                                    <td class="numeric">{{ $this->formatMoney($employee['commission_earned']) }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5" class="business-performance__empty">Belum ada aktivitas produksi pada periode ini.</td></tr>
+                                <tr><td colspan="6" class="business-performance__empty">Belum ada aktivitas produksi atau komisi pada periode ini.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

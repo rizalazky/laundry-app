@@ -13,11 +13,11 @@ use Illuminate\Support\Facades\DB;
 class GetBusinessPerformanceAnalytics
 {
     /**
-     * Build operational performance metrics from order, service and production records.
+     * Build operational performance metrics from order, service, production, attendance and commission records.
      *
      * Turnover is based on non-cancelled order totals, not payment receipts.
      * Service value uses stored line subtotals before order-level discounts.
-     * Employee productivity is based on production-stage assignments, not sales attribution.
+     * Employee production metrics use stage assignments; attendance and commission totals use their own recorded timestamps.
      *
      * @return array{
      *   from: string,
@@ -25,7 +25,7 @@ class GetBusinessPerformanceAnalytics
      *   summary: array{orders: int, completed_orders: int, turnover: string, average_order_value: string},
      *   outlets: array<int, array{branch_id: int, branch_name: string, orders: int, completed_orders: int, turnover: string, average_order_value: string}>,
      *   services: array<int, array{service_id: int, service_name: string, orders: int, quantity: string, gross_value: string}>,
-     *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_records: int}>
+     *   employees: array<int, array{user_id: int, employee_name: string, assigned_orders: int, production_stages: int, completed_stages: int, attendance_records: int, commission_earned: string}>
      * }
      *
      * @throws DomainException
@@ -120,7 +120,8 @@ class GetBusinessPerformanceAnalytics
             ->selectRaw('SUM(CASE WHEN production_logs.finished_at IS NOT NULL THEN 1 ELSE 0 END) as completed_stages')
             ->groupBy('users.id', 'users.name')
             ->orderByDesc('completed_stages')
-            ->get();
+            ->get()
+            ->keyBy('user_id');
 
         $attendance = DB::table('attendances')
             ->join('users', 'users.id', '=', 'attendances.user_id')
@@ -128,21 +129,51 @@ class GetBusinessPerformanceAnalytics
             ->where('users.tenant_id', $tenantId)
             ->whereBetween('attendances.clock_in', [$from, $to])
             ->when($branchId !== null, fn ($query) => $query->where('attendances.branch_id', $branchId))
-            ->select('attendances.user_id')
+            ->select('attendances.user_id', 'users.name as employee_name')
             ->selectRaw('COUNT(attendances.id) as attendance_records')
-            ->groupBy('attendances.user_id')
+            ->groupBy('attendances.user_id', 'users.name')
             ->get()
             ->keyBy('user_id');
 
-        $employees = $production
-            ->map(fn (object $row): array => [
-                'user_id' => (int) $row->user_id,
-                'employee_name' => $row->employee_name,
-                'assigned_orders' => (int) $row->assigned_orders,
-                'production_stages' => (int) $row->production_stages,
-                'completed_stages' => (int) $row->completed_stages,
-                'attendance_records' => (int) ($attendance->get($row->user_id)->attendance_records ?? 0),
-            ])
+        $commissions = DB::table('commission_logs')
+            ->join('orders', 'orders.id', '=', 'commission_logs.order_id')
+            ->join('users', 'users.id', '=', 'commission_logs.user_id')
+            ->where('commission_logs.tenant_id', $tenantId)
+            ->where('orders.tenant_id', $tenantId)
+            ->where('users.tenant_id', $tenantId)
+            ->whereBetween('commission_logs.earned_at', [$from, $to])
+            ->when($branchId !== null, fn ($query) => $query->where('orders.branch_id', $branchId))
+            ->select('users.id as user_id', 'users.name as employee_name')
+            ->selectRaw('SUM(commission_logs.amount) as commission_earned')
+            ->groupBy('users.id', 'users.name')
+            ->get()
+            ->keyBy('user_id');
+
+        // Commission can be earned in a different reporting period from the
+        // production stage start, so include employees found by any of the reporting queries.
+        $employeeIds = $production->pluck('user_id')
+            ->merge($commissions->keys())
+            ->merge($attendance->keys())
+            ->unique()
+            ->values();
+
+        $employees = $employeeIds
+            ->map(function (int $userId) use ($production, $commissions, $attendance): array {
+                $productionRow = $production->get($userId);
+                $commissionRow = $commissions->get($userId);
+                $attendanceRow = $attendance->get($userId);
+
+                return [
+                    'user_id' => $userId,
+                    'employee_name' => $productionRow?->employee_name ?? $commissionRow?->employee_name ?? $attendanceRow?->employee_name ?? '—',
+                    'assigned_orders' => (int) ($productionRow->assigned_orders ?? 0),
+                    'production_stages' => (int) ($productionRow->production_stages ?? 0),
+                    'completed_stages' => (int) ($productionRow->completed_stages ?? 0),
+                    'attendance_records' => (int) ($attendanceRow->attendance_records ?? 0),
+                    'commission_earned' => $this->money((string) ($commissionRow->commission_earned ?? '0')),
+                ];
+            })
+            ->sortByDesc('commission_earned')
             ->values()
             ->all();
 

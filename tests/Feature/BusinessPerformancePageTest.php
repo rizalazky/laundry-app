@@ -26,7 +26,8 @@ class BusinessPerformancePageTest extends TestCase
             ->assertSee('Total omzet pesanan')
             ->assertSee('Performa outlet')
             ->assertSee('Performa layanan')
-            ->assertSee('Produktivitas karyawan');
+            ->assertSee('Produktivitas karyawan')
+            ->assertSee('Komisi diperoleh');
     }
 
     public function test_page_reports_an_invalid_date_range_without_running_analytics(): void
