@@ -58,7 +58,14 @@ class CourierTaskResource extends Resource
             return $query->whereHas('order', fn (Builder $orders) => $orders->whereIn('branch_id', $branchIds));
         }
 
-        return $query->where('courier_id', $user?->getKey());
+        $branchIds = $user?->branches()
+            ->where('branches.tenant_id', $user->tenant_id)
+            ->where('branches.is_active', true)
+            ->pluck('branches.id') ?? collect();
+
+        return $query
+            ->where('courier_id', $user?->getKey())
+            ->whereHas('order', fn (Builder $orders) => $orders->whereIn('branch_id', $branchIds));
     }
 
     public static function table(Table $table): Table
