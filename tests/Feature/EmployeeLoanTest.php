@@ -159,6 +159,29 @@ class EmployeeLoanTest extends TestCase
         );
     }
 
+    public function test_loan_action_ignores_forged_owner_role_on_authenticated_user_model(): void
+    {
+        [$tenant, $cashier, $employee] = $this->context();
+        $this->actingAs($cashier);
+
+        $forgedActor = new User();
+        $forgedActor->setRawAttributes([
+            'id' => $cashier->getKey(),
+            'tenant_id' => $tenant->getKey(),
+            'role' => 'tenant_owner',
+            'is_active' => true,
+        ], true);
+
+        try {
+            app(CreateEmployeeLoan::class)->handle($forgedActor, (int) $employee->getKey(), '100.00');
+            $this->fail('The action must authorize the persisted cashier role, not forged model attributes.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Anda tidak memiliki izin untuk mengelola kasbon karyawan.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('employee_loans', 0);
+    }
+
     private function context(): array
     {
         $tenant = Tenant::factory()->create();
