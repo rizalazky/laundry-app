@@ -55,7 +55,7 @@ class OrderResource extends Resource
     {
         return [
             PaymentsRelationManager::class,
-            CommissionLogsRelationManager::class,
+            CommissionLogsRelationManager::class,\n            CourierTasksRelationManager::class,
             StatusLogsRelationManager::class,
             ProductionLogsRelationManager::class,
         ];
