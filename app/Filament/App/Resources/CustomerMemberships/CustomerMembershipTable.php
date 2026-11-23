@@ -145,7 +145,6 @@ class CustomerMembershipTable
                                     ->where('tenant_id', Auth::user()?->tenant_id)
                                     ->where('customer_id', $customerId)
                                     ->where('status', CustomerMembership::STATUS_ACTIVE)
-                                    ->where('started_at', '<=', now())
                                     ->where('expired_at', '>', now())
                                     ->first();
 
@@ -198,7 +197,6 @@ class CustomerMembershipTable
                                     ->where('tenant_id', Auth::user()?->tenant_id)
                                     ->where('customer_id', $customerId)
                                     ->where('status', CustomerMembership::STATUS_ACTIVE)
-                                    ->where('started_at', '<=', now())
                                     ->where('expired_at', '>', now())
                                     ->exists();
                             })
@@ -209,7 +207,6 @@ class CustomerMembershipTable
                                     ->where('tenant_id', Auth::user()?->tenant_id)
                                     ->where('customer_id', $customerId)
                                     ->where('status', CustomerMembership::STATUS_ACTIVE)
-                                    ->where('started_at', '<=', now())
                                     ->where('expired_at', '>', now())
                                     ->exists();
                             }),
