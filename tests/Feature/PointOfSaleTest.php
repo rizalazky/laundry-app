@@ -8,6 +8,8 @@ use App\Filament\App\Pages\PointOfSale;
 use App\Models\Branch;
 use App\Models\BranchServicePrice;
 use App\Models\Customer;
+use App\Models\CustomerMembership;
+use App\Models\MemberTier;
 use App\Models\Order;
 use App\Models\Permission;
 use App\Models\RolePermission;
