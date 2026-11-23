@@ -20,7 +20,14 @@ class UpdateCourierTaskStatus
 
         return DB::transaction(function () use ($task, $to, $actor): CourierTask {
             $locked = CourierTask::query()->withoutGlobalScope('tenant')
-                ->whereKey($task->getKey())->lockForUpdate()->firstOrFail();
+                ->where('tenant_id', $actor->tenant_id)
+                ->whereKey($task->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if ($locked === null) {
+                throw new DomainException('Anda tidak memiliki akses ke tugas kurir ini.');
+            }
 
             $isAssignedCourier = (int) $locked->courier_id === (int) $actor->getKey();
             $isManager = in_array($actor->role, ['tenant_owner', 'branch_manager'], true);

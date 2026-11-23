@@ -255,6 +255,43 @@ class CourierTaskTest extends TestCase
         $this->assertSame(OrderStatus::Washing, $updated->status);
     }
 
+    public function test_owner_cannot_update_foreign_tenant_task_through_a_forged_model(): void
+    {
+        [$tenant, , , , $owner] = $this->business();
+        [, , , $foreignOrder, $foreignOwner, $foreignCourier] = $this->business();
+
+        $foreignTask = CourierTask::query()->create([
+            'tenant_id' => $foreignOrder->tenant_id,
+            'order_id' => $foreignOrder->id,
+            'courier_id' => $foreignCourier->id,
+            'created_by' => $foreignOwner->id,
+            'task_type' => CourierTaskType::Pickup,
+            'address' => 'Jl. Melati No. 20',
+            'status' => CourierTaskStatus::Assigned,
+        ]);
+
+        // Simulate a caller supplying the foreign record ID with a forged
+        // tenant_id that passes the action's initial in-memory check.
+        $forgedTask = new CourierTask();
+        $forgedTask->setRawAttributes([
+            'id' => $foreignTask->getKey(),
+            'tenant_id' => $tenant->getKey(),
+        ], true);
+
+        try {
+            app(UpdateCourierTaskStatus::class)->handle(
+                $forgedTask,
+                CourierTaskStatus::Cancelled,
+                $owner,
+            );
+            $this->fail('A tenant owner must not update a task from another tenant.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Anda tidak memiliki akses ke tugas kurir ini.', $exception->getMessage());
+        }
+
+        $this->assertSame(CourierTaskStatus::Assigned, $foreignTask->fresh()->status);
+    }
+
     /**
      * @return array{Tenant, Branch, Customer, Order, User, User}
      */
