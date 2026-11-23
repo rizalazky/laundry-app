@@ -100,14 +100,14 @@ class GetBusinessPerformanceAnalytics
         $promoImpact = (clone $orders)
             ->whereNotNull('orders.promo_id')
             ->where('orders.promo_discount', '>', 0)
-            ->selectRaw("COALESCE(orders.promo_name_snapshot, 'Promo tidak diketahui') as promo_name")
+            ->select('orders.promo_name_snapshot as promo_name')
             ->selectRaw('COUNT(*) as order_count')
             ->selectRaw('SUM(orders.promo_discount) as discount_total')
             ->groupBy('orders.promo_name_snapshot')
             ->orderByDesc('discount_total')
             ->get()
             ->map(fn (object $row): array => [
-                'promo_name' => $row->promo_name,
+                'promo_name' => $row->promo_name ?? 'Promo tidak diketahui',
                 'orders' => (int) $row->order_count,
                 'discount_total' => $this->money((string) $row->discount_total),
             ])
