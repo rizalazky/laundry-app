@@ -120,7 +120,7 @@ class RecordPayment
 
             $locked->recalculatePayment();
 
-            $this->activityLogger->record($user, $type === PaymentType::Refund ? 'payment.refunded' : 'payment.recorded', $payment, [
+            $this->activityLogger->recordForAuthorizedActor($user, $type === PaymentType::Refund ? 'payment.refunded' : 'payment.recorded', $payment, [
                 'order_id' => $locked->getKey(),
                 'invoice_no' => $locked->invoice_no,
                 'branch_id' => $locked->branch_id,
