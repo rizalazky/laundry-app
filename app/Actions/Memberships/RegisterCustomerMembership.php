@@ -2,6 +2,8 @@
 
 namespace App\Actions\Memberships;
 
+use App\Actions\Orders\OrderActionAuthorization;
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\CustomerMembership;
 use App\Models\MemberTier;
@@ -13,18 +15,39 @@ use Illuminate\Validation\ValidationException;
 
 class RegisterCustomerMembership
 {
-    public function handle(User $actor, int $customerId, int $memberTierId, ?Carbon $startedAt = null): CustomerMembership
-    {
-        if (
-            ! $actor->is_active
-            || $actor->tenant_id === null
-            || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
-            || ! $actor->hasPermissionTo('memberships.manage')
-        ) {
-            throw new AuthorizationException('Anda tidak memiliki izin untuk mendaftarkan membership pelanggan.');
+    public function handle(
+        User $actor,
+        Branch $branch,
+        int $customerId,
+        int $memberTierId,
+        ?Carbon $startedAt = null,
+        bool $paymentConfirmed = false,
+        bool $confirmReplacement = false,
+    ): CustomerMembership {
+        if (! $paymentConfirmed) {
+            throw ValidationException::withMessages([
+                'payment_confirmed' => 'Konfirmasi bahwa pembayaran membership telah diterima sebelum aktivasi.',
+            ]);
         }
 
-        return DB::transaction(function () use ($actor, $customerId, $memberTierId, $startedAt): CustomerMembership {
+        app(OrderActionAuthorization::class)->authorizeBranch(
+            $actor,
+            $branch,
+            ['tenant_owner', 'branch_manager', 'cashier'],
+        );
+
+        if (! $actor->hasPermissionTo('memberships.manage')) {
+            throw new AuthorizationException('Anda tidak memiliki izin untuk mengaktifkan membership pelanggan.');
+        }
+
+        return DB::transaction(function () use (
+            $actor,
+            $branch,
+            $customerId,
+            $memberTierId,
+            $startedAt,
+            $confirmReplacement,
+        ): CustomerMembership {
             $customer = Customer::query()
                 ->where('tenant_id', $actor->tenant_id)
                 ->lockForUpdate()
@@ -48,39 +71,63 @@ class RegisterCustomerMembership
                 ]);
             }
 
-            $startsAt = ($startedAt ?? now())->copy();
+            $activatedAt = now();
+            $startsAt = ($startedAt ?? $activatedAt)->copy();
+
+            if ($startsAt->greaterThan($activatedAt)) {
+                throw ValidationException::withMessages([
+                    'started_at' => 'Membership tidak dapat diaktifkan dengan tanggal mulai di masa depan.',
+                ]);
+            }
 
             CustomerMembership::query()
                 ->where('tenant_id', $actor->tenant_id)
                 ->where('customer_id', $customer->id)
                 ->where('status', CustomerMembership::STATUS_ACTIVE)
-                ->where('expired_at', '<=', $startsAt)
+                ->where('expired_at', '<=', $activatedAt)
                 ->update([
                     'status' => CustomerMembership::STATUS_EXPIRED,
-                    'updated_at' => now(),
+                    'updated_at' => $activatedAt,
                 ]);
 
-            $hasActiveMembership = CustomerMembership::query()
+            $activeMembership = CustomerMembership::query()
                 ->where('tenant_id', $actor->tenant_id)
                 ->where('customer_id', $customer->id)
                 ->where('status', CustomerMembership::STATUS_ACTIVE)
-                ->where('expired_at', '>', $startsAt)
-                ->exists();
+                ->where('started_at', '<=', $activatedAt)
+                ->where('expired_at', '>', $activatedAt)
+                ->lockForUpdate()
+                ->with('memberTier')
+                ->first();
 
-            if ($hasActiveMembership) {
+            if ($activeMembership && ! $confirmReplacement) {
+                $tierName = $activeMembership->memberTier?->name ?? 'membership aktif';
+
                 throw ValidationException::withMessages([
-                    'customer_id' => 'Pelanggan masih memiliki membership aktif. Tunggu masa berlaku berakhir sebelum mendaftarkan membership baru.',
+                    'confirm_replacement' => "Customer ini masih memiliki membership {$tierName}. Jika dilanjutkan, membership {$tierName} akan digantikan dengan {$tier->name}. Konfirmasi penggantian untuk melanjutkan.",
                 ]);
             }
 
-            return CustomerMembership::query()->create([
+            $newMembership = CustomerMembership::query()->create([
                 'tenant_id' => $actor->tenant_id,
                 'customer_id' => $customer->id,
                 'member_tier_id' => $tier->id,
                 'started_at' => $startsAt,
                 'expired_at' => $startsAt->copy()->addDays($tier->duration_days),
                 'status' => CustomerMembership::STATUS_ACTIVE,
+                'activated_by' => $actor->getKey(),
+                'activated_at' => $activatedAt,
+                'activated_at_branch_id' => $branch->getKey(),
             ]);
+
+            if ($activeMembership) {
+                $activeMembership->forceFill([
+                    'status' => CustomerMembership::STATUS_REPLACED,
+                    'replaced_by_membership_id' => $newMembership->getKey(),
+                ])->save();
+            }
+
+            return $newMembership->load(['memberTier', 'activatedBy', 'activatedAtBranch']);
         });
     }
 }
