@@ -96,7 +96,7 @@ class GenerateProfitSharings
             foreach ($investors as $investor) {
                 $payout = $netProfit
                     ->multipliedBy((string) $investor->share_percent)
-                    ->dividedBy('100', 2, RoundingMode::HALF_UP);
+                    ->dividedBy('100', 2, RoundingMode::HalfUp);
 
                 $created[] = ProfitSharing::withoutGlobalScope('tenant')->create([
                     'tenant_id' => $tenantId,
