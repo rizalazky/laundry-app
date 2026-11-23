@@ -81,7 +81,7 @@ class WorkshopOperator extends Page
         if ($order === null) {
             Notification::make()
                 ->title('Nota tidak ditemukan')
-                ->body('Pastikan barcode berasal dari order di outlet yang terhubung ke workshop ini.')
+                ->body('Pastikan order memang ditugaskan ke workshop ini.')
                 ->danger()
                 ->send();
 
@@ -308,15 +308,7 @@ class WorkshopOperator extends Page
             ->where('tenant_id', $branch->tenant_id);
 
         if ($branch->is_workshop) {
-            $outletIds = $branch->outlets()
-                ->where('branches.is_active', true)
-                ->pluck('branches.id');
-
-            if ($outletIds->isEmpty()) {
-                return $query->whereRaw('1 = 0');
-            }
-
-            return $query->whereIn('branch_id', $outletIds);
+            return $query->where('workshop_id', $branch->getKey());
         }
 
         return $query->where('branch_id', $branch->getKey());
