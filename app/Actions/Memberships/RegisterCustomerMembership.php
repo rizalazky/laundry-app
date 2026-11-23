@@ -10,6 +10,7 @@ use App\Models\MemberTier;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -28,6 +29,10 @@ class RegisterCustomerMembership
             throw ValidationException::withMessages([
                 'payment_confirmed' => 'Konfirmasi bahwa pembayaran membership telah diterima sebelum aktivasi.',
             ]);
+        }
+
+        if (Auth::id() === null || (int) Auth::id() !== (int) $actor->getKey()) {
+            throw new AuthorizationException('Anda tidak memiliki izin untuk mengaktifkan membership pelanggan.');
         }
 
         $canonicalActor = User::query()->find($actor->getKey());
