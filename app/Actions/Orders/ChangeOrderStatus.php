@@ -4,6 +4,7 @@ namespace App\Actions\Orders;
 
 use App\Actions\Accounting\PostOrderRevenue;
 use App\Actions\Accounting\ReverseOrderRevenue;
+use App\Actions\Loyalty\AwardOrderPoints;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Branch;
@@ -42,38 +43,24 @@ class ChangeOrderStatus
         }
 
         return DB::transaction(function () use ($order, $to, $actor, $note, $workerId, $machineCode): Order {
-            $locked = Order::query()
-                ->withoutGlobalScope('tenant')
-                ->whereKey($order->getKey())
-                ->lockForUpdate()
-                ->firstOrFail();
+            $locked = Order::query()->withoutGlobalScope('tenant')
+                ->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
 
             if ($workerId !== null) {
-                $orderBranch = Branch::query()
-                    ->where('tenant_id', $locked->tenant_id)
-                    ->find($locked->branch_id);
-
+                $orderBranch = Branch::query()->where('tenant_id', $locked->tenant_id)->find($locked->branch_id);
                 $allowedWorkerBranchIds = [$locked->branch_id];
 
                 if ($orderBranch !== null && ! $orderBranch->is_workshop) {
                     $allowedWorkerBranchIds = [
                         ...$allowedWorkerBranchIds,
-                        ...$orderBranch->workshops()
-                            ->where('branches.is_active', true)
-                            ->pluck('branches.id')
-                            ->all(),
+                        ...$orderBranch->workshops()->where('branches.is_active', true)->pluck('branches.id')->all(),
                     ];
                 }
 
-                $workerIsAssignedToOrderLocation = User::query()
-                    ->whereKey($workerId)
-                    ->where('tenant_id', $locked->tenant_id)
-                    ->where('role', 'operator')
-                    ->where('is_active', true)
-                    ->whereHas('branches', fn ($query) => $query
-                        ->whereIn('branches.id', $allowedWorkerBranchIds)
-                        ->where('branches.tenant_id', $locked->tenant_id)
-                        ->where('branches.is_active', true))
+                $workerIsAssignedToOrderLocation = User::query()->whereKey($workerId)
+                    ->where('tenant_id', $locked->tenant_id)->where('role', 'operator')->where('is_active', true)
+                    ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $allowedWorkerBranchIds)
+                        ->where('branches.tenant_id', $locked->tenant_id)->where('branches.is_active', true))
                     ->exists();
 
                 if (! $workerIsAssignedToOrderLocation) {
@@ -103,26 +90,17 @@ class ChangeOrderStatus
             $from = $locked->status;
             $transitionedAt = now();
 
-            ProductionLog::query()
-                ->where('tenant_id', $locked->tenant_id)
-                ->where('order_id', $locked->getKey())
-                ->whereNull('finished_at')
-                ->lockForUpdate()
-                ->update([
-                    'finished_at' => $transitionedAt,
-                    'updated_at' => $transitionedAt,
-                ]);
+            ProductionLog::query()->where('tenant_id', $locked->tenant_id)
+                ->where('order_id', $locked->getKey())->whereNull('finished_at')
+                ->lockForUpdate()->update(['finished_at' => $transitionedAt, 'updated_at' => $transitionedAt]);
 
             $productionStage = $this->productionStageFor($to);
 
             if ($productionStage !== null) {
                 ProductionLog::query()->create([
-                    'tenant_id' => $locked->tenant_id,
-                    'order_id' => $locked->getKey(),
-                    'stage' => $productionStage,
-                    'worker_id' => $workerId,
-                    'machine_code' => $machineCode,
-                    'started_at' => $transitionedAt,
+                    'tenant_id' => $locked->tenant_id, 'order_id' => $locked->getKey(),
+                    'stage' => $productionStage, 'worker_id' => $workerId,
+                    'machine_code' => $machineCode, 'started_at' => $transitionedAt,
                 ]);
             }
 
@@ -130,22 +108,19 @@ class ChangeOrderStatus
 
             if ($to === OrderStatus::Cancelled) {
                 app(PostOrderRevenue::class)->handle($locked);
-
                 app(ReverseOrderRevenue::class)->handle(
-                    order: $locked,
-                    cancelledAt: $transitionedAt,
-                    createdBy: (int) $actor->getKey(),
+                    order: $locked, cancelledAt: $transitionedAt, createdBy: (int) $actor->getKey(),
                 );
             }
 
+            if ($to === OrderStatus::Completed && $locked->payment_status === PaymentStatus::Paid) {
+                app(AwardOrderPoints::class)->handle($locked);
+            }
+
             OrderStatusLog::query()->create([
-                'order_id' => $locked->getKey(),
-                'user_id' => $actor->getKey(),
-                'worker_id' => $workerId,
-                'machine_code' => $machineCode,
-                'from_status' => $from,
-                'to_status' => $to,
-                'note' => $note,
+                'order_id' => $locked->getKey(), 'user_id' => $actor->getKey(),
+                'worker_id' => $workerId, 'machine_code' => $machineCode,
+                'from_status' => $from, 'to_status' => $to, 'note' => $note,
             ]);
 
             $order->refresh();
