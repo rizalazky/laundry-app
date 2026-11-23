@@ -1,19 +1,19 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Actions\\Accounting\\ManageEdcMachine;
-use App\\Models\\BankAccount;
-use App\\Models\\Branch;
-use App\\Models\\ChartOfAccount;
-use App\\Models\\EdcMachine;
-use App\\Models\\Permission;
-use App\\Models\\RolePermission;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Validation\\ValidationException;
-use Tests\\TestCase;
+use App\Actions\Accounting\ManageEdcMachine;
+use App\Models\BankAccount;
+use App\Models\Branch;
+use App\Models\ChartOfAccount;
+use App\Models\EdcMachine;
+use App\Models\Permission;
+use App\Models\RolePermission;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
+use Tests\TestCase;
 
 class ManageEdcMachineTest extends TestCase
 {
