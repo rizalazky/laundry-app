@@ -2,6 +2,7 @@
 
 namespace App\Filament\App\Resources\Orders\Tables;
 
+use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
@@ -27,6 +28,12 @@ class OrdersTable
                 TextColumn::make('customer.name')
                     ->label('Pelanggan')
                     ->searchable(),
+
+                TextColumn::make('order_source')
+                    ->label('Sumber Order')
+                    ->badge()
+                    ->formatStateUsing(fn (OrderSource $state): string => $state->label())
+                    ->color('gray'),
 
                 TextColumn::make('status')
                     ->label('Status')
@@ -66,6 +73,10 @@ class OrdersTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('order_source')
+                    ->label('Sumber Order')
+                    ->options(OrderSource::options()),
+
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options(OrderStatus::options())
