@@ -23,6 +23,8 @@ class PermissionSeeder extends Seeder
             ['name' => 'Kelola Membership Pelanggan', 'slug' => 'memberships.manage', 'group' => 'Pelanggan'],
             ['name' => 'Lihat Promo dan Voucher', 'slug' => 'promotions.view', 'group' => 'Promosi'],
             ['name' => 'Kelola Promo dan Voucher', 'slug' => 'promotions.manage', 'group' => 'Promosi'],
+            ['name' => 'Lihat Poin dan Hadiah', 'slug' => 'loyalty.view', 'group' => 'Promosi'],
+            ['name' => 'Kelola Poin dan Hadiah', 'slug' => 'loyalty.manage', 'group' => 'Promosi'],
             ['name' => 'Lihat Afiliasi', 'slug' => 'affiliates.view', 'group' => 'Afiliasi'],
             ['name' => 'Kelola Afiliasi', 'slug' => 'affiliates.manage', 'group' => 'Afiliasi'],
             ['name' => 'Lihat Layanan', 'slug' => 'services.view', 'group' => 'Layanan'],
@@ -43,10 +45,7 @@ class PermissionSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::query()->updateOrCreate(
-                ['slug' => $permission['slug']],
-                $permission,
-            );
+            Permission::query()->updateOrCreate(['slug' => $permission['slug']], $permission);
         }
     }
 }
