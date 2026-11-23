@@ -176,6 +176,7 @@ class CustomerMembershipTable
                                 ])
                                 ->all())
                             ->searchable()
+                            ->live()
                             ->required(),
 
                         DateTimePicker::make('started_at')
