@@ -12,6 +12,11 @@ use App\Models\Branch;
 use App\Models\Permission;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\StockMovement;
+use App\Models\Journal;
+use App\Models\InventoryItem;
+use App\Models\InventoryUnit;
+use App\Enums\StockMovementType;
 use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
@@ -157,6 +162,108 @@ class ActivityLogTest extends TestCase
         $this->assertNotContains($outsideLog->id, $visibleIds);
         $this->assertNotContains($outsideOrderLog->id, $visibleIds);
         $this->assertNotContains($foreignLog->id, $visibleIds);
+    }
+
+    public function test_stock_and_journal_activity_is_recorded_and_branch_manager_visibility_is_scoped(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $assignedBranch = Branch::factory()->for($tenant)->create();
+        $outsideBranch = Branch::factory()->for($tenant)->create();
+        $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($assignedBranch);
+        $this->grantPermission($tenant, 'branch_manager', 'staff.view');
+
+        $unit = InventoryUnit::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => 'kg',
+            'name' => 'Kilogram',
+            'decimal_places' => 2,
+            'is_active' => true,
+        ]);
+        $item = InventoryItem::query()->create([
+            'tenant_id' => $tenant->id,
+            'sku' => 'AUDIT-001',
+            'name' => 'Bahan Audit',
+            'unit' => 'Kilogram',
+            'base_unit_id' => $unit->id,
+            'purchase_unit_id' => $unit->id,
+            'purchase_unit_conversion_factor' => 1,
+            'item_category' => 'raw_material',
+            'min_stock' => 0,
+        ]);
+
+        $assignedMovement = StockMovement::query()->withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $assignedBranch->id,
+            'inventory_item_id' => $item->id,
+            'movement_type' => StockMovementType::In,
+            'quantity' => '5.0000',
+            'stock_before' => '0.0000',
+            'stock_after' => '5.0000',
+            'unit_cost' => '0.00',
+            'created_by' => $manager->id,
+            'created_at' => now(),
+        ]);
+
+        $outsideMovement = StockMovement::query()->withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $outsideBranch->id,
+            'inventory_item_id' => $item->id,
+            'movement_type' => StockMovementType::In,
+            'quantity' => '3.0000',
+            'stock_before' => '0.0000',
+            'stock_after' => '3.0000',
+            'unit_cost' => '0.00',
+            'created_by' => $manager->id,
+            'created_at' => now(),
+        ]);
+
+        $assignedJournal = Journal::query()->withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $assignedBranch->id,
+            'journal_date' => now(),
+            'reference_type' => 'manual',
+            'reference_id' => 901,
+            'description' => 'Jurnal cabang terkelola',
+            'created_by' => $manager->id,
+        ]);
+
+        $outsideJournal = Journal::query()->withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $outsideBranch->id,
+            'journal_date' => now(),
+            'reference_type' => 'manual',
+            'reference_id' => 902,
+            'description' => 'Jurnal cabang lain',
+            'created_by' => $manager->id,
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'inventory.stock_moved',
+            'subject_type' => StockMovement::class,
+            'subject_id' => $assignedMovement->id,
+        ]);
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'accounting.journal_created',
+            'subject_type' => Journal::class,
+            'subject_id' => $assignedJournal->id,
+        ]);
+
+        $this->actingAs($manager);
+        $visibleLogs = ActivityLogResource::getEloquentQuery()->get();
+
+        $this->assertTrue($visibleLogs->contains(
+            fn (ActivityLog $log): bool => $log->subject_type === StockMovement::class && (int) $log->subject_id === $assignedMovement->id,
+        ));
+        $this->assertTrue($visibleLogs->contains(
+            fn (ActivityLog $log): bool => $log->subject_type === Journal::class && (int) $log->subject_id === $assignedJournal->id,
+        ));
+        $this->assertFalse($visibleLogs->contains(
+            fn (ActivityLog $log): bool => $log->subject_type === StockMovement::class && (int) $log->subject_id === $outsideMovement->id,
+        ));
+        $this->assertFalse($visibleLogs->contains(
+            fn (ActivityLog $log): bool => $log->subject_type === Journal::class && (int) $log->subject_id === $outsideJournal->id,
+        ));
     }
 
     public function test_cashier_cannot_open_activity_log_resource(): void
