@@ -194,7 +194,7 @@ class CustomerMembershipTest extends TestCase
         } catch (RuntimeException $exception) {
             $this->assertSame('Simulated replacement write failure.', $exception->getMessage());
         } finally {
-            CustomerMembership::flushEventListeners();
+            Event::forget('eloquent.updating: '.CustomerMembership::class);
         }
 
         $this->assertDatabaseCount('customer_memberships', 1);
