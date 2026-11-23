@@ -22,6 +22,7 @@ class OrderItem extends Model
         'quantity',
         'unit_price',
         'subtotal',
+        'commission_snapshot',
     ];
 
     protected function casts(): array
@@ -31,6 +32,7 @@ class OrderItem extends Model
             'quantity' => 'decimal:2',
             'unit_price' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'commission_snapshot' => 'decimal:2',
         ];
     }
 

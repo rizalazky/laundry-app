@@ -51,6 +51,26 @@ class ServiceForm
                             ->prefix('Rp')
                             ->required(),
 
+                        Select::make('commission_method')
+                            ->label('Metode Komisi')
+                            ->options([
+                                'fixed' => 'Nominal Tetap per Satuan',
+                                'percentage' => 'Persentase dari Harga Setelah Diskon',
+                            ])
+                            ->default('fixed')
+                            ->required()
+                            ->native(false),
+
+                        TextInput::make('commission_value')
+                            ->label(fn (Get $get): string => $get('commission_method') === 'percentage' ? 'Persentase Komisi' : 'Komisi per Satuan')
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue(fn (Get $get): int => $get('commission_method') === 'percentage' ? 100 : 9999999999)
+                            ->prefix(fn (Get $get): ?string => $get('commission_method') === 'percentage' ? null : 'Rp')
+                            ->suffix(fn (Get $get): ?string => $get('commission_method') === 'percentage' ? '%' : null)
+                            ->default(0)
+                            ->required(),
+
                         TextInput::make('estimated_hours')
                             ->label('Estimasi Pengerjaan')
                             ->numeric()

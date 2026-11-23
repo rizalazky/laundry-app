@@ -159,6 +159,31 @@ class CreateOrder
             }
 
             $total = $subtotal->minus($totalDiscount);
+
+            foreach ($lines as &$line) {
+                $service = $services->get((int) $line['service_id']);
+                $quantity = BigDecimal::of($line['quantity']);
+                $lineSubtotal = BigDecimal::of($line['subtotal']);
+                $discountedLineSubtotal = $subtotal->isZero()
+                    ? BigDecimal::zero()
+                    : $lineSubtotal->multipliedBy($total)->dividedBy($subtotal, 8, RoundingMode::HalfUp);
+                $discountedUnitPrice = $quantity->isZero()
+                    ? BigDecimal::zero()
+                    : $discountedLineSubtotal->dividedBy($quantity, 8, RoundingMode::HalfUp);
+                $commissionValue = BigDecimal::of($service->commission_value ?? '0');
+
+                $commission = match ($service->commission_method ?? 'fixed') {
+                    'percentage' => $discountedUnitPrice
+                        ->multipliedBy($commissionValue)
+                        ->dividedBy(BigDecimal::of(100), 8, RoundingMode::HalfUp)
+                        ->multipliedBy($quantity),
+                    default => $commissionValue->multipliedBy($quantity),
+                };
+
+                $line['commission_snapshot'] = (string) $commission->toScale(2, RoundingMode::HalfUp);
+            }
+            unset($line);
+
             $orderDate = now();
             $maxHours = $services->max('estimated_hours') ?: $branch->tenant->getDefaultEstimationHours();
 

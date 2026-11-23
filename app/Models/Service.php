@@ -19,6 +19,8 @@ class Service extends Model
         'unit',
         'price',
         'estimated_hours',
+        'commission_method',
+        'commission_value',
         'is_active',
     ];
 
@@ -28,6 +30,7 @@ class Service extends Model
             'unit' => ServiceUnit::class,
             'price' => 'decimal:2',
             'estimated_hours' => 'integer',
+            'commission_value' => 'decimal:2',
             'is_active' => 'boolean',
         ];
     }

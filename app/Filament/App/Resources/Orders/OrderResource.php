@@ -8,6 +8,7 @@ use App\Filament\App\Resources\Orders\Pages\CreateOrder;
 use App\Filament\App\Resources\Orders\Pages\ListOrders;
 use App\Filament\App\Resources\Orders\Pages\ViewOrder;
 use App\Filament\App\Resources\Orders\RelationManagers\PaymentsRelationManager;
+use App\Filament\App\Resources\Orders\RelationManagers\CommissionLogsRelationManager;
 use App\Filament\App\Resources\Orders\RelationManagers\ProductionLogsRelationManager;
 use App\Filament\App\Resources\Orders\RelationManagers\StatusLogsRelationManager;
 use App\Filament\App\Resources\Orders\Schemas\OrderForm;
@@ -54,6 +55,7 @@ class OrderResource extends Resource
     {
         return [
             PaymentsRelationManager::class,
+            CommissionLogsRelationManager::class,
             StatusLogsRelationManager::class,
             ProductionLogsRelationManager::class,
         ];

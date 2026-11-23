@@ -32,6 +32,12 @@ class ServicesTable
                     ->money('IDR', locale: 'id')
                     ->sortable(),
 
+                TextColumn::make('commission_value')
+                    ->label('Komisi')
+                    ->formatStateUsing(fn ($state, $record): string => $record->commission_method === 'percentage'
+                        ? number_format((float) $state, 2, ',', '.').' %'
+                        : 'Rp '.number_format((float) $state, 0, ',', '.').' / '.$record->unit->label()),
+
                 TextColumn::make('estimated_hours')
                     ->label('Estimasi')
                     ->suffix(' jam')

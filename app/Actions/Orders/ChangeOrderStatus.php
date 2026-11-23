@@ -4,6 +4,7 @@ namespace App\Actions\Orders;
 
 use App\Actions\Accounting\PostOrderRevenue;
 use App\Actions\Accounting\ReverseOrderRevenue;
+use App\Actions\Commissions\AwardOrderCommissions;
 use App\Actions\Loyalty\AwardOrderPoints;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
@@ -90,6 +91,10 @@ class ChangeOrderStatus
             ProductionLog::query()->where('tenant_id', $locked->tenant_id)
                 ->where('order_id', $locked->getKey())->whereNull('finished_at')
                 ->lockForUpdate()->update(['finished_at' => $transitionedAt, 'updated_at' => $transitionedAt]);
+
+            if ($to === OrderStatus::Ready) {
+                app(AwardOrderCommissions::class)->handle($locked, $transitionedAt);
+            }
 
             $productionStage = $this->productionStageFor($to);
 
