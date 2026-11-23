@@ -164,6 +164,7 @@ class OrderAccountingPostingTest extends TestCase
         );
 
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
 
         $refund = app(RecordPayment::class)->handle(
             order: $order,
@@ -197,6 +198,7 @@ class OrderAccountingPostingTest extends TestCase
         );
 
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
 
         app(ChangeOrderStatus::class)->handle(
             order: $order,

@@ -85,7 +85,8 @@ class OrderLifecycleIntegrationTest extends TestCase
         $this->assertSame($workshop->id, $order->workshop_id);
         $pos->assertSee($order->invoice_no);
 
-        // Pickup: the assigned courier accepts and completes the pickup task.
+        // Dispatch tasks as the owner, then process them as the assigned courier.
+        $this->actingAs($owner);
         $pickup = app(CreateCourierTask::class)->handle(
             order: $order,
             type: CourierTaskType::Pickup,
@@ -94,6 +95,7 @@ class OrderLifecycleIntegrationTest extends TestCase
             user: $owner,
         );
 
+        $this->actingAs($courier);
         app(UpdateCourierTaskStatus::class)->handle($pickup, CourierTaskStatus::InProgress, $courier);
         $pickup = app(UpdateCourierTaskStatus::class)->handle(
             $pickup->fresh(),
@@ -133,6 +135,7 @@ class OrderLifecycleIntegrationTest extends TestCase
         );
 
         // Delivery: dispatch only after production reaches Ready.
+        $this->actingAs($owner);
         $delivery = app(CreateCourierTask::class)->handle(
             order: $order,
             type: CourierTaskType::Delivery,
@@ -141,6 +144,7 @@ class OrderLifecycleIntegrationTest extends TestCase
             user: $owner,
         );
 
+        $this->actingAs($courier);
         app(UpdateCourierTaskStatus::class)->handle($delivery, CourierTaskStatus::InProgress, $courier);
         $delivery = app(UpdateCourierTaskStatus::class)->handle(
             $delivery->fresh(),

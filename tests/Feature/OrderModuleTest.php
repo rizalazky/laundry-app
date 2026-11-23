@@ -364,8 +364,9 @@ class OrderModuleTest extends TestCase
 
     public function test_installments_can_be_recorded_from_the_order_page_until_fully_paid(): void
     {
-        $this->actAsInPanel($this->staff('cashier'));
-        $order = $this->makeOrder();
+        $cashier = $this->staff('cashier');
+        $this->actAsInPanel($cashier);
+        $order = $this->makeOrder(by: $cashier);
 
         $page = Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()]);
 
@@ -384,8 +385,9 @@ class OrderModuleTest extends TestCase
 
     public function test_payment_above_the_remaining_balance_is_blocked_by_the_form(): void
     {
-        $this->actAsInPanel($this->staff('cashier'));
-        $order = $this->makeOrder();
+        $cashier = $this->staff('cashier');
+        $this->actAsInPanel($cashier);
+        $order = $this->makeOrder(by: $cashier);
 
         Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
             ->callAction('recordPayment', ['amount' => 70001, 'method' => 'cash'])
@@ -417,8 +419,8 @@ class OrderModuleTest extends TestCase
     {
         $cashier = $this->staff('cashier');
         $operator = $this->staff('operator');
+        $order = $this->makeOrder(by: $cashier);
         $this->actAsInPanel($cashier);
-        $order = $this->makeOrder();
 
         $page = Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()]);
 
@@ -445,8 +447,9 @@ class OrderModuleTest extends TestCase
 
     public function test_operator_can_update_production_status_but_cannot_record_payments(): void
     {
-        $this->actAsInPanel($this->staff('operator'));
+        $operator = $this->staff('operator');
         $order = $this->makeOrder();
+        $this->actAsInPanel($operator);
 
         $page = Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()]);
 
@@ -477,8 +480,8 @@ class OrderModuleTest extends TestCase
         $otherBranch = Branch::factory()->for($this->tenant)->create(['code' => 'DGO']);
         $cashier = $this->staff('cashier');
         $foreignOperator = $this->staff('operator', $otherBranch);
+        $order = $this->makeOrder(by: $cashier);
         $this->actAsInPanel($cashier);
-        $order = $this->makeOrder();
 
         Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
             ->callAction('changeStatus', [

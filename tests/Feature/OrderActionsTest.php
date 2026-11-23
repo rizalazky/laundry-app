@@ -743,4 +743,23 @@ class OrderActionsTest extends TestCase
         $this->assertSame('Mulai proses cuci', $log->properties['note']);
     }
 
+    public function test_order_actions_reject_a_forged_manager_actor_when_authenticated_as_cashier(): void
+    {
+        $order = $this->createOrder();
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+        $this->actingAs($this->cashier);
+        $this->expectException(DomainException::class);
+        app(RecordPayment::class)->handle($order, 1000, PaymentMethod::Cash, $manager);
+    }
+
+    public function test_order_status_action_rejects_a_forged_manager_actor_when_authenticated_as_cashier(): void
+    {
+        $order = $this->createOrder();
+        $manager = User::factory()->for($this->tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($this->branch);
+        $this->actingAs($this->cashier);
+        $this->expectException(DomainException::class);
+        app(ChangeOrderStatus::class)->handle($order, OrderStatus::Cancelled, $manager);
+    }
 }
