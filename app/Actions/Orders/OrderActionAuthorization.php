@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Tenant;
 use App\Models\User;
 use DomainException;
+use Illuminate\Support\Facades\Auth;
 
 class OrderActionAuthorization
 {
@@ -18,7 +19,7 @@ class OrderActionAuthorization
      */
     public function authorizeBranch(User $user, Branch $branch, array $allowedRoles, bool $requireActiveBusiness = true): Branch
     {
-        $actor = User::query()->find($user->getKey());
+        $actor = $this->canonicalActor($user);
 
         if ($actor === null || ! $actor->is_active || ! in_array($actor->role, $allowedRoles, true) || $actor->tenant_id === null) {
             throw new DomainException('Anda tidak memiliki izin untuk melakukan tindakan ini.');
@@ -61,6 +62,8 @@ class OrderActionAuthorization
         bool $requireActiveBusiness = true,
         bool $allowMappedWorkshopAccess = false,
     ): Order {
+        $actor = $this->canonicalActor($user);
+
         $lockedOrder = Order::query()
             ->withoutGlobalScope('tenant')
             ->whereKey($order->getKey())
@@ -79,10 +82,8 @@ class OrderActionAuthorization
             throw new DomainException('Cabang order tidak valid.');
         }
 
-        if ($allowMappedWorkshopAccess && $user->role === 'operator') {
-            $actor = User::query()->find($user->getKey());
-
-            if ($actor === null || ! $actor->is_active || ! in_array($actor->role, $allowedRoles, true) || (int) $actor->tenant_id !== (int) $lockedOrder->tenant_id) {
+        if ($allowMappedWorkshopAccess && $actor->role === 'operator') {
+            if (! in_array($actor->role, $allowedRoles, true) || (int) $actor->tenant_id !== (int) $lockedOrder->tenant_id) {
                 throw new DomainException('Anda tidak memiliki izin untuk melakukan tindakan ini.');
             }
 
@@ -113,8 +114,23 @@ class OrderActionAuthorization
             return $lockedOrder;
         }
 
-        $this->authorizeBranch($user, $branch, $allowedRoles, $requireActiveBusiness);
+        $this->authorizeBranch($actor, $branch, $allowedRoles, $requireActiveBusiness);
 
         return $lockedOrder;
+    }
+
+    private function canonicalActor(User $user): User
+    {
+        if (Auth::hasUser() && (int) Auth::id() !== (int) $user->getKey()) {
+            throw new DomainException('Anda tidak memiliki izin untuk melakukan tindakan ini.');
+        }
+
+        $actor = User::query()->find($user->getKey());
+
+        if ($actor === null) {
+            throw new DomainException('Anda tidak memiliki izin untuk melakukan tindakan ini.');
+        }
+
+        return $actor;
     }
 }
