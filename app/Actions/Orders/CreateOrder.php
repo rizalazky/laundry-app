@@ -88,6 +88,28 @@ class CreateOrder
                 throw new DomainException('Pelanggan tidak ditemukan.');
             }
 
+            $membership = CustomerMembership::query()
+                ->withoutGlobalScope('tenant')
+                ->where('tenant_id', $branch->tenant_id)
+                ->where('customer_id', $customer->getKey())
+                ->where('status', CustomerMembership::STATUS_ACTIVE)
+                ->where('started_at', '<=', now())
+                ->where('expired_at', '>', now())
+                ->lockForUpdate()
+                ->orderByDesc('started_at')
+                ->first();
+
+            $memberTier = $membership
+                ? MemberTier::query()
+                    ->withoutGlobalScope('tenant')
+                    ->where('tenant_id', $branch->tenant_id)
+                    ->find($membership->member_tier_id)
+                : null;
+
+            if ($membership !== null && $memberTier === null) {
+                throw new DomainException('Tier membership pelanggan tidak ditemukan.');
+            }
+
             $services = Service::query()
                 ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $branch->tenant_id)
@@ -141,6 +163,22 @@ class CreateOrder
                 throw new DomainException('Diskon tidak boleh negatif atau melebihi subtotal.');
             }
 
+            $membershipDiscountPercent = BigDecimal::zero();
+            $membershipDiscount = BigDecimal::zero();
+
+            if ($memberTier !== null) {
+                $membershipDiscountPercent = BigDecimal::of((string) $memberTier->discount_percent)
+                    ->toScale(2, RoundingMode::HalfUp);
+
+                if ($membershipDiscountPercent->isLessThan(0) || $membershipDiscountPercent->isGreaterThan(100)) {
+                    throw new DomainException('Persentase diskon membership harus antara 0 dan 100%.');
+                }
+
+                $membershipDiscount = $subtotal
+                    ->multipliedBy($membershipDiscountPercent)
+                    ->dividedBy(100, 2, RoundingMode::HalfUp);
+            }
+
             $promotion = null;
 
             if (filled($voucherCode)) {
@@ -152,7 +190,7 @@ class CreateOrder
             }
 
             $promoDiscount = $promotion['discount'] ?? BigDecimal::zero();
-            $totalDiscount = $manualDiscount->plus($promoDiscount)->toScale(2, RoundingMode::HalfUp);
+            $totalDiscount = $manualDiscount->plus($membershipDiscount)->plus($promoDiscount)->toScale(2, RoundingMode::HalfUp);
 
             if ($totalDiscount->isGreaterThan($subtotal)) {
                 throw new DomainException('Total diskon tidak boleh melebihi subtotal.');
@@ -199,6 +237,12 @@ class CreateOrder
                 'due_at' => $dueAt ?? ($maxHours ? $orderDate->copy()->addHours((int) $maxHours) : null),
                 'subtotal' => (string) $subtotal,
                 'discount' => (string) $totalDiscount,
+                'manual_discount' => (string) $manualDiscount,
+                'customer_membership_id' => $membership?->getKey(),
+                'member_tier_id' => $memberTier?->getKey(),
+                'member_tier_name_snapshot' => $memberTier?->name,
+                'membership_discount_percent_snapshot' => (string) $membershipDiscountPercent,
+                'membership_discount' => (string) $membershipDiscount,
                 'total' => (string) $total,
                 'promo_id' => ($promotion['promo'] ?? null)?->getKey(),
                 'voucher_id' => ($promotion['voucher'] ?? null)?->getKey(),
