@@ -16,7 +16,7 @@ class StockMovementObserver
 
         $actor = User::query()->find($movement->created_by);
 
-        if ($actor === null) {
+        if ($actor === null || (int) $actor->tenant_id !== (int) $movement->tenant_id) {
             return;
         }
 

@@ -16,7 +16,7 @@ class JournalObserver
 
         $actor = User::query()->find($journal->created_by);
 
-        if ($actor === null) {
+        if ($actor === null || (int) $actor->tenant_id !== (int) $journal->tenant_id) {
             return;
         }
 
