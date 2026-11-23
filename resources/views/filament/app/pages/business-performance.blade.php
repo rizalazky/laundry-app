@@ -171,7 +171,8 @@
                                 <th class="numeric">Pesanan ditangani</th>
                                 <th class="numeric">Tahap produksi</th>
                                 <th class="numeric">Tahap selesai</th>
-                                <th class="numeric">Catatan kehadiran</th>\n                                <th class="numeric">Komisi diperoleh</th>
+                                <th class="numeric">Catatan kehadiran</th>
+                                <th class="numeric">Komisi diperoleh</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -181,7 +182,8 @@
                                     <td class="numeric">{{ number_format($employee['assigned_orders'], 0, ',', '.') }}</td>
                                     <td class="numeric">{{ number_format($employee['production_stages'], 0, ',', '.') }}</td>
                                     <td class="numeric">{{ number_format($employee['completed_stages'], 0, ',', '.') }}</td>
-                                    <td class="numeric">{{ number_format($employee['attendance_records'], 0, ',', '.') }}</td>\n                                    <td class="numeric">{{ $this->formatMoney($employee['commission_earned']) }}</td>
+                                    <td class="numeric">{{ number_format($employee['attendance_records'], 0, ',', '.') }}</td>
+                                    <td class="numeric">{{ $this->formatMoney($employee['commission_earned']) }}</td>
                                 </tr>
                             @empty
                                 <tr><td colspan="6" class="business-performance__empty">Belum ada aktivitas produksi atau komisi pada periode ini.</td></tr>
