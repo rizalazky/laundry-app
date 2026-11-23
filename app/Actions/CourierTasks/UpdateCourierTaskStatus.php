@@ -41,7 +41,15 @@ class UpdateCourierTaskStatus
                 }
             }
 
-            if ($to !== CourierTaskStatus::Cancelled && ! $actor->hasPermissionTo('courier_tasks.update')) {\n                throw new DomainException('Anda tidak memiliki izin memperbarui tugas kurir.');\n            }\n\n            if ($to === CourierTaskStatus::Cancelled && ! $actor->hasPermissionTo('courier_tasks.manage')) {\n                throw new DomainException('Anda tidak memiliki izin membatalkan tugas kurir.');\n            }\n\n            if ($to === CourierTaskStatus::InProgress && $locked->status !== CourierTaskStatus::Assigned) {
+            if ($to !== CourierTaskStatus::Cancelled && ! $actor->hasPermissionTo('courier_tasks.update')) {
+                throw new DomainException('Anda tidak memiliki izin memperbarui tugas kurir.');
+            }
+
+            if ($to === CourierTaskStatus::Cancelled && ! $actor->hasPermissionTo('courier_tasks.manage')) {
+                throw new DomainException('Anda tidak memiliki izin membatalkan tugas kurir.');
+            }
+
+            if ($to === CourierTaskStatus::InProgress && $locked->status !== CourierTaskStatus::Assigned) {
                 throw new DomainException('Tugas hanya dapat dimulai dari status Ditugaskan.');
             }
 
