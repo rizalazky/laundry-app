@@ -29,6 +29,10 @@ class UpdateCourierTaskStatus
                 throw new DomainException('Hanya kurir yang ditugaskan atau pengelola cabang yang dapat memperbarui tugas ini.');
             }
 
+            if ($to !== CourierTaskStatus::Cancelled && ! $isAssignedCourier) {
+                throw new DomainException('Hanya kurir yang ditugaskan yang dapat memulai atau menyelesaikan tugas ini.');
+            }
+
             if ($isManager && ! $isAssignedCourier && $actor->role !== 'tenant_owner') {
                 $hasBranchAccess = $actor->branches()
                     ->whereKey($locked->order()->value('branch_id'))
