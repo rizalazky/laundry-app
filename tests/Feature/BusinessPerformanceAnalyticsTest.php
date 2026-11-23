@@ -126,6 +126,7 @@ class BusinessPerformanceAnalyticsTest extends TestCase
             'production_stages' => 2,
             'completed_stages' => 1,
             'attendance_records' => 1,
+            'commission_earned' => '0.00',
         ], $analytics['employees'][0]);
     }
 
