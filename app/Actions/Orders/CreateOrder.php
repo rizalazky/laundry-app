@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Actions\Accounting\PostOrderRevenue;
+use App\Enums\OrderSource;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
@@ -44,6 +45,7 @@ class CreateOrder
         ?CarbonInterface $dueAt = null,
         ?array $initialPayment = null,
         ?string $voucherCode = null,
+        OrderSource $source = OrderSource::Pos,
     ): Order {
         if ($items === []) {
             throw new DomainException('Order harus memiliki minimal satu layanan.');
@@ -55,7 +57,7 @@ class CreateOrder
             ['tenant_owner', 'branch_manager', 'cashier'],
         );
 
-        return DB::transaction(function () use ($branch, $user, $customerId, $items, $discount, $notes, $dueAt, $initialPayment, $voucherCode): Order {
+        return DB::transaction(function () use ($branch, $user, $customerId, $items, $discount, $notes, $dueAt, $initialPayment, $voucherCode, $source): Order {
             $customer = Customer::query()
                 ->withoutGlobalScope('tenant')
                 ->where('tenant_id', $branch->tenant_id)
@@ -145,6 +147,7 @@ class CreateOrder
                 'customer_id' => $customer->getKey(),
                 'created_by' => $user->getKey(),
                 'invoice_no' => $this->generateInvoiceNumber->handle($branch, $orderDate),
+                'order_source' => $source->value,
                 'order_date' => $orderDate,
                 'due_at' => $dueAt ?? ($maxHours ? $orderDate->copy()->addHours((int) $maxHours) : null),
                 'subtotal' => (string) $subtotal,
