@@ -60,6 +60,24 @@ class CourierTaskTest extends TestCase
         }
     }
 
+
+    public function test_delivery_can_be_assigned_when_order_is_ready(): void
+    {
+        [, , , $order, $owner, $courier] = $this->business();
+        $order->forceFill(['status' => OrderStatus::Ready])->save();
+
+        $task = app(CreateCourierTask::class)->handle(
+            order: $order->fresh(),
+            type: CourierTaskType::Delivery,
+            address: 'Jl. Mawar No. 10',
+            courierId: (int) $courier->id,
+            user: $owner,
+        );
+
+        $this->assertSame(CourierTaskType::Delivery, $task->task_type);
+        $this->assertSame(CourierTaskStatus::Assigned, $task->status);
+    }
+
     public function test_pickup_cannot_be_created_twice_while_an_active_task_exists(): void
     {
         [, , , $order, $owner, $courier] = $this->business();
