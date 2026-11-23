@@ -8,10 +8,15 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::table('branches', function (Blueprint $table) {
+            $table->unique(['id', 'tenant_id'], 'branches_id_tenant_unique');
+        });
+
         Schema::create('loyalty_point_rules', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->unsignedBigInteger('branch_id');
+            $table->string('name');
             $table->string('target_type', 30);
             $table->unsignedBigInteger('member_tier_id')->nullable();
             $table->decimal('amount_step', 15, 2);
@@ -38,10 +43,34 @@ return new class extends Migration
             $table->foreign('loyalty_point_rule_id', 'point_logs_rule_foreign')
                 ->references('id')->on('loyalty_point_rules')->nullOnDelete();
         });
+
+        Schema::create('loyalty_point_lots', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('loyalty_point_rule_id');
+            $table->unsignedBigInteger('transaction_id');
+            $table->unsignedInteger('points_awarded');
+            $table->unsignedInteger('points_remaining');
+            $table->timestamp('expires_at');
+            $table->timestamp('expired_at')->nullable();
+            $table->timestamps();
+
+            $table->unique(['transaction_id', 'loyalty_point_rule_id'], 'loyalty_point_lots_order_rule_unique');
+            $table->index(['tenant_id', 'customer_id', 'expires_at', 'points_remaining'], 'loyalty_point_lots_expiry_index');
+            $table->foreign(['customer_id', 'tenant_id'], 'loyalty_point_lots_customer_tenant_foreign')
+                ->references(['id', 'tenant_id'])->on('customers')->cascadeOnDelete();
+            $table->foreign(['loyalty_point_rule_id', 'tenant_id'], 'loyalty_point_lots_rule_tenant_foreign')
+                ->references(['id', 'tenant_id'])->on('loyalty_point_rules')->restrictOnDelete();
+            $table->foreign(['transaction_id', 'tenant_id'], 'loyalty_point_lots_order_tenant_foreign')
+                ->references(['id', 'tenant_id'])->on('orders')->restrictOnDelete();
+        });
     }
 
     public function down(): void
     {
+        Schema::dropIfExists('loyalty_point_lots');
+
         Schema::table('point_logs', function (Blueprint $table) {
             $table->dropForeign('point_logs_rule_foreign');
             $table->dropUnique('point_logs_order_rule_unique');
@@ -50,5 +79,9 @@ return new class extends Migration
         });
 
         Schema::dropIfExists('loyalty_point_rules');
+
+        Schema::table('branches', function (Blueprint $table) {
+            $table->dropUnique('branches_id_tenant_unique');
+        });
     }
 };
