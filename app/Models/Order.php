@@ -26,6 +26,7 @@ class Order extends Model
     protected $fillable = [
         'tenant_id',
         'branch_id',
+        'workshop_id',
         'customer_id',
         'created_by',
         'invoice_no',
@@ -62,6 +63,11 @@ class Order extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function workshop(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class, 'workshop_id');
     }
 
     public function customer(): BelongsTo
