@@ -123,6 +123,7 @@ class ChangeOrderStatus
             $this->activityLogger->recordForAuthorizedActor($actor, 'order.status_changed', $locked, [
                 'invoice_no' => $locked->invoice_no,
                 'branch_id' => $locked->branch_id,
+                'workshop_id' => $locked->workshop_id,
                 'from_status' => $from->value,
                 'to_status' => $to->value,
                 'worker_id' => $workerId,
