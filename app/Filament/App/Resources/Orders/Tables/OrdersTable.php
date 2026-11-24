@@ -29,6 +29,12 @@ class OrdersTable
                     ->label('Pelanggan')
                     ->searchable(),
 
+                TextColumn::make('customer.phone')
+                    ->label('No. HP')
+                    ->searchable()
+                    ->copyable()
+                    ->placeholder('—'),
+
                 TextColumn::make('order_source')
                     ->label('Sumber Order')
                     ->badge()
