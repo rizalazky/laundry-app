@@ -11,18 +11,27 @@ use App\Observers\JournalObserver;
 use App\Observers\StockMovementObserver;
 use App\Observers\TenantObserver;
 use App\Services\EntitlementService;
+use App\Services\PaymentGateways\MidtransPaymentGateway;
+use App\Services\PaymentGateways\PaymentGatewayInterface;
 use App\Services\TenantWriteGuard;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->bind(PaymentGatewayInterface::class, function (Application $app): PaymentGatewayInterface {
+            return match (config('services.payment_gateway.driver')) {
+                'midtrans' => $app->make(MidtransPaymentGateway::class),
+                default => throw new InvalidArgumentException('Payment gateway provider tidak didukung.'),
+            };
+        });
     }
 
     public function boot(): void
