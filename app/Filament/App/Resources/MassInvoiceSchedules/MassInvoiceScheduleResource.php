@@ -9,6 +9,7 @@ use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
@@ -89,13 +90,14 @@ class MassInvoiceScheduleResource extends Resource
                 ->options(['weekly' => 'Mingguan', 'monthly' => 'Bulanan'])
                 ->default('monthly')
                 ->required()
-                ->native(false),
+                ->native(false)
+                ->live(),
             TextInput::make('run_day')
                 ->label('Hari Penagihan')
                 ->numeric()
                 ->integer()
                 ->minValue(1)
-                ->maxValue(28)
+                ->maxValue(fn (Get $get): int => $get('frequency') === 'weekly' ? 7 : 28)
                 ->default(1)
                 ->required()
                 ->helperText('Bulanan: tanggal 1–28. Mingguan: 1 (Senin) sampai 7 (Minggu).'),
