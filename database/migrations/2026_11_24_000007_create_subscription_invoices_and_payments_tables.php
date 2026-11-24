@@ -30,7 +30,10 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->index(['tenant_id', 'status', 'created_at']);
-            $table->index(['subscription_id', 'type', 'period_start', 'period_end']);
+            $table->index(
+                ['subscription_id', 'type', 'period_start', 'period_end'],
+                'sub_inv_sub_period_idx'
+            );
         });
 
         Schema::create('subscription_payments', function (Blueprint $table): void {
@@ -51,7 +54,10 @@ return new class extends Migration {
 
             $table->unique(['provider', 'provider_reference']);
             $table->unique(['tenant_id', 'idempotency_key']);
-            $table->index(['tenant_id', 'subscription_invoice_id', 'created_at']);
+            $table->index(
+                ['tenant_id', 'subscription_invoice_id', 'created_at'],
+                'sub_pay_tenant_invoice_created_idx'
+            );
             $table->index(['provider', 'status', 'expires_at']);
         });
     }
