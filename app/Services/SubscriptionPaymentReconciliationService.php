@@ -1,15 +1,15 @@
 <?php
 
-namespace App\\Services;
+namespace App\Services;
 
-use App\\Models\\Subscription;
-use App\\Models\\SubscriptionInvoice;
-use App\\Models\\SubscriptionPayment;
-use App\\Models\\Tenant;
-use App\\Services\\PaymentGateways\\PaymentGatewayInterface;
-use Brick\\Math\\BigDecimal;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Log;
+use App\Models\Subscription;
+use App\Models\SubscriptionInvoice;
+use App\Models\SubscriptionPayment;
+use App\Models\Tenant;
+use App\Services\PaymentGateways\PaymentGatewayInterface;
+use Brick\Math\BigDecimal;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SubscriptionPaymentReconciliationService
 {
@@ -61,7 +61,7 @@ class SubscriptionPaymentReconciliationService
             if (
                 $status->currency !== 'IDR'
                 || $status->grossAmount === null
-                || ! preg_match('/^\\d+(?:\\.\\d{1,2})?$/D', $status->grossAmount)
+                || ! preg_match('/^\d+(?:\.\d{1,2})?$/D', $status->grossAmount)
                 || BigDecimal::of($status->grossAmount)->compareTo(BigDecimal::of($payment->amount)) !== 0
             ) {
                 Log::critical('Midtrans reported a successful payment with an unexpected amount or currency.', [
