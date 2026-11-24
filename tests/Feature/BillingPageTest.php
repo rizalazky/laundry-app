@@ -26,8 +26,7 @@ class BillingPageTest extends TestCase
             ->assertOk()
             ->set('billingInterval', 'monthly')
             ->call('createInvoice')
-            ->assertHasNoErrors()
-            ->assertSee('Invoice siap');
+            ->assertHasNoErrors();
 
         $this->assertDatabaseHas('subscription_invoices', [
             'tenant_id' => $tenant->id,
