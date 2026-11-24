@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Http\\Controllers\\Webhooks;
+namespace App\Http\Controllers\Webhooks;
 
-use App\\Http\\Controllers\\Controller;
-use App\\Services\\PaymentGateways\\PaymentGatewayInterface;
-use App\\Services\\SubscriptionPaymentService;
-use Illuminate\\Http\\JsonResponse;
-use Illuminate\\Http\\Request;
+use App\Http\Controllers\Controller;
+use App\Services\PaymentGateways\PaymentGatewayInterface;
+use App\Services\SubscriptionPaymentService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class MidtransWebhookController extends Controller
 {
