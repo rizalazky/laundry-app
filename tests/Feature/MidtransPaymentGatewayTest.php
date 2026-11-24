@@ -42,7 +42,7 @@ class MidtransPaymentGatewayTest extends TestCase
             && $request['expiry']['duration'] === 24);
     }
 
-    public function test_it_rejects_non_idr_or_fractional_invoice_amounts(): void
+    public function test_it_rejects_non_idr_invoice_amounts(): void
     {
         $gateway = app(MidtransPaymentGateway::class);
         $payment = $this->makePayment(currency: 'USD');
