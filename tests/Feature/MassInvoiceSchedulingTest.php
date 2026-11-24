@@ -109,7 +109,7 @@ class MassInvoiceSchedulingTest extends TestCase
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
 
-        $dueAt = now()->subMonth()->startOfMonth()->addDay();
+        $dueAt = now()->subDay()->startOfWeek()->setTime(1, 0);
         $schedule = MassInvoiceSchedule::query()->create([
             'tenant_id' => $tenant->id,
             'name' => 'Jadwal Mingguan',
