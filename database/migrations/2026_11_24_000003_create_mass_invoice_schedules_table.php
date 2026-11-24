@@ -30,7 +30,10 @@ return new class extends Migration
             $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
             $table->timestamps();
 
-            $table->unique(['mass_invoice_schedule_id', 'customer_id']);
+            $table->unique(
+                ['mass_invoice_schedule_id', 'customer_id'],
+                'mass_sched_customer_unique'
+            );
             $table->index(['tenant_id', 'customer_id']);
         });
     }
