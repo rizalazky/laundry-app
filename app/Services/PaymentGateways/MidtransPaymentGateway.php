@@ -30,9 +30,10 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
             ]);
         }
 
-        $amount = (float) $invoice->total_amount;
+        $amount = (string) $invoice->total_amount;
+        $amountInteger = (int) explode('.', $amount, 2)[0];
 
-        if ($amount <= 0 || floor($amount) !== $amount) {
+        if (! preg_match('/^\d+(?:\.00)?$/D', $amount) || $amountInteger <= 0) {
             throw ValidationException::withMessages([
                 'invoice' => 'Nominal invoice Midtrans harus berupa bilangan bulat positif dalam IDR.',
             ]);
@@ -42,15 +43,16 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
             ?: sprintf('SUBPAY-%d-%d', $payment->tenant_id, $payment->getKey());
 
         $expiryHours = (int) config('services.midtrans.expiry_hours', 24);
-        $expiresAt = now()->addHours($expiryHours);
+        $startTime = now();
+        $expiresAt = $startTime->copy()->addHours($expiryHours);
 
         $payload = [
             'transaction_details' => [
                 'order_id' => $providerReference,
-                'gross_amount' => (int) $amount,
+                'gross_amount' => $amountInteger,
             ],
             'expiry' => [
-                'start_time' => now()->format('Y-m-d H:i:s O'),
+                'start_time' => $startTime->format('Y-m-d H:i:s O'),
                 'unit' => 'hour',
                 'duration' => $expiryHours,
             ],
