@@ -6,11 +6,10 @@ use App\Models\Branch;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
-use Illuminate\Auth\Events\Verified;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class OwnerRegistrationTest extends TestCase
@@ -33,7 +32,7 @@ class OwnerRegistrationTest extends TestCase
         ]);
 
         $response
-            ->assertRedirect('/app')
+            ->assertRedirect('/email/verify')
             ->assertSessionHas('status');
 
         $owner = User::query()->where('email', 'owner@example.com')->firstOrFail();
@@ -42,9 +41,13 @@ class OwnerRegistrationTest extends TestCase
 
         $this->assertAuthenticatedAs($owner);
         $this->assertNull($owner->email_verified_at);
+        $this->assertTrue($owner->email_verification_required);
         $this->assertNull($tenant->subscription_ends_at);
         $this->assertSame(0, Subscription::query()->count());
         Notification::assertSentTo($owner, VerifyEmail::class);
+
+        $this->get('/app/MAIN')->assertRedirect(route('verification.notice'));
+        $this->get(route('verification.notice'))->assertOk()->assertSee('Verifikasi alamat email Anda');
 
         $this->assertSame($tenant->getKey(), $owner->tenant_id);
         $this->assertSame('tenant_owner', $owner->role);
@@ -71,25 +74,36 @@ class OwnerRegistrationTest extends TestCase
             'email' => 'trial@example.com',
             'password' => 'StrongPassword123',
             'password_confirmation' => 'StrongPassword123',
-        ])->assertRedirect('/app');
+        ])->assertRedirect('/email/verify');
 
         $owner = User::query()->where('email', 'trial@example.com')->firstOrFail();
         $tenant = $owner->tenant;
 
         $this->assertSame(0, Subscription::query()->count());
 
-        $owner->markEmailAsVerified();
-        event(new Verified($owner));
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            [
+                'id' => $owner->getKey(),
+                'hash' => sha1($owner->getEmailForVerification()),
+            ],
+        );
 
+        $this->get($verificationUrl)->assertRedirect('/app');
+
+        $owner->refresh();
         $subscription = Subscription::withoutGlobalScopes()->where('tenant_id', $tenant->id)->firstOrFail();
 
+        $this->assertTrue($owner->hasVerifiedEmail());
+        $this->assertFalse($owner->email_verification_required);
         $this->assertSame('trialing', $subscription->status);
         $this->assertSame('starter', $subscription->plan->code);
         $this->assertTrue($subscription->trial_starts_at->equalTo(now()));
         $this->assertTrue($subscription->trial_ends_at->equalTo(now()->addDays(30)));
         $this->assertTrue($tenant->fresh()->subscription_ends_at->equalTo(now()->addDays(30)));
 
-        event(new Verified($owner));
+        event(new \Illuminate\Auth\Events\Verified($owner));
 
         $this->assertSame(1, Subscription::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count());
     }
@@ -106,9 +120,9 @@ class OwnerRegistrationTest extends TestCase
                 ...$registration,
                 'password' => 'StrongPassword123',
                 'password_confirmation' => 'StrongPassword123',
-            ])->assertRedirect('/app');
+            ])->assertRedirect('/email/verify');
 
-            Auth::logout();
+            \Illuminate\Support\Facades\Auth::logout();
         }
 
         $this->assertSame(2, Tenant::query()->count());

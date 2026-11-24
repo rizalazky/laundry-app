@@ -83,6 +83,7 @@ class RegisterOwnerController extends Controller
                 'password' => $validated['password'],
                 'role' => 'tenant_owner',
                 'is_active' => true,
+                'email_verification_required' => true,
             ]);
 
             $owner->branches()->attach($branch);
@@ -94,7 +95,7 @@ class RegisterOwnerController extends Controller
         $request->session()->regenerate();
         $owner->sendEmailVerificationNotification();
 
-        return redirect('/app')
+        return redirect('/email/verify')
             ->with('status', 'Pendaftaran berhasil. Silakan verifikasi email Anda untuk memulai masa trial dan mengakses aplikasi.');
     }
 }

@@ -8,6 +8,7 @@ use App\Filament\App\Pages\Tenancy\EditBranchProfile;
 use App\Filament\App\Pages\Tenancy\RegisterBranch;
 use App\Filament\Auth\EditUserProfile;
 use App\Http\Middleware\EnsureActiveSubscription;
+use App\Http\Middleware\EnsureTenantOwnerEmailIsVerified;
 use App\Models\Branch;
 use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Http\Middleware\Authenticate;
@@ -82,9 +83,9 @@ class AppPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->login()
-            ->emailVerification()
             ->authMiddleware([
                 Authenticate::class,
+                EnsureTenantOwnerEmailIsVerified::class,
             ])
             ->sidebarWidth('17rem');
     }

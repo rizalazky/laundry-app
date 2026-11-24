@@ -32,6 +32,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
         'password',
         'role',
         'is_active',
+        'email_verification_required',
         'monthly_base_salary',
     ];
 
@@ -41,6 +42,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_required' => 'boolean',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'monthly_base_salary' => 'decimal:2',
