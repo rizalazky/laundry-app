@@ -111,8 +111,18 @@ class MassInvoiceSchedulingTest extends TestCase
 
         $this->assertSame(1, $generator->handle($schedule, $owner));
         $this->assertSame(0, $generator->handle($schedule, $owner));
-        $this->assertSame(1, MassInvoice::query()->count());
+
+        $newOrder = Order::factory()->for($branch)->create([
+            'customer_id' => $customer->id,
+            'total' => '8000.00',
+            'paid_amount' => '0.00',
+            'payment_status' => 'unpaid',
+        ]);
+
+        $this->assertSame(1, $generator->handle($schedule, $owner));
+        $this->assertSame(2, MassInvoice::query()->count());
         $this->assertSame(1, MassInvoiceItem::query()->where('order_id', $order->id)->count());
+        $this->assertSame(1, MassInvoiceItem::query()->where('order_id', $newOrder->id)->count());
     }
 
     public function test_scheduled_run_advances_next_run_but_manual_run_does_not(): void
