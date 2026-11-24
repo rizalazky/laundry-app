@@ -38,7 +38,7 @@ return new class extends Migration {
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->foreignId('subscription_invoice_id')->constrained('subscription_invoices')->cascadeOnDelete();
             $table->string('provider', 50);
-            $table->string('provider_reference', 150)->nullable()->unique();
+            $table->string('provider_reference', 150)->nullable();
             $table->string('payment_method', 50)->nullable();
             $table->decimal('amount', 15, 2);
             $table->string('status', 20)->default('pending');
@@ -49,6 +49,7 @@ return new class extends Migration {
             $table->text('failure_reason')->nullable();
             $table->timestamps();
 
+            $table->unique(['provider', 'provider_reference']);
             $table->unique(['tenant_id', 'idempotency_key']);
             $table->index(['tenant_id', 'subscription_invoice_id', 'created_at']);
             $table->index(['provider', 'status', 'expires_at']);
