@@ -113,10 +113,14 @@ class Billing extends Page
             ->limit(30)
             ->get();
 
+        $gatewayDriver = (string) config('services.payment_gateway.driver');
+
         return [
             'subscription' => $subscription,
             'invoices' => $invoices,
-            'gatewayConfigured' => filled(config('services.payment_gateway.driver')),
+            'gatewayConfigured' => $gatewayDriver === 'midtrans'
+                ? filled(config('services.midtrans.server_key'))
+                : filled($gatewayDriver),
         ];
     }
 }
