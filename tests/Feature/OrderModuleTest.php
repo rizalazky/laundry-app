@@ -397,23 +397,31 @@ class OrderModuleTest extends TestCase
         $this->assertSame(0, $order->payments()->count());
     }
 
-    public function test_only_owner_and_manager_can_refund(): void
+    public function test_cashier_can_submit_a_refund_request_without_posting_a_refund_payment(): void
     {
         $cashier = $this->staff('cashier');
         $order = $this->makeOrder(by: $cashier);
         app(RecordPayment::class)->handle($order, 30000, PaymentMethod::Cash, $cashier);
 
-        $this->actAsInPanel($this->staff('cashier'));
-        Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
-            ->assertActionHidden('refund');
+        $this->actAsInPanel($cashier);
 
-        $this->actAsInPanel($this->staff('branch_manager'));
         Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
-            ->assertActionVisible('refund')
-            ->callAction('refund', ['amount' => 10000, 'method' => 'cash', 'notes' => 'Salah input', 'idempotency_key' => 'r-1'])
-            ->assertNotified('Refund dicatat');
+            ->assertActionVisible('requestAdjustment')
+            ->callAction('requestAdjustment', [
+                'type' => 'refund',
+                'amount' => 10000,
+                'reason' => 'Pelanggan meminta pengembalian dana',
+            ])
+            ->assertNotified('Pengajuan berhasil dikirim ke owner');
 
-        $this->assertSame('20000.00', $order->fresh()->paid_amount);
+        $this->assertSame('30000.00', $order->fresh()->paid_amount);
+        $this->assertDatabaseHas('order_adjustments', [
+            'order_id' => $order->id,
+            'type' => 'refund',
+            'status' => 'pending',
+            'requested_amount' => '10000.00',
+            'requested_by' => $cashier->id,
+        ]);
     }
 
     public function test_status_can_be_changed_from_the_order_page_and_unpaid_completion_is_refused(): void
