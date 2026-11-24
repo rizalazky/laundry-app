@@ -53,18 +53,13 @@ class BillingPageTest extends TestCase
     public function test_billing_page_only_displays_invoices_belonging_to_current_tenant(): void
     {
         [$tenantA, $ownerA, $planA] = $this->makeTenantWithSubscription();
-        [$tenantB, , $planB] = $this->makeTenantWithSubscription();
+        [$tenantB, $ownerB] = $this->makeTenantWithSubscription();
 
-        $invoiceA = SubscriptionInvoice::factory()->create([
-            'tenant_id' => $tenantA->id,
-            'subscription_id' => $tenantA->subscription->id,
-            'plan_id' => $planA->id,
-        ]);
-        $invoiceB = SubscriptionInvoice::factory()->create([
-            'tenant_id' => $tenantB->id,
-            'subscription_id' => $tenantB->subscription->id,
-            'plan_id' => $planB->id,
-        ]);
+        $this->actingAs($ownerA);
+        $invoiceA = app(\\App\\Services\\SubscriptionInvoiceService::class)->createInitialInvoice($tenantA, $planA);
+
+        $this->actingAs($ownerB);
+        $invoiceB = app(\\App\\Services\\SubscriptionInvoiceService::class)->createInitialInvoice($tenantB, $tenantB->subscription->plan);
 
         Livewire::actingAs($ownerA)
             ->test(Billing::class)
