@@ -83,10 +83,18 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
     public function getPaymentStatus(string $providerReference): PaymentGatewayStatusResult
     {
         $response = $this->request('api_base_url')
-            ->get('/v2/'.rawurlencode($providerReference).'/status')
-            ->throw();
+            ->get('/v2/'.rawurlencode($providerReference).'/status');
 
-        $data = $response->json();
+        // Snap may return 404 until the customer selects a payment method.
+        if ($response->notFound()) {
+            return new PaymentGatewayStatusResult(
+                providerReference: $providerReference,
+                status: 'pending',
+                providerPayload: $response->json() ?? [],
+            );
+        }
+
+        $data = $response->throw()->json();
 
         if (! is_array($data)) {
             throw new RuntimeException('Respons status Midtrans tidak valid.');
