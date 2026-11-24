@@ -80,6 +80,7 @@ class MassInvoiceScheduleResource extends Resource
                     : $record->name)
                 ->searchable(['name', 'phone'])
                 ->multiple()
+                ->pivotData(['tenant_id' => Auth::user()?->tenant_id])
                 ->preload(false)
                 ->required()
                 ->helperText('Pilih satu atau beberapa pelanggan. Pencarian mendukung nama dan nomor HP.'),
