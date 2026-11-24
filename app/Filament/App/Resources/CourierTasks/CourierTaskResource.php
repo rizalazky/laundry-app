@@ -87,6 +87,12 @@ class CourierTaskResource extends Resource
                     ->label('Pelanggan')
                     ->searchable(),
 
+                TextColumn::make('order.customer.phone')
+                    ->label('No. HP Pelanggan')
+                    ->searchable()
+                    ->copyable()
+                    ->placeholder('—'),
+
                 TextColumn::make('courier.name')
                     ->label('Kurir')
                     ->placeholder('—'),
@@ -94,6 +100,7 @@ class CourierTaskResource extends Resource
                 TextColumn::make('address')
                     ->label('Alamat')
                     ->limit(45)
+                    ->copyable()
                     ->tooltip(fn (CourierTask $record): string => $record->address),
 
                 TextColumn::make('status')
