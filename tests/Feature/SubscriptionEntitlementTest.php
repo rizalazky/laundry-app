@@ -144,6 +144,26 @@ class SubscriptionEntitlementTest extends TestCase
         $this->assertFalse((new UserPolicy())->create($owner));
     }
 
+    public function test_workshops_do_not_consume_the_plan_outlet_limit(): void
+    {
+        $tenant = Tenant::factory()->create(['max_branches' => 10]);
+        $plan = $this->plan();
+        $this->subscription($tenant, 'active', ['plan_id' => $plan->id]);
+
+        PlanFeature::query()->create([
+            'plan_id' => $plan->id,
+            'feature_code' => 'max_outlets',
+            'value' => 1,
+        ]);
+
+        Branch::factory()->for($tenant)->create([
+            'code' => 'WORKSHOP',
+            'is_workshop' => true,
+        ]);
+
+        $this->assertTrue(app(EntitlementService::class)->canCreateBranch($tenant));
+    }
+
     private function subscription(Tenant $tenant, string $status, array $attributes = []): Subscription
     {
         $plan = $attributes['plan_id'] ?? $this->plan()->id;
