@@ -34,6 +34,7 @@ class ViewOrder extends ViewRecord
             $this->printReceiptAction(),
             $this->recordPaymentAction(),
             $this->changeStatusAction(),
+            $this->cancelOrderAction(),
             $this->assignCourierTaskAction(),
             $this->refundAction(),
         ];
@@ -203,6 +204,37 @@ class ViewOrder extends ViewRecord
             });
     }
 
+    private function cancelOrderAction(): Action
+    {
+        return Action::make('cancelOrder')
+            ->label('Batalkan Order')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->authorize('cancel')
+            ->visible(fn (Order $record): bool => ! $record->status->isFinal()
+                && BigDecimal::of($record->paid_amount)->isZero())
+            ->requiresConfirmation()
+            ->modalHeading('Batalkan Order')
+            ->modalDescription('Order yang dibatalkan tidak dapat diproses kembali. Pastikan alasan pembatalan sudah benar.')
+            ->schema([
+                Textarea::make('reason')
+                    ->label('Alasan Pembatalan')
+                    ->placeholder('Contoh: pelanggan membatalkan pesanan sebelum proses dimulai')
+                    ->rows(3)
+                    ->required()
+                    ->minLength(5)
+                    ->maxLength(500),
+            ])
+            ->action(function (array $data, Order $record): void {
+                $this->runLedgerAction(fn () => app(ChangeOrderStatus::class)->handle(
+                    order: $record,
+                    to: OrderStatus::Cancelled,
+                    user: Auth::user(),
+                    note: trim($data['reason']),
+                ), 'Order dibatalkan');
+            });
+    }
+
     private function changeStatusAction(): Action
     {
         return Action::make('changeStatus')
@@ -217,7 +249,7 @@ class ViewOrder extends ViewRecord
                     ->options(fn (): array => collect(OrderStatus::cases())
                         ->filter(fn (OrderStatus $status): bool => $record->status->canMoveTo($status)
                             && $status->canBeSetByRole(Auth::user()->role)
-                            && ($status !== OrderStatus::Cancelled || Auth::user()->can('cancel', $record)))
+                            && $status !== OrderStatus::Cancelled)
                         ->mapWithKeys(fn (OrderStatus $status): array => [$status->value => $status->label()])
                         ->all())
                     ->native(false)
