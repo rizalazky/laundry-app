@@ -445,6 +445,44 @@ class OrderModuleTest extends TestCase
         $this->assertSame(OrderStatus::Ready, $order->fresh()->status);
     }
 
+    public function test_branch_manager_cancels_an_unpaid_order_with_a_required_reason(): void
+    {
+        $manager = $this->staff('branch_manager');
+        $order = $this->makeOrder();
+        $this->actAsInPanel($manager);
+
+        $page = Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()]);
+
+        $page->assertActionVisible('cancelOrder')
+            ->callAction('cancelOrder', ['reason' => 'Pelanggan membatalkan pesanan'])
+            ->assertNotified('Order dibatalkan');
+
+        $this->assertSame(OrderStatus::Cancelled, $order->fresh()->status);
+        $this->assertSame(
+            'Pelanggan membatalkan pesanan',
+            $order->statusLogs()->where('to_status', OrderStatus::Cancelled->value)->sole()->note,
+        );
+    }
+
+    public function test_order_cancellation_requires_a_reason_and_is_not_available_to_cashiers(): void
+    {
+        $manager = $this->staff('branch_manager');
+        $order = $this->makeOrder();
+        $this->actAsInPanel($manager);
+
+        Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
+            ->callAction('cancelOrder', [])
+            ->assertHasActionErrors(['reason']);
+
+        $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+
+        $cashier = $this->staff('cashier');
+        $this->actAsInPanel($cashier);
+
+        Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])
+            ->assertActionHidden('cancelOrder');
+    }
+
     public function test_operator_can_update_production_status_but_cannot_record_payments(): void
     {
         $operator = $this->staff('operator');
