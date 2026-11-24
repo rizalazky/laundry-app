@@ -33,6 +33,19 @@ class MassInvoiceSchedulingTest extends TestCase
             'payment_status' => 'partial',
         ]);
         Order::factory()->for($branch)->create([
+            'customer_id' => $customer->id,
+            'total' => '30000.00',
+            'paid_amount' => '30000.00',
+            'payment_status' => 'paid',
+        ]);
+        Order::factory()->for($branch)->create([
+            'customer_id' => $customer->id,
+            'status' => 'cancelled',
+            'total' => '15000.00',
+            'paid_amount' => '0.00',
+            'payment_status' => 'unpaid',
+        ]);
+        Order::factory()->for($branch)->create([
             'customer_id' => $unselectedCustomer->id,
             'total' => '25000.00',
             'paid_amount' => '0.00',
