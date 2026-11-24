@@ -3,9 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class OwnerRegistrationTest extends TestCase
@@ -14,6 +18,8 @@ class OwnerRegistrationTest extends TestCase
 
     public function test_guest_can_register_and_receives_a_tenant_with_its_first_outlet(): void
     {
+        Notification::fake();
+
         $response = $this->post(route('register.store'), [
             'owner_name' => 'Laundry Owner',
             'business_name' => 'Laundry Ceria',
@@ -26,14 +32,18 @@ class OwnerRegistrationTest extends TestCase
         ]);
 
         $response
-            ->assertRedirect(route('home'))
+            ->assertRedirect('/app')
             ->assertSessionHas('status');
-
-        $this->assertGuest();
 
         $owner = User::query()->where('email', 'owner@example.com')->firstOrFail();
         $tenant = Tenant::query()->where('owner_email', 'owner@example.com')->firstOrFail();
         $branch = Branch::query()->where('tenant_id', $tenant->getKey())->firstOrFail();
+
+        $this->assertAuthenticatedAs($owner);
+        $this->assertNull($owner->email_verified_at);
+        $this->assertNull($tenant->subscription_ends_at);
+        $this->assertSame(0, Subscription::query()->count());
+        Notification::assertSentTo($owner, VerifyEmail::class);
 
         $this->assertSame($tenant->getKey(), $owner->tenant_id);
         $this->assertSame('tenant_owner', $owner->role);
@@ -49,8 +59,44 @@ class OwnerRegistrationTest extends TestCase
         ]);
     }
 
+    public function test_verifying_owner_email_starts_configured_trial_once(): void
+    {
+        Notification::fake();
+        $this->travelTo(now()->startOfSecond());
+
+        $this->post(route('register.store'), [
+            'owner_name' => 'Laundry Owner',
+            'business_name' => 'Laundry Ceria',
+            'email' => 'trial@example.com',
+            'password' => 'StrongPassword123',
+            'password_confirmation' => 'StrongPassword123',
+        ])->assertRedirect('/app');
+
+        $owner = User::query()->where('email', 'trial@example.com')->firstOrFail();
+        $tenant = $owner->tenant;
+
+        $this->assertSame(0, Subscription::query()->count());
+
+        $owner->markEmailAsVerified();
+        event(new Verified($owner));
+
+        $subscription = Subscription::withoutGlobalScopes()->where('tenant_id', $tenant->id)->firstOrFail();
+
+        $this->assertSame('trialing', $subscription->status);
+        $this->assertSame('starter', $subscription->plan->code);
+        $this->assertTrue($subscription->trial_starts_at->equalTo(now()));
+        $this->assertTrue($subscription->trial_ends_at->equalTo(now()->addDays(30)));
+        $this->assertTrue($tenant->fresh()->subscription_ends_at->equalTo(now()->addDays(30)));
+
+        event(new Verified($owner));
+
+        $this->assertSame(1, Subscription::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count());
+    }
+
     public function test_registration_creates_a_separate_tenant_for_each_owner(): void
     {
+        Notification::fake();
+
         foreach ([
             ['owner_name' => 'First Owner', 'business_name' => 'Laundry Satu', 'email' => 'first@example.com'],
             ['owner_name' => 'Second Owner', 'business_name' => 'Laundry Dua', 'email' => 'second@example.com'],
@@ -59,7 +105,7 @@ class OwnerRegistrationTest extends TestCase
                 ...$registration,
                 'password' => 'StrongPassword123',
                 'password_confirmation' => 'StrongPassword123',
-            ])->assertRedirect(route('home'));
+            ])->assertRedirect('/app');
         }
 
         $this->assertSame(2, Tenant::query()->count());
@@ -95,6 +141,25 @@ class OwnerRegistrationTest extends TestCase
         $this->assertSame(0, Branch::query()->count());
     }
 
+    public function test_registration_rejects_new_signups_when_platform_registration_is_disabled(): void
+    {
+        \App\Models\PlatformSetting::query()->updateOrCreate(
+            ['key' => 'registration_enabled'],
+            ['value' => false],
+        );
+
+        $this->from('/register')->post(route('register.store'), [
+            'owner_name' => 'Closed Signup',
+            'business_name' => 'Closed Laundry',
+            'email' => 'closed@example.com',
+            'password' => 'StrongPassword123',
+            'password_confirmation' => 'StrongPassword123',
+        ])->assertRedirect('/register')->assertSessionHasErrors('registration');
+
+        $this->assertSame(0, Tenant::query()->count());
+        $this->assertSame(0, User::query()->count());
+    }
+
     public function test_invalid_registration_does_not_create_partial_records(): void
     {
         $response = $this->from('/register')->post(route('register.store'), [
@@ -111,13 +176,14 @@ class OwnerRegistrationTest extends TestCase
         $this->assertSame(0, User::query()->count());
     }
 
-    public function test_registration_page_is_available_to_guests_and_links_to_login(): void
+    public function test_registration_page_is_available_to_guests_and_explains_email_verification(): void
     {
         $this->withoutVite();
 
         $this->get('/register')
             ->assertOk()
             ->assertSee('Daftar pemilik laundry')
+            ->assertSee('Masa trial dimulai setelah email Anda diverifikasi.')
             ->assertSee(route('filament.app.auth.login'));
     }
 }

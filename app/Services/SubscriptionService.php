@@ -4,6 +4,9 @@ namespace App\Services;
 
 use App\Models\Plan;
 use App\Models\PlatformSetting;
+use App\Models\Subscription;
+use App\Models\Tenant;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionService
 {
@@ -14,6 +17,11 @@ class SubscriptionService
             ->first();
 
         return $setting?->value ?? $default;
+    }
+
+    public function registrationEnabled(): bool
+    {
+        return (bool) $this->setting('registration_enabled', true);
     }
 
     public function trialEnabled(): bool
@@ -39,5 +47,49 @@ class SubscriptionService
             ->where('code', $planCode)
             ->where('is_active', true)
             ->first();
+    }
+
+    public function startTrial(Tenant $tenant): ?Subscription
+    {
+        return DB::transaction(function () use ($tenant): ?Subscription {
+            $lockedTenant = Tenant::query()
+                ->whereKey($tenant->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $existing = Subscription::withoutGlobalScopes()
+                ->where('tenant_id', $lockedTenant->getKey())
+                ->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            $plan = $this->defaultPlan();
+
+            if ($plan === null) {
+                return null;
+            }
+
+            $startsAt = now();
+            $trialEnabled = $this->trialEnabled();
+            $trialDays = $this->trialDays();
+            $endsAt = $trialEnabled ? $startsAt->copy()->addDays($trialDays) : $startsAt->copy();
+            $status = $trialEnabled && $trialDays > 0 ? 'trialing' : 'expired';
+
+            $subscription = Subscription::withoutGlobalScopes()->create([
+                'tenant_id' => $lockedTenant->getKey(),
+                'plan_id' => $plan->getKey(),
+                'status' => $status,
+                'trial_starts_at' => $startsAt,
+                'trial_ends_at' => $endsAt,
+            ]);
+
+            $lockedTenant->forceFill([
+                'subscription_ends_at' => $endsAt,
+            ])->save();
+
+            return $subscription;
+        });
     }
 }

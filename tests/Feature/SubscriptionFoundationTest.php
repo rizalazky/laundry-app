@@ -9,6 +9,7 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\SubscriptionService;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,8 +21,8 @@ class SubscriptionFoundationTest extends TestCase
     public function test_plan_features_store_boolean_and_limit_values_as_json(): void
     {
         $plan = Plan::query()->create([
-            'code' => 'starter',
-            'name' => 'Starter',
+            'code' => 'starter-feature-test',
+            'name' => 'Starter Feature Test',
             'monthly_price' => 99000,
         ]);
 
@@ -67,8 +68,8 @@ class SubscriptionFoundationTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $plan = Plan::query()->create([
-            'code' => 'starter',
-            'name' => 'Starter',
+            'code' => 'starter-unique-test',
+            'name' => 'Starter Unique Test',
             'monthly_price' => 99000,
         ]);
 
@@ -92,8 +93,8 @@ class SubscriptionFoundationTest extends TestCase
         $tenant = Tenant::factory()->create();
         $foreignTenant = Tenant::factory()->create();
         $plan = Plan::query()->create([
-            'code' => 'starter',
-            'name' => 'Starter',
+            'code' => 'starter-isolation-test',
+            'name' => 'Starter Isolation Test',
             'monthly_price' => 99000,
         ]);
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
@@ -118,10 +119,10 @@ class SubscriptionFoundationTest extends TestCase
 
     public function test_subscription_service_reads_platform_trial_and_grace_configuration(): void
     {
-        PlatformSetting::query()->create(['key' => 'trial_enabled', 'value' => false]);
-        PlatformSetting::query()->create(['key' => 'trial_days', 'value' => 14]);
-        PlatformSetting::query()->create(['key' => 'grace_period_days', 'value' => 5]);
-        PlatformSetting::query()->create(['key' => 'default_plan_code', 'value' => 'pro']);
+        PlatformSetting::query()->updateOrCreate(['key' => 'trial_enabled'], ['value' => false]);
+        PlatformSetting::query()->updateOrCreate(['key' => 'trial_days'], ['value' => 14]);
+        PlatformSetting::query()->updateOrCreate(['key' => 'grace_period_days'], ['value' => 5]);
+        PlatformSetting::query()->updateOrCreate(['key' => 'default_plan_code'], ['value' => 'pro']);
 
         $plan = Plan::query()->create([
             'code' => 'pro',
@@ -139,11 +140,13 @@ class SubscriptionFoundationTest extends TestCase
 
     public function test_subscription_service_uses_safe_defaults_when_platform_settings_are_missing(): void
     {
+        PlatformSetting::query()->delete();
+
         $service = app(SubscriptionService::class);
 
         $this->assertTrue($service->trialEnabled());
         $this->assertSame(30, $service->trialDays());
         $this->assertSame(3, $service->gracePeriodDays());
-        $this->assertNull($service->defaultPlan());
+        $this->assertSame('starter', $service->defaultPlan()?->code);
     }
 }

@@ -15,7 +15,7 @@
                 <p class="text-sm font-semibold uppercase tracking-wider text-amber-700">Mulai kelola bisnis Anda</p>
                 <h1 class="mt-2 text-3xl font-bold tracking-tight">Daftar pemilik laundry</h1>
                 <p class="mt-2 text-sm leading-6 text-slate-600">
-                    Buat akun usaha. Kami akan menyiapkan tenant dan outlet pertama secara otomatis.
+                    Buat akun usaha. Tenant dan outlet pertama disiapkan otomatis. Masa trial dimulai setelah email Anda diverifikasi.
                 </p>
             </div>
 

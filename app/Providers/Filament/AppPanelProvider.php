@@ -82,6 +82,7 @@ class AppPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->login()
+            ->emailVerification()
             ->authMiddleware([
                 Authenticate::class,
             ])
