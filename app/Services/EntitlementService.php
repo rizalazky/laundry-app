@@ -87,6 +87,10 @@ class EntitlementService
 
     public function canCreateBranch(Tenant $tenant): bool
     {
+        if (! $this->canWrite($tenant)) {
+            return false;
+        }
+
         $feature = $this->feature($tenant, 'max_outlets');
         $limit = $feature !== null
             ? $this->limit($tenant, 'max_outlets')
@@ -109,6 +113,10 @@ class EntitlementService
 
     public function canCreateUser(Tenant $tenant): bool
     {
+        if (! $this->canWrite($tenant)) {
+            return false;
+        }
+
         $limit = $this->limit($tenant, 'max_users');
 
         return $limit === null || $tenant->users()->where('role', '!=', 'super_admin')->count() < $limit;
