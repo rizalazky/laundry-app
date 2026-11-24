@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\SubscriptionInvoiceService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -24,10 +25,12 @@ class SubscriptionInvoiceTest extends TestCase
         $this->actingAs($owner);
 
         $invoice = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $plan);
+        $plan->update(['monthly_price' => '300000.00', 'name' => 'Pro Updated']);
 
         $this->assertSame('initial', $invoice->type);
         $this->assertSame('Pro', $invoice->plan_name_snapshot);
         $this->assertSame($plan->code, $invoice->plan_code_snapshot);
+        $this->assertSame('250000.00', $invoice->unit_price_snapshot);
         $this->assertSame('250000.00', $invoice->total_amount);
         $this->assertSame('IDR', $invoice->currency);
         $this->assertTrue($invoice->period_start->equalTo($subscription->trial_ends_at));
@@ -68,10 +71,12 @@ class SubscriptionInvoiceTest extends TestCase
         $first->forceFill(['status' => 'failed'])->save();
 
         $second = $service->createPaymentAttempt($invoice, 'gateway-a', 'va', 'attempt-2');
+        $retry = $service->createPaymentAttempt($invoice, 'gateway-a', 'va', 'attempt-2');
 
         $this->assertCount(2, $invoice->payments()->get());
         $this->assertSame('250000.00', $first->amount);
         $this->assertSame('250000.00', $second->amount);
+        $this->assertSame($second->id, $retry->id);
         $this->assertSame('pending', $second->status);
         $this->assertSame('pending', $invoice->fresh()->status);
     }
@@ -146,7 +151,7 @@ class SubscriptionInvoiceTest extends TestCase
         $tenant = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $plan = Plan::query()->create([
-            'code' => 'pro-'.str()->random(8),
+            'code' => 'pro-'.Str::lower(Str::random(8)),
             'name' => 'Pro',
             'monthly_price' => $price,
             'yearly_price' => '2500000.00',
