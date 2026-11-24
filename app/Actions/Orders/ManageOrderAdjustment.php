@@ -232,11 +232,15 @@ class ManageOrderAdjustment
             ->selectRaw("COALESCE(SUM(CASE WHEN status = 'approved' THEN approved_amount ELSE requested_amount END), 0) as reserved")
             ->value('reserved');
 
-        $reserved = number_format((float) $reserved, 2, '.', '');
-        $capacity = BigDecimal::of($order->paid_amount)->minus($reserved);
+        // Aggregate values may be returned as strings or BigDecimal instances depending
+        // on the database driver. Keep the entire calculation in decimal arithmetic.
+        $reservedAmount = BigDecimal::of((string) ($reserved ?? '0'))->toScale(2);
+        $capacity = BigDecimal::of($order->paid_amount)
+            ->minus($reservedAmount)
+            ->toScale(2);
 
         if ($amount->isGreaterThan($capacity)) {
-            throw new DomainException('Nominal refund melebihi sisa dana yang dapat dikembalikan (Rp '.number_format((float) $capacity, 2, ',', '.').').');
+            throw new DomainException('Nominal refund melebihi sisa dana yang dapat dikembalikan (Rp '.$capacity.').');
         }
     }
 
