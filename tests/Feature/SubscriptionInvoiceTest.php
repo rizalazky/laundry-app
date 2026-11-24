@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Models\SubscriptionInvoice;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\SubscriptionInvoiceService;
