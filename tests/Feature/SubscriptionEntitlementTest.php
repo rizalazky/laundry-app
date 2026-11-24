@@ -96,6 +96,20 @@ class SubscriptionEntitlementTest extends TestCase
         $this->assertFalse(Gate::allows('update', $branch));
     }
 
+    public function test_read_only_tenant_cannot_persist_tenant_owned_eloquent_models(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->subscription($tenant, 'trialing', [
+            'trial_ends_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($owner);
+        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+
+        Branch::factory()->for($tenant)->create(['code' => 'BLOCKED']);
+    }
+
     public function test_plan_feature_values_are_resolved_from_the_tenant_subscription(): void
     {
         $tenant = Tenant::factory()->create();
