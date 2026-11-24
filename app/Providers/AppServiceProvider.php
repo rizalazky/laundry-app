@@ -14,13 +14,13 @@ use App\Services\EntitlementService;
 use App\Services\PaymentGateways\MidtransPaymentGateway;
 use App\Services\PaymentGateways\PaymentGatewayInterface;
 use App\Services\TenantWriteGuard;
-use Illuminate\Contracts\Foundation\Application;
-use InvalidArgumentException;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 
 class AppServiceProvider extends ServiceProvider
 {
