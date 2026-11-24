@@ -1,0 +1,158 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Branch;
+use App\Models\Plan;
+use App\Models\PlanFeature;
+use App\Models\Subscription;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Policies\BranchPolicy;
+use App\Policies\UserPolicy;
+use App\Services\EntitlementService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
+use Tests\TestCase;
+
+class SubscriptionEntitlementTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_trial_is_writable_until_its_configured_end_then_becomes_read_only(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $subscription = $this->subscription($tenant, 'trialing', [
+            'trial_ends_at' => now()->addDay(),
+        ]);
+        $service = app(EntitlementService::class);
+
+        $this->assertSame('trialing', $service->accessState($tenant));
+        $this->assertTrue($service->canWrite($tenant));
+
+        $subscription->forceFill(['trial_ends_at' => now()->subSecond()])->save();
+
+        $this->assertSame('read_only', $service->accessState($tenant));
+        $this->assertFalse($service->canWrite($tenant));
+    }
+
+    public function test_active_subscription_enters_grace_period_before_becoming_read_only(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $subscription = $this->subscription($tenant, 'active', [
+            'current_period_start' => now()->subDays(31),
+            'current_period_end' => now()->subDay(),
+            'grace_ends_at' => null,
+        ]);
+        $service = app(EntitlementService::class);
+
+        $this->assertSame('grace', $service->accessState($tenant));
+        $this->assertTrue($service->canWrite($tenant));
+
+        $subscription->forceFill(['current_period_end' => now()->subDays(5)])->save();
+
+        $this->assertSame('read_only', $service->accessState($tenant));
+        $this->assertFalse($service->canWrite($tenant));
+    }
+
+    public function test_past_due_subscription_is_writable_only_during_grace_period(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->subscription($tenant, 'past_due', [
+            'current_period_end' => now()->subDay(),
+            'grace_ends_at' => now()->addDay(),
+        ]);
+
+        $service = app(EntitlementService::class);
+
+        $this->assertSame('grace', $service->accessState($tenant));
+        $this->assertTrue($service->canWrite($tenant));
+    }
+
+    public function test_read_only_tenant_can_read_but_cannot_authorize_write_abilities(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['code' => 'READONLY']);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->subscription($tenant, 'trialing', [
+            'trial_ends_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($owner);
+
+        $this->assertTrue(Gate::allows('viewAny', Branch::class));
+        $this->assertTrue(Gate::allows('view', $branch));
+        $this->assertFalse(Gate::allows('create', Branch::class));
+        $this->assertFalse(Gate::allows('update', $branch));
+    }
+
+    public function test_plan_feature_values_are_resolved_from_the_tenant_subscription(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $plan = $this->plan();
+        $this->subscription($tenant, 'active', ['plan_id' => $plan->id]);
+
+        PlanFeature::query()->create([
+            'plan_id' => $plan->id,
+            'feature_code' => 'inventory',
+            'value' => true,
+        ]);
+        PlanFeature::query()->create([
+            'plan_id' => $plan->id,
+            'feature_code' => 'advanced_reports',
+            'value' => false,
+        ]);
+
+        $service = app(EntitlementService::class);
+
+        $this->assertTrue($service->hasFeature($tenant, 'inventory'));
+        $this->assertFalse($service->hasFeature($tenant, 'advanced_reports'));
+        $this->assertFalse($service->hasFeature($tenant, 'unknown_feature'));
+    }
+
+    public function test_plan_outlet_and_user_limits_are_enforced_by_policies(): void
+    {
+        $tenant = Tenant::factory()->create(['max_branches' => 10]);
+        $plan = $this->plan();
+        $this->subscription($tenant, 'active', ['plan_id' => $plan->id]);
+
+        PlanFeature::query()->create([
+            'plan_id' => $plan->id,
+            'feature_code' => 'max_outlets',
+            'value' => 1,
+        ]);
+        PlanFeature::query()->create([
+            'plan_id' => $plan->id,
+            'feature_code' => 'max_users',
+            'value' => 1,
+        ]);
+
+        $branch = Branch::factory()->for($tenant)->create(['code' => 'LIMIT']);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->assertFalse((new BranchPolicy())->create($owner));
+        $this->assertFalse((new UserPolicy())->create($owner));
+    }
+
+    private function subscription(Tenant $tenant, string $status, array $attributes = []): Subscription
+    {
+        $plan = $attributes['plan_id'] ?? $this->plan()->id;
+
+        return Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan,
+            'status' => $status,
+            ...$attributes,
+        ]);
+    }
+
+    private function plan(): Plan
+    {
+        return Plan::query()->create([
+            'code' => 'plan-' . fake()->unique()->lexify('??????'),
+            'name' => 'Test Plan',
+            'monthly_price' => 99000,
+            'is_active' => true,
+        ]);
+    }
+}
