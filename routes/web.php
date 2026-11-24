@@ -1,14 +1,12 @@
 <?php
 
-use App\Http\Controllers\Auth\EmailVerificationController;
-use App\Http\Controllers\Auth\RegisterOwnerController;
-use App\Http\Controllers\OrderReceiptController;
-use App\Http\Controllers\Webhooks\MidtransWebhookController;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Support\Facades\Route;
+use App\\Http\\Controllers\\Auth\\EmailVerificationController;
+use App\\Http\\Controllers\\Auth\\RegisterOwnerController;
+use App\\Http\\Controllers\\OrderReceiptController;
+use App\\Http\\Controllers\\Webhooks\\MidtransWebhookController;
+use Illuminate\\Support\\Facades\\Route;
 
 Route::post('/webhooks/midtrans', MidtransWebhookController::class)
-    ->withoutMiddleware(ValidateCsrfToken::class)
     ->name('webhooks.midtrans');
 
 Route::get('/', function () {
