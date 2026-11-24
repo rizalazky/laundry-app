@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -106,6 +107,8 @@ class OwnerRegistrationTest extends TestCase
                 'password' => 'StrongPassword123',
                 'password_confirmation' => 'StrongPassword123',
             ])->assertRedirect('/app');
+
+            Auth::logout();
         }
 
         $this->assertSame(2, Tenant::query()->count());
