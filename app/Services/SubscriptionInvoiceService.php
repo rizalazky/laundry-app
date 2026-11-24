@@ -46,12 +46,13 @@ class SubscriptionInvoiceService
         ?string $idempotencyKey = null,
     ): SubscriptionPayment {
         return DB::transaction(function () use ($invoice, $provider, $paymentMethod, $idempotencyKey): SubscriptionPayment {
-            $this->assertOwnerCanManageTenantId((int) $invoice->tenant_id);
-
             $lockedInvoice = SubscriptionInvoice::withoutGlobalScopes()
                 ->whereKey($invoice->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            // Authorize against the persisted invoice tenant, not caller-controlled model attributes.
+            $this->assertOwnerCanManageTenantId((int) $lockedInvoice->tenant_id);
 
             if (! in_array($lockedInvoice->status, ['issued', 'pending'], true)) {
                 throw ValidationException::withMessages([
