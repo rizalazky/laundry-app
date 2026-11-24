@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('loyalty:expire-points')->everyMinute()->withoutOverlapping();
+Schedule::command('mass-invoices:run-due')->everyMinute()->withoutOverlapping();
