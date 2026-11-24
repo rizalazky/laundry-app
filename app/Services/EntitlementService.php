@@ -16,10 +16,7 @@ class EntitlementService
             return 'suspended';
         }
 
-        $subscription = Subscription::withoutGlobalScopes()
-            ->with('plan.features')
-            ->where('tenant_id', $tenant->getKey())
-            ->first();
+        $subscription = $this->subscription($tenant);
 
         if ($subscription === null) {
             return $tenant->subscription_ends_at === null || $tenant->subscription_ends_at->isFuture()
@@ -60,6 +57,13 @@ class EntitlementService
         return $feature !== null && filter_var($feature->value, FILTER_VALIDATE_BOOLEAN);
     }
 
+    public function assertFeatureEnabled(Tenant $tenant, string $featureCode): void
+    {
+        if (! $this->hasFeature($tenant, $featureCode)) {
+            throw new AuthorizationException('Fitur ini tidak tersedia pada paket langganan Anda.');
+        }
+    }
+
     public function limit(Tenant $tenant, string $limitCode): ?int
     {
         $feature = $this->feature($tenant, $limitCode);
@@ -74,8 +78,8 @@ class EntitlementService
 
         // Keep existing tenant limits working until a plan explicitly defines
         // the equivalent entitlement.
-        if ($limitCode === 'max_outlets' && $tenant->max_branches > 0) {
-            return (int) $tenant->max_branches;
+        if ($limitCode === 'max_outlets' && $tenant->max_branches !== null) {
+            return max(0, (int) $tenant->max_branches);
         }
 
         return null;
@@ -113,14 +117,17 @@ class EntitlementService
         }
     }
 
-    private function feature(Tenant $tenant, string $featureCode): ?PlanFeature
+    private function subscription(Tenant $tenant): ?Subscription
     {
-        $subscription = Subscription::withoutGlobalScopes()
+        return Subscription::withoutGlobalScopes()
             ->with('plan.features')
             ->where('tenant_id', $tenant->getKey())
             ->first();
+    }
 
-        return $subscription?->plan?->features
+    private function feature(Tenant $tenant, string $featureCode): ?PlanFeature
+    {
+        return $this->subscription($tenant)?->plan?->features
             ->firstWhere('feature_code', $featureCode);
     }
 
@@ -128,12 +135,7 @@ class EntitlementService
     {
         $periodEnd = $subscription->current_period_end ?? $subscription->trial_ends_at;
 
-        if ($periodEnd === null) {
-            return $subscription->tenant?->subscription_ends_at === null
-                || $subscription->tenant?->subscription_ends_at?->isFuture();
-        }
-
-        return $now->lt($periodEnd);
+        return $periodEnd === null || $now->lt($periodEnd);
     }
 
     private function isWithinGracePeriod(Subscription $subscription, $now): bool
