@@ -41,6 +41,10 @@ class MassInvoiceSchedule extends Model
         static::saving(function (self $schedule): void {
             $maximum = $schedule->frequency === 'weekly' ? 7 : 28;
 
+            if ($schedule->created_by === null && Auth::id() !== null) {
+                $schedule->created_by = Auth::id();
+            }
+
             if (! in_array($schedule->frequency, ['weekly', 'monthly'], true)
                 || $schedule->run_day < 1
                 || $schedule->run_day > $maximum) {
