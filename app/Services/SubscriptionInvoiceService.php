@@ -8,6 +8,7 @@ use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionPayment;
 use App\Models\Tenant;
 use App\Models\User;
+use Brick\Math\BigDecimal;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -58,7 +59,13 @@ class SubscriptionInvoiceService
                 ]);
             }
 
-            if ((float) $lockedInvoice->total_amount <= 0) {
+            if (blank($provider)) {
+                throw ValidationException::withMessages([
+                    'provider' => 'Provider pembayaran wajib diisi.',
+                ]);
+            }
+
+            if (BigDecimal::of($lockedInvoice->total_amount)->isLessThanOrEqualTo(0)) {
                 throw ValidationException::withMessages([
                     'invoice' => 'Invoice dengan total nol tidak memerlukan percobaan pembayaran.',
                 ]);
