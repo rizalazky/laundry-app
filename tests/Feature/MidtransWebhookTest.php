@@ -1,17 +1,17 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\Plan;
-use App\\Models\\Subscription;
-use App\\Models\\SubscriptionInvoice;
-use App\\Models\\SubscriptionPayment;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\Http;
-use Illuminate\\Support\\Str;
-use Tests\\TestCase;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\SubscriptionInvoice;
+use App\Models\SubscriptionPayment;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use Tests\TestCase;
 
 class MidtransWebhookTest extends TestCase
 {
