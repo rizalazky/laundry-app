@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\SubscriptionService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -15,6 +17,10 @@ use Illuminate\View\View;
 
 class RegisterOwnerController extends Controller
 {
+    public function __construct(
+        private SubscriptionService $subscriptions,
+    ) {}
+
     public function create(): View
     {
         return view('auth.register');
@@ -22,6 +28,12 @@ class RegisterOwnerController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        if (! $this->subscriptions->registrationEnabled()) {
+            return redirect()
+                ->route('register')
+                ->withErrors(['registration' => 'Pendaftaran akun baru sedang ditutup.']);
+        }
+
         $request->merge([
             'email' => Str::lower(trim((string) $request->input('email'))),
         ]);
@@ -43,7 +55,7 @@ class RegisterOwnerController extends Controller
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
-        DB::transaction(function () use ($validated): void {
+        $owner = DB::transaction(function () use ($validated): User {
             $baseSlug = Str::slug($validated['business_name']) ?: 'laundry';
             $tenant = Tenant::query()->create([
                 'name' => $validated['business_name'],
@@ -71,13 +83,19 @@ class RegisterOwnerController extends Controller
                 'password' => $validated['password'],
                 'role' => 'tenant_owner',
                 'is_active' => true,
+                'email_verification_required' => true,
             ]);
 
             $owner->branches()->attach($branch);
+
+            return $owner;
         });
 
-        return redirect()
-            ->route('home')
-            ->with('status', 'Pendaftaran berhasil. Silakan masuk menggunakan email dan password Anda.');
+        Auth::login($owner);
+        $request->session()->regenerate();
+        $owner->sendEmailVerificationNotification();
+
+        return redirect('/email/verify')
+            ->with('status', 'Pendaftaran berhasil. Silakan verifikasi email Anda untuk memulai masa trial dan mengakses aplikasi.');
     }
 }
