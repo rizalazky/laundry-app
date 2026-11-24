@@ -5,6 +5,10 @@ use App\Http\Controllers\Auth\RegisterOwnerController;
 use App\Http\Controllers\OrderReceiptController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/webhooks/midtrans', MidtransWebhookController::class)
+    ->withoutMiddleware(ValidateCsrfToken::class)
+    ->name('webhooks.midtrans');
+
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
