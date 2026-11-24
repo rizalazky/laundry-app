@@ -92,6 +92,21 @@ class SubscriptionPaymentReconciliationService
                     return 'already_processed';
                 }
 
+                if (
+                    $invoice->currency !== 'IDR'
+                    || BigDecimal::of($invoice->total_amount)->compareTo(BigDecimal::of($lockedPayment->amount)) !== 0
+                ) {
+                    Log::critical('Subscription payment amount does not match its invoice snapshot.', [
+                        'payment_id' => $lockedPayment->getKey(),
+                        'invoice_id' => $invoice->getKey(),
+                        'payment_amount' => $lockedPayment->amount,
+                        'invoice_amount' => $invoice->total_amount,
+                        'invoice_currency' => $invoice->currency,
+                    ]);
+
+                    return 'amount_mismatch';
+                }
+
                 $paidAt = $status->paidAt ?? now();
 
                 $lockedPayment->forceFill([
@@ -104,6 +119,12 @@ class SubscriptionPaymentReconciliationService
                 // Another attempt may have settled this invoice first. Record
                 // this provider result, but never extend the subscription twice.
                 if ($invoice->status === 'paid') {
+                    Log::critical('A second Midtrans payment attempt settled an invoice that was already paid.', [
+                        'payment_id' => $lockedPayment->getKey(),
+                        'invoice_id' => $invoice->getKey(),
+                        'provider_reference' => $lockedPayment->provider_reference,
+                    ]);
+
                     return 'invoice_already_paid';
                 }
 
