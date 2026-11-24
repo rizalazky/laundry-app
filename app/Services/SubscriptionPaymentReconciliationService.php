@@ -128,6 +128,16 @@ class SubscriptionPaymentReconciliationService
                     return 'invoice_already_paid';
                 }
 
+                if (! in_array($invoice->status, ['issued', 'pending'], true)) {
+                    Log::critical('Midtrans settled a payment for an invoice that is no longer payable.', [
+                        'payment_id' => $lockedPayment->getKey(),
+                        'invoice_id' => $invoice->getKey(),
+                        'invoice_status' => $invoice->status,
+                    ]);
+
+                    return 'invoice_not_payable';
+                }
+
                 $invoice->forceFill([
                     'status' => 'paid',
                     'paid_at' => $paidAt,
