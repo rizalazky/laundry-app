@@ -56,7 +56,7 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
             $payload['enabled_payments'] = [$payment->payment_method];
         }
 
-        $response = $this->request()
+        $response = $this->request('snap_base_url')
             ->post('/snap/v1/transactions', $payload)
             ->throw();
 
@@ -76,7 +76,7 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
 
     public function getPaymentStatus(string $providerReference): PaymentGatewayStatusResult
     {
-        $response = $this->request()
+        $response = $this->request('api_base_url')
             ->get('/v2/'.rawurlencode($providerReference).'/status')
             ->throw();
 
@@ -131,12 +131,12 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
 
     public function cancelPayment(string $providerReference): void
     {
-        $this->request()
+        $this->request('api_base_url')
             ->delete('/v2/'.rawurlencode($providerReference).'/cancel')
             ->throw();
     }
 
-    private function request(): PendingRequest
+    private function request(string $baseUrlKey): PendingRequest
     {
         $serverKey = (string) config('services.midtrans.server_key');
 
@@ -144,7 +144,7 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
             throw new RuntimeException('MIDTRANS_SERVER_KEY belum dikonfigurasi.');
         }
 
-        return Http::baseUrl((string) config('services.midtrans.base_url'))
+        return Http::baseUrl((string) config('services.midtrans.'.$baseUrlKey))
             ->withBasicAuth($serverKey, '')
             ->acceptJson()
             ->asJson()
