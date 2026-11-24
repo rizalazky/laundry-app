@@ -53,7 +53,7 @@ class MassInvoiceSchedule extends Model
                 ]);
             }
 
-            if ($schedule->next_run_at === null) {
+            if ($schedule->next_run_at === null || $schedule->isDirty('frequency') || $schedule->isDirty('run_day')) {
                 $schedule->next_run_at = $schedule->calculateNextRunAt(now());
             }
         });
