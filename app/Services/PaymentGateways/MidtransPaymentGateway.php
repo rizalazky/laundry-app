@@ -91,7 +91,11 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
 
         $status = match ($transactionStatus) {
             'settlement' => 'succeeded',
-            'capture' => $fraudStatus === 'accept' ? 'succeeded' : 'pending',
+            'capture' => match ($fraudStatus) {
+                'accept' => 'succeeded',
+                'challenge' => 'pending',
+                default => 'failed',
+            },
             'pending' => 'pending',
             'expire' => 'expired',
             'cancel', 'deny', 'failure' => 'failed',
@@ -132,7 +136,7 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
     public function cancelPayment(string $providerReference): void
     {
         $this->request('api_base_url')
-            ->delete('/v2/'.rawurlencode($providerReference).'/cancel')
+            ->post('/v2/'.rawurlencode($providerReference).'/cancel')
             ->throw();
     }
 
