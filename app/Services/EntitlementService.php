@@ -87,9 +87,24 @@ class EntitlementService
 
     public function canCreateBranch(Tenant $tenant): bool
     {
-        $limit = $this->limit($tenant, 'max_outlets');
+        $feature = $this->feature($tenant, 'max_outlets');
+        $limit = $feature !== null
+            ? $this->limit($tenant, 'max_outlets')
+            : ($tenant->max_branches === null ? null : max(0, (int) $tenant->max_branches));
 
-        return $limit === null || $tenant->branches()->count() < $limit;
+        if ($limit === null) {
+            return true;
+        }
+
+        $branches = $tenant->branches();
+
+        // Plan limits are explicitly outlet limits; workshops are separate
+        // processing locations and do not consume an outlet seat.
+        if ($feature !== null) {
+            $branches->where('is_workshop', false);
+        }
+
+        return $branches->count() < $limit;
     }
 
     public function canCreateUser(Tenant $tenant): bool
