@@ -39,9 +39,7 @@ class SubscriptionPaymentService
             return $payment;
         }
 
-        $result = $this->gateway->createPayment($payment);
-
-        return DB::transaction(function () use ($payment, $result): SubscriptionPayment {
+        return DB::transaction(function () use ($payment): SubscriptionPayment {
             $lockedPayment = SubscriptionPayment::withoutGlobalScopes()
                 ->whereKey($payment->getKey())
                 ->lockForUpdate()
@@ -50,6 +48,8 @@ class SubscriptionPaymentService
             if (filled($lockedPayment->payment_url)) {
                 return $lockedPayment;
             }
+
+            $result = $this->gateway->createPayment($lockedPayment);
 
             $lockedPayment->forceFill([
                 'provider_reference' => $result->providerReference,
