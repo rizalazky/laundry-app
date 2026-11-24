@@ -85,6 +85,26 @@ class MidtransPaymentGatewayTest extends TestCase
         $this->assertNotNull($result->paidAt);
     }
 
+    public function test_snap_status_not_found_before_payment_method_selection_is_pending(): void
+    {
+        config([
+            'services.midtrans.server_key' => 'sandbox-server-key',
+            'services.midtrans.api_base_url' => 'https://api.sandbox.midtrans.com',
+        ]);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://api.sandbox.midtrans.com/v2/SUBPAY-7-55/status' => Http::response([
+                'status_code' => '404',
+                'status_message' => 'Payment not found',
+            ], 404),
+        ]);
+
+        $result = app(MidtransPaymentGateway::class)->getPaymentStatus('SUBPAY-7-55');
+
+        $this->assertSame('pending', $result->status);
+    }
+
     public function test_it_verifies_midtrans_webhook_signature(): void
     {
         config(['services.midtrans.server_key' => 'sandbox-server-key']);
