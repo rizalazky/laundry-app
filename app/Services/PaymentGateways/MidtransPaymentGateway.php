@@ -14,6 +14,10 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
 {
     public function createPayment(SubscriptionPayment $payment): PaymentGatewayResult
     {
+        if ($payment->provider !== 'midtrans') {
+            throw new RuntimeException('Payment attempt tidak ditujukan untuk Midtrans.');
+        }
+
         $invoice = $payment->invoice;
 
         if (! $invoice instanceof SubscriptionInvoice) {
