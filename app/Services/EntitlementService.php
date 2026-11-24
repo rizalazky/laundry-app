@@ -135,7 +135,13 @@ class EntitlementService
     {
         $periodEnd = $subscription->current_period_end ?? $subscription->trial_ends_at;
 
-        return $periodEnd === null || $now->lt($periodEnd);
+        if ($periodEnd === null) {
+            $legacyEnd = $subscription->tenant?->subscription_ends_at;
+
+            return $legacyEnd === null || $now->lt($legacyEnd);
+        }
+
+        return $now->lt($periodEnd);
     }
 
     private function isWithinGracePeriod(Subscription $subscription, $now): bool
