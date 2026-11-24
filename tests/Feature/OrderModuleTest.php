@@ -11,6 +11,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ServiceUnit;
 use App\Filament\App\Resources\Orders\Pages\CreateOrder;
+use App\Filament\App\Resources\Orders\Pages\ListOrders;
 use App\Filament\App\Resources\Orders\Pages\ViewOrder;
 use App\Models\Branch;
 use App\Models\Customer;
@@ -666,4 +667,25 @@ class OrderModuleTest extends TestCase
             'order_source' => 'omnichannel',
         ]);
     }
+
+    public function test_order_list_highlights_overdue_orders_and_distinguishes_orders_without_deadlines(): void
+    {
+        $cashier = $this->staff('cashier');
+        $overdue = $this->makeOrder(by: $cashier);
+        $overdue->update(['due_at' => now()->subHour()]);
+
+        $onTime = $this->makeOrder(by: $cashier);
+        $onTime->update(['due_at' => now()->addHour()]);
+
+        $withoutDeadline = $this->makeOrder(by: $cashier);
+        $withoutDeadline->update(['due_at' => null]);
+
+        $this->actAsInPanel($cashier);
+
+        Livewire::test(ListOrders::class)
+            ->assertSee('Terlambat')
+            ->assertSee('Sesuai Jadwal')
+            ->assertSee('Tanpa Tenggat');
+    }
+
 }

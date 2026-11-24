@@ -41,6 +41,22 @@ class OrdersTable
                     ->formatStateUsing(fn (OrderStatus $state): string => $state->label())
                     ->color(fn (OrderStatus $state): string => $state->color()),
 
+                TextColumn::make('deadline_status')
+                    ->label('Tenggat')
+                    ->state(fn (Order $record): string => match (true) {
+                        $record->due_at === null => 'Tanpa Tenggat',
+                        $record->status->isFinal() => 'Ditutup',
+                        $record->due_at->isPast() => 'Terlambat',
+                        default => 'Sesuai Jadwal',
+                    })
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Terlambat' => 'danger',
+                        'Sesuai Jadwal' => 'success',
+                        'Tanpa Tenggat' => 'gray',
+                        default => 'gray',
+                    }),
+
                 TextColumn::make('payment_status')
                     ->label('Pembayaran')
                     ->badge()
