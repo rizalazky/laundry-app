@@ -14,6 +14,7 @@ class SubscriptionPaymentService
     public function __construct(
         private readonly SubscriptionInvoiceService $invoiceService,
         private readonly PaymentGatewayInterface $gateway,
+        private readonly SubscriptionPaymentReconciliationService $reconciliationService,
     ) {
     }
 
@@ -59,6 +60,14 @@ class SubscriptionPaymentService
 
             return $lockedPayment->refresh();
         });
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function handleMidtransWebhook(array $payload): string
+    {
+        return $this->reconciliationService->handle($payload);
     }
 
     public function getPaymentStatus(SubscriptionPayment $payment): PaymentGatewayStatusResult

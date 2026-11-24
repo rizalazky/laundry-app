@@ -127,6 +127,8 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
                 ? ($data['status_message'] ?? $transactionStatus)
                 : null,
             providerPayload: $data,
+            grossAmount: isset($data['gross_amount']) ? (string) $data['gross_amount'] : null,
+            currency: isset($data['currency']) ? (string) $data['currency'] : null,
         );
     }
 
