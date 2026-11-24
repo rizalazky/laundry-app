@@ -69,6 +69,16 @@ class SubscriptionEntitlementTest extends TestCase
         $this->assertTrue($service->canWrite($tenant));
     }
 
+    public function test_active_subscription_without_period_end_respects_legacy_tenant_expiry(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'subscription_ends_at' => now()->subDay(),
+        ]);
+        $this->subscription($tenant, 'active');
+
+        $this->assertSame('read_only', app(EntitlementService::class)->accessState($tenant));
+    }
+
     public function test_read_only_tenant_can_read_but_cannot_authorize_write_abilities(): void
     {
         $tenant = Tenant::factory()->create();
@@ -127,7 +137,7 @@ class SubscriptionEntitlementTest extends TestCase
             'value' => 1,
         ]);
 
-        $branch = Branch::factory()->for($tenant)->create(['code' => 'LIMIT']);
+        Branch::factory()->for($tenant)->create(['code' => 'LIMIT']);
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
 
         $this->assertFalse((new BranchPolicy())->create($owner));
