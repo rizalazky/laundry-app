@@ -16,6 +16,8 @@ final readonly class PaymentGatewayStatusResult
         public ?Carbon $paidAt = null,
         public ?string $failureReason = null,
         public array $providerPayload = [],
+        public ?string $grossAmount = null,
+        public ?string $currency = null,
     ) {
     }
 }
