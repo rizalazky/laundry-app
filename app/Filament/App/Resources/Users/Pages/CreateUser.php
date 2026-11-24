@@ -3,10 +3,14 @@
 namespace App\Filament\App\Resources\Users\Pages;
 
 use App\Filament\App\Resources\Users\UserResource;
+use App\Models\Tenant;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\EntitlementService;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class CreateUser extends CreateRecord
 {
@@ -29,6 +33,20 @@ class CreateUser extends CreateRecord
             : (in_array($data['role'] ?? null, ['branch_manager', 'cashier', 'operator', 'courier'], true) ? $data['role'] : 'cashier');
 
         return $data;
+    }
+
+    protected function handleRecordCreation(array $data): Model
+    {
+        return DB::transaction(function () use ($data): Model {
+            $tenant = Tenant::query()
+                ->whereKey($data['tenant_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            app(EntitlementService::class)->assertCanCreateUser($tenant);
+
+            return parent::handleRecordCreation($data);
+        });
     }
 
     protected function afterCreate(): void

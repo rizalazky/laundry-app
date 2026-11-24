@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\User;
+use App\Services\EntitlementService;
 
 class UserPolicy
 {
@@ -25,7 +26,9 @@ class UserPolicy
 
     public function create(User $user): bool
     {
-        return $this->viewAny($user) && $user->hasPermissionTo('staff.manage');
+        return $this->viewAny($user)
+            && $user->hasPermissionTo('staff.manage')
+            && app(EntitlementService::class)->canCreateUser($user->tenant);
     }
 
     public function update(User $user, User $model): bool

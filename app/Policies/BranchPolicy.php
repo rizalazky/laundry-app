@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\EntitlementService;
 
 class BranchPolicy
 {
@@ -27,7 +28,8 @@ class BranchPolicy
         return $user->is_active
             && $user->tenant_id !== null
             && $user->role === 'tenant_owner'
-            && $user->hasPermissionTo('branches.manage');
+            && $user->hasPermissionTo('branches.manage')
+            && app(EntitlementService::class)->canCreateBranch($user->tenant);
     }
 
     public function update(User $user, Branch $branch): bool

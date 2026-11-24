@@ -3,10 +3,10 @@
 namespace App\Filament\App\Pages\Tenancy;
 
 use App\Models\Branch;
+use App\Services\EntitlementService;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Notifications\Notification;
 use Filament\Pages\Tenancy\RegisterTenant;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Auth;
@@ -26,11 +26,10 @@ class RegisterBranch extends RegisterTenant
         $user = Auth::user();
         $tenant = $user?->tenant;
 
-        if ($user === null || $tenant === null || ! Gate::forUser($user)->allows('create', Branch::class)) {
-            return false;
-        }
-
-        return $tenant->branches()->count() < $tenant->max_branches;
+        return $user !== null
+            && $tenant !== null
+            && Gate::forUser($user)->allows('create', Branch::class)
+            && app(EntitlementService::class)->canCreateBranch($tenant);
     }
 
     public function form(Schema $schema): Schema
@@ -77,16 +76,7 @@ class RegisterBranch extends RegisterTenant
 
         return DB::transaction(function () use ($user, $data): Branch {
             $tenant = $user->tenant()->lockForUpdate()->firstOrFail();
-
-            if ($tenant->branches()->count() >= $tenant->max_branches) {
-                Notification::make()
-                    ->title('Kuota Cabang Penuh')
-                    ->body('Paket Anda maksimal ' . $tenant->max_branches . ' cabang.')
-                    ->danger()
-                    ->send();
-
-                $this->halt();
-            }
+            app(EntitlementService::class)->assertCanCreateBranch($tenant);
 
             $branch = $tenant->branches()->create([
                 ...$data,
