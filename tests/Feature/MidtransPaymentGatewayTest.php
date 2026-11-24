@@ -112,7 +112,7 @@ class MidtransPaymentGatewayTest extends TestCase
 
         app(MidtransPaymentGateway::class)->cancelPayment('SUBPAY-7-55');
 
-        Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
             && $request->url() === 'https://api.sandbox.midtrans.com/v2/SUBPAY-7-55/cancel');
     }
 
