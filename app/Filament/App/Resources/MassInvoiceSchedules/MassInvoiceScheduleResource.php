@@ -144,7 +144,9 @@ class MassInvoiceScheduleResource extends Resource
                                 ->handle($record, Auth::user());
 
                             \Filament\Notifications\Notification::make()
-                                ->title($count.' faktur berhasil dibuat.')
+                                ->title($count > 0
+                                    ? $count.' faktur berhasil dibuat.'
+                                    : 'Tidak ada tagihan baru untuk difakturkan.')
                                 ->success()
                                 ->send();
                         } catch (\DomainException $exception) {
