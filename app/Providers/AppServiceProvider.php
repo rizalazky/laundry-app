@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Listeners\StartTenantTrialAfterEmailVerification;
+use App\Models\Journal;
 use App\Models\StockMovement;
 use App\Models\Tenant;
 use App\Models\User;
@@ -26,11 +27,11 @@ class AppServiceProvider extends ServiceProvider
     {
         Tenant::observe(TenantObserver::class);
         StockMovement::observe(StockMovementObserver::class);
-        \App\Models\Journal::observe(JournalObserver::class);
+        Journal::observe(JournalObserver::class);
 
         Event::listen(Verified::class, StartTenantTrialAfterEmailVerification::class);
 
-        Gate::before(function (User $user, string $ability): ?bool {
+        Gate::before(function (User $user, string $ability, array $arguments): ?bool {
             $writeAbilities = [
                 'create',
                 'createAny',
@@ -44,6 +45,16 @@ class AppServiceProvider extends ServiceProvider
             ];
 
             if (! in_array($ability, $writeAbilities, true) || $user->tenant_id === null) {
+                return null;
+            }
+
+            $subject = $arguments[0] ?? null;
+            $subjectClass = is_string($subject)
+                ? ltrim($subject, '\\')
+                : (is_object($subject) ? $subject::class : null);
+
+            // Billing records must remain writable so an expired owner can renew.
+            if ($subjectClass !== null && str_starts_with($subjectClass, 'App\\Models\\Subscription')) {
                 return null;
             }
 
