@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Filament\App\Pages\Billing;
 use App\Models\Plan;
 use App\Models\Subscription;
-use App\Models\SubscriptionInvoice;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\SubscriptionInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -53,13 +53,13 @@ class BillingPageTest extends TestCase
     public function test_billing_page_only_displays_invoices_belonging_to_current_tenant(): void
     {
         [$tenantA, $ownerA, $planA] = $this->makeTenantWithSubscription();
-        [$tenantB, $ownerB] = $this->makeTenantWithSubscription();
+        [$tenantB, $ownerB, $planB] = $this->makeTenantWithSubscription();
 
         $this->actingAs($ownerA);
-        $invoiceA = app(\\App\\Services\\SubscriptionInvoiceService::class)->createInitialInvoice($tenantA, $planA);
+        $invoiceA = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenantA, $planA);
 
         $this->actingAs($ownerB);
-        $invoiceB = app(\\App\\Services\\SubscriptionInvoiceService::class)->createInitialInvoice($tenantB, $tenantB->subscription->plan);
+        $invoiceB = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenantB, $planB);
 
         Livewire::actingAs($ownerA)
             ->test(Billing::class)
