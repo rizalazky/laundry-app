@@ -154,6 +154,9 @@ class SubscriptionInvoiceTest extends TestCase
         $this->actingAs($ownerA);
         $invoiceA = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenantA, $planA);
 
+        // Create the second tenant's subscription without tenant A's auth context.
+        // BelongsToTenant correctly overrides tenant_id from the authenticated user.
+        auth()->logout();
         [$tenantB, $ownerB] = $this->makeTenantWithPlan();
         $forgedInvoice = new SubscriptionInvoice(['tenant_id' => $tenantB->id]);
         $forgedInvoice->id = $invoiceA->id;
