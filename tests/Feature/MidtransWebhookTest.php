@@ -143,6 +143,28 @@ class MidtransWebhookTest extends TestCase
         $this->assertSame('trialing', $tenant->subscription()->firstOrFail()->status);
     }
 
+
+    public function test_signed_midtrans_dashboard_test_notification_is_acknowledged_without_reconciliation(): void
+    {
+        $payload = [
+            'order_id' => 'payment_notif_test_M171656689_test-id',
+            'status_code' => '200',
+            'gross_amount' => '105000.00',
+        ];
+
+        $payload['signature_key'] = hash(
+            'sha512',
+            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'webhook-server-key',
+        );
+
+        $this->postJson(route('webhooks.midtrans'), $payload)
+            ->assertOk()
+            ->assertJsonPath('received', true)
+            ->assertJsonPath('test', true);
+
+        Http::assertNothingSent();
+    }
+
     private function makePendingPayment(): array
     {
         $tenant = Tenant::factory()->create();
