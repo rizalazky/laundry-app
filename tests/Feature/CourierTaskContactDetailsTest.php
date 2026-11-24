@@ -28,6 +28,8 @@ class CourierTaskContactDetailsTest extends TestCase
         $tenant = Tenant::factory()->create();
         $branch = Branch::factory()->for($tenant)->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $courier = User::factory()->for($tenant)->withRole('courier')->create();
+        $courier->branches()->attach($branch);
         $customer = Customer::factory()->for($tenant)->create([
             'name' => 'Customer Courier Test',
             'phone' => '08123456789',
@@ -41,7 +43,7 @@ class CourierTaskContactDetailsTest extends TestCase
         $task = CourierTask::query()->create([
             'tenant_id' => $tenant->id,
             'order_id' => $order->id,
-            'courier_id' => null,
+            'courier_id' => $courier->id,
             'created_by' => $owner->id,
             'task_type' => CourierTaskType::Pickup,
             'address' => 'Jl. Melati No. 5',
