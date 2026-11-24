@@ -5,17 +5,22 @@ namespace App\Filament\App\Resources\Orders\Pages;
 use App\Actions\CourierTasks\CreateCourierTask;
 use App\Actions\Orders\ChangeOrderStatus;
 use App\Actions\Orders\RecordPayment;
+use App\Actions\Orders\ManageOrderAdjustment;
 use App\Enums\CourierTaskType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentType;
 use App\Filament\App\Resources\Orders\OrderResource;
 use App\Models\Order;
+use App\Models\OrderAdjustment;
+use App\Models\ChartOfAccount;
+use App\Models\BankAccount;
 use App\Models\User;
 use Brick\Math\BigDecimal;
 use DomainException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
+use Filament\Forms\Get;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -36,7 +41,11 @@ class ViewOrder extends ViewRecord
             $this->changeStatusAction(),
             $this->cancelOrderAction(),
             $this->assignCourierTaskAction(),
-            $this->refundAction(),
+            $this->requestAdjustmentAction(),
+            $this->approveAdjustmentAction(),
+            $this->rejectAdjustmentAction(),
+            $this->payAdjustmentAction(),
+            $this->adjustmentHistoryAction(),
         ];
     }
 
@@ -159,49 +168,115 @@ class ViewOrder extends ViewRecord
             });
     }
 
-    private function refundAction(): Action
+
+    private function requestAdjustmentAction(): Action
     {
-        return Action::make('refund')
-            ->label('Refund')
-            ->icon('heroicon-o-arrow-uturn-left')
-            ->color('danger')
-            ->authorize('refund')
-            ->visible(fn (Order $record): bool => BigDecimal::of($record->paid_amount)->isGreaterThan(0))
-            ->requiresConfirmation()
-            ->modalHeading('Catat Refund')
-            ->fillForm(fn (): array => [
-                'method' => PaymentMethod::Cash->value,
-                'idempotency_key' => (string) Str::uuid(),
-            ])
-            ->schema(fn (Order $record): array => [
-                TextInput::make('amount')
-                    ->label('Nominal Refund')
-                    ->helperText('Sudah dibayar: Rp '.number_format((float) $record->paid_amount, 0, ',', '.'))
-                    ->numeric()
-                    ->minValue(0.01)
-                    ->maxValue((float) $record->paid_amount)
-                    ->prefix('Rp')
-                    ->required(),
-                Select::make('method')
-                    ->label('Dikembalikan Lewat')
-                    ->options(PaymentMethod::options())
-                    ->default(PaymentMethod::Cash->value)
-                    ->native(false)
-                    ->required(),
-                Textarea::make('notes')->label('Alasan')->rows(2)->required()->maxLength(500),
-                Hidden::make('idempotency_key'),
+        return Action::make('requestAdjustment')->label('Refund / Kompensasi')->icon('heroicon-o-scale')
+            ->color('warning')->authorize('view')->modalHeading('Ajukan Refund / Kompensasi')
+            ->schema([
+                Select::make('type')->label('Jenis Pengajuan')->options([
+                    OrderAdjustment::TYPE_REFUND => 'Refund (pengembalian pembayaran)',
+                    OrderAdjustment::TYPE_COMPENSATION => 'Kompensasi (ganti rugi)',
+                ])->required()->native(false),
+                TextInput::make('amount')->label('Nominal Pengajuan')->numeric()->minValue(0.01)->prefix('Rp')->required(),
+                TextInput::make('reason')->label('Alasan')->required()->maxLength(2000),
+                Textarea::make('notes')->label('Catatan Tambahan')->rows(2)->maxLength(2000),
             ])
             ->action(function (array $data, Order $record): void {
-                $this->runLedgerAction(fn () => app(RecordPayment::class)->handle(
-                    order: $record,
-                    amount: $data['amount'],
-                    method: PaymentMethod::from($data['method']),
-                    user: Auth::user(),
-                    type: PaymentType::Refund,
-                    notes: $data['notes'],
-                    idempotencyKey: $data['idempotency_key'] ?? null,
-                ), 'Refund dicatat');
+                $this->runLedgerAction(fn () => app(ManageOrderAdjustment::class)->request(
+                    order: $record, type: $data['type'], amount: $data['amount'], reason: $data['reason'],
+                    user: Auth::user(), notes: $data['notes'] ?? null,
+                ), 'Pengajuan berhasil dikirim ke owner');
             });
+    }
+
+    private function approveAdjustmentAction(): Action
+    {
+        return Action::make('approveAdjustment')->label('Setujui Pengajuan')->icon('heroicon-o-check-circle')
+            ->color('success')->visible(fn (Order $record): bool => Auth::user()?->role === 'tenant_owner'
+                && $record->adjustments()->where('status', OrderAdjustment::STATUS_PENDING)->exists())
+            ->authorize('view')->modalHeading('Setujui Refund / Kompensasi')
+            ->schema(fn (Order $record): array => [
+                Select::make('adjustment_id')->label('Pengajuan Pending')
+                    ->options($record->adjustments()->where('status', OrderAdjustment::STATUS_PENDING)->orderBy('requested_at')->get()
+                        ->mapWithKeys(fn (OrderAdjustment $item): array => [$item->id => strtoupper($item->type).' — Rp '.number_format((float) $item->requested_amount, 0, ',', '.').' — '.$item->reason])->all())
+                    ->required()->searchable()->native(false),
+                TextInput::make('approved_amount')->label('Nominal Disetujui')->numeric()->minValue(0.01)->prefix('Rp')->required(),
+            ])
+            ->action(function (array $data, Order $record): void {
+                $adjustment = $record->adjustments()->findOrFail($data['adjustment_id']);
+                $this->runLedgerAction(fn () => app(ManageOrderAdjustment::class)->approve($adjustment, $data['approved_amount'], Auth::user()), 'Pengajuan disetujui');
+            });
+    }
+
+    private function rejectAdjustmentAction(): Action
+    {
+        return Action::make('rejectAdjustment')->label('Tolak Pengajuan')->icon('heroicon-o-x-circle')->color('danger')
+            ->visible(fn (Order $record): bool => Auth::user()?->role === 'tenant_owner'
+                && $record->adjustments()->where('status', OrderAdjustment::STATUS_PENDING)->exists())
+            ->authorize('view')->modalHeading('Tolak Refund / Kompensasi')
+            ->schema(fn (Order $record): array => [
+                Select::make('adjustment_id')->label('Pengajuan Pending')
+                    ->options($record->adjustments()->where('status', OrderAdjustment::STATUS_PENDING)->orderBy('requested_at')->get()
+                        ->mapWithKeys(fn (OrderAdjustment $item): array => [$item->id => strtoupper($item->type).' — Rp '.number_format((float) $item->requested_amount, 0, ',', '.').' — '.$item->reason])->all())
+                    ->required()->searchable()->native(false),
+                Textarea::make('rejection_reason')->label('Alasan Penolakan')->required()->rows(2)->maxLength(2000),
+            ])
+            ->action(function (array $data, Order $record): void {
+                $adjustment = $record->adjustments()->findOrFail($data['adjustment_id']);
+                $this->runLedgerAction(fn () => app(ManageOrderAdjustment::class)->reject($adjustment, $data['rejection_reason'], Auth::user()), 'Pengajuan ditolak');
+            });
+    }
+
+    private function payAdjustmentAction(): Action
+    {
+        return Action::make('payAdjustment')->label('Bayar Pengajuan Disetujui')->icon('heroicon-o-banknotes')->color('success')
+            ->visible(fn (Order $record): bool => Auth::user()?->role === 'tenant_owner'
+                && $record->adjustments()->where('status', OrderAdjustment::STATUS_APPROVED)->exists())
+            ->authorize('view')->modalHeading('Realisasi Refund / Kompensasi')
+            ->schema(fn (Order $record): array => [
+                Select::make('adjustment_id')->label('Pengajuan Disetujui')
+                    ->options($record->adjustments()->where('status', OrderAdjustment::STATUS_APPROVED)->orderBy('approved_at')->get()
+                        ->mapWithKeys(fn (OrderAdjustment $item): array => [$item->id => strtoupper($item->type).' — Rp '.number_format((float) $item->approved_amount, 0, ',', '.')])->all())
+                    ->required()->searchable()->native(false),
+                Select::make('method')->label('Metode Refund')->options(PaymentMethod::options())->default(PaymentMethod::Cash->value)
+                    ->native(false)->visible(fn (Get $get): bool => $get('adjustment_id') !== null
+                        && $record->adjustments()->whereKey($get('adjustment_id'))->value('type') === OrderAdjustment::TYPE_REFUND),
+                TextInput::make('reference')->label('No. Referensi')->maxLength(255),
+                Select::make('expense_account_id')->label('Akun Beban Kompensasi')
+                    ->options(fn (): array => ChartOfAccount::query()->where('account_type', 'expense')->where('is_active', true)->orderBy('code')->get()
+                        ->mapWithKeys(fn (ChartOfAccount $account): array => [$account->id => $account->code.' — '.$account->name])->all())
+                    ->searchable()->native(false)->visible(fn (Get $get): bool => $get('adjustment_id') !== null
+                        && $record->adjustments()->whereKey($get('adjustment_id'))->value('type') === OrderAdjustment::TYPE_COMPENSATION),
+                Select::make('payment_source_type')->label('Sumber Dana')->options(['cash' => 'Kas', 'bank' => 'Bank'])->default('cash')->native(false)
+                    ->visible(fn (Get $get): bool => $get('adjustment_id') !== null
+                        && $record->adjustments()->whereKey($get('adjustment_id'))->value('type') === OrderAdjustment::TYPE_COMPENSATION),
+                Select::make('bank_account_id')->label('Rekening Bank')
+                    ->options(fn (): array => BankAccount::query()->where('is_active', true)->orderBy('bank_name')->get()
+                        ->mapWithKeys(fn (BankAccount $bank): array => [$bank->id => $bank->bank_name.' — '.$bank->account_number])->all())
+                    ->searchable()->native(false)->visible(fn (Get $get): bool => $get('payment_source_type') === 'bank'),
+            ])
+            ->action(function (array $data, Order $record): void {
+                $adjustment = $record->adjustments()->findOrFail($data['adjustment_id']);
+                $this->runLedgerAction(fn () => app(ManageOrderAdjustment::class)->markPaid(
+                    adjustment: $adjustment, user: Auth::user(),
+                    method: isset($data['method']) ? PaymentMethod::from($data['method']) : null,
+                    reference: $data['reference'] ?? null,
+                    expenseAccountId: isset($data['expense_account_id']) ? (int) $data['expense_account_id'] : null,
+                    paymentSourceType: $data['payment_source_type'] ?? 'cash',
+                    bankAccountId: isset($data['bank_account_id']) ? (int) $data['bank_account_id'] : null,
+                ), 'Pembayaran pengajuan berhasil dicatat');
+            });
+    }
+
+    private function adjustmentHistoryAction(): Action
+    {
+        return Action::make('adjustmentHistory')->label('Riwayat Refund / Kompensasi')->icon('heroicon-o-clipboard-document-list')
+            ->color('gray')->authorize('view')->modalHeading('Riwayat Refund / Kompensasi')
+            ->modalSubmitAction(false)->modalCancelActionLabel('Tutup')
+            ->modalContent(fn (Order $record) => view('filament.app.resources.orders.adjustment-history', [
+                'adjustments' => $record->adjustments()->with(['requester', 'approver', 'payer'])->latest('requested_at')->get(),
+            ]));
     }
 
     private function cancelOrderAction(): Action

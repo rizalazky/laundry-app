@@ -109,6 +109,11 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(OrderAdjustment::class);
+    }
+
     public function statusLogs(): HasMany
     {
         return $this->hasMany(OrderStatusLog::class);
