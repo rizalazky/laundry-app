@@ -5,6 +5,7 @@ namespace App\Filament\App\Resources\Users\Pages;
 use App\Filament\App\Resources\Users\UserResource;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\EntitlementService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,6 +28,8 @@ class CreateUser extends CreateRecord
         $data['role'] = $user->role === 'branch_manager'
             ? (in_array($data['role'] ?? null, ['cashier', 'operator', 'courier'], true) ? $data['role'] : 'cashier')
             : (in_array($data['role'] ?? null, ['branch_manager', 'cashier', 'operator', 'courier'], true) ? $data['role'] : 'cashier');
+
+        app(EntitlementService::class)->assertCanCreateUser($user->tenant);
 
         return $data;
     }
