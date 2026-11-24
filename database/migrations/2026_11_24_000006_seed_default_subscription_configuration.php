@@ -39,18 +39,24 @@ return new class extends Migration {
 
     public function down(): void
     {
-        DB::table('platform_settings')
-            ->whereIn('key', [
-                'trial_enabled',
-                'trial_days',
-                'grace_period_days',
-                'default_plan_code',
-                'registration_enabled',
-            ])
-            ->delete();
+        foreach ([
+            'trial_enabled' => true,
+            'trial_days' => 30,
+            'grace_period_days' => 3,
+            'default_plan_code' => 'starter',
+            'registration_enabled' => true,
+        ] as $key => $value) {
+            DB::table('platform_settings')
+                ->where('key', $key)
+                ->where('value', json_encode($value, JSON_THROW_ON_ERROR))
+                ->delete();
+        }
 
         DB::table('plans')
             ->where('code', 'starter')
+            ->where('name', 'Starter')
+            ->where('monthly_price', 0)
+            ->where('description', 'Default plan used for the initial trial. Pricing and entitlements can be configured by the platform administrator.')
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')
                     ->from('subscriptions')
