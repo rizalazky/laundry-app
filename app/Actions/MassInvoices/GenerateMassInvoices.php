@@ -43,7 +43,7 @@ class GenerateMassInvoices
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if (! $lockedSchedule->is_active) {
+            if ($scheduled && ! $lockedSchedule->is_active) {
                 throw new DomainException('Jadwal faktur sedang tidak aktif.');
             }
 
