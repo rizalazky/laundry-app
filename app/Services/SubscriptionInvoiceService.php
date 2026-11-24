@@ -33,6 +33,12 @@ class SubscriptionInvoiceService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if ($subscription->current_period_end === null) {
+                throw ValidationException::withMessages([
+                    'subscription' => 'Renewal hanya tersedia setelah periode berlangganan pertama terbentuk.',
+                ]);
+            }
+
             $plan = Plan::query()->findOrFail($subscription->plan_id);
 
             return $this->buildInvoice($tenant, $subscription, $plan, 'renewal', $billingInterval);
@@ -116,6 +122,12 @@ class SubscriptionInvoiceService
                 ->where('tenant_id', $tenant->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if ($type === 'initial' && ($subscription->current_period_start !== null || $subscription->current_period_end !== null)) {
+                throw ValidationException::withMessages([
+                    'subscription' => 'Invoice pembelian awal hanya tersedia sebelum periode berbayar pertama dimulai.',
+                ]);
+            }
 
             $lockedPlan = Plan::query()->findOrFail($plan->getKey());
 
