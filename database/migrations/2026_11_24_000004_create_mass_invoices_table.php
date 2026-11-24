@@ -24,12 +24,6 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['tenant_id', 'invoice_no']);
-            $table->unique([
-                'mass_invoice_schedule_id',
-                'customer_id',
-                'billing_period_start',
-                'billing_period_end',
-            ], 'mass_invoice_period_customer_unique');
             $table->index(['tenant_id', 'customer_id', 'generated_at']);
         });
 
