@@ -375,4 +375,103 @@ class PromoVoucherCheckoutTest extends TestCase
         $this->assertSame(1, $voucher->fresh()->used_count);
     }
 
+
+    public function test_checkout_rejects_inactive_and_not_yet_started_vouchers_without_consuming_quota(): void
+    {
+        $promo = $this->makePromo(['rules' => []]);
+
+        $inactiveVoucher = $this->makeVoucher($promo, [
+            'code' => 'INACTIVE',
+            'is_active' => false,
+        ]);
+        $futureVoucher = $this->makeVoucher($promo, [
+            'code' => 'FUTURE',
+            'starts_at' => now()->addDay(),
+        ]);
+
+        foreach ([
+            'INACTIVE' => 'Voucher tidak ditemukan atau tidak aktif.',
+            'FUTURE' => 'Voucher belum berlaku atau sudah kedaluwarsa.',
+        ] as $code => $expectedMessage) {
+            try {
+                $this->createOrder($code);
+                $this->fail("Voucher {$code} must not be accepted.");
+            } catch (DomainException $exception) {
+                $this->assertSame($expectedMessage, $exception->getMessage());
+            }
+        }
+
+        $this->assertSame(0, Order::query()->count());
+        $this->assertSame(0, $inactiveVoucher->fresh()->used_count);
+        $this->assertSame(0, $futureVoucher->fresh()->used_count);
+    }
+
+    public function test_checkout_rejects_inactive_future_and_ended_promos_without_consuming_voucher_quota(): void
+    {
+        $cases = [
+            [
+                'name' => 'Promo Nonaktif',
+                'code' => 'PROMOINACTIVE',
+                'attributes' => ['is_active' => false],
+                'message' => 'Promo untuk voucher ini tidak aktif.',
+            ],
+            [
+                'name' => 'Promo Belum Mulai',
+                'code' => 'PROMOFUTURE',
+                'attributes' => ['start_at' => now()->addDay()],
+                'message' => 'Promo belum berlaku atau sudah berakhir.',
+            ],
+            [
+                'name' => 'Promo Berakhir',
+                'code' => 'PROMOENDED',
+                'attributes' => ['end_at' => now()->subSecond()],
+                'message' => 'Promo belum berlaku atau sudah berakhir.',
+            ],
+        ];
+
+        $vouchers = [];
+
+        foreach ($cases as $case) {
+            $promo = $this->makePromo(array_merge([
+                'name' => $case['name'],
+                'rules' => [],
+            ], $case['attributes']));
+
+            $vouchers[] = $this->makeVoucher($promo, [
+                'code' => $case['code'],
+            ]);
+
+            try {
+                $this->createOrder($case['code']);
+                $this->fail("{$case['name']} must not be accepted.");
+            } catch (DomainException $exception) {
+                $this->assertSame($case['message'], $exception->getMessage());
+            }
+        }
+
+        $this->assertSame(0, Order::query()->count());
+
+        foreach ($vouchers as $voucher) {
+            $this->assertSame(0, $voucher->fresh()->used_count);
+        }
+    }
+
+    public function test_voucher_expiring_at_the_current_time_is_still_valid_only_before_the_boundary(): void
+    {
+        $promo = $this->makePromo(['rules' => []]);
+        $voucher = $this->makeVoucher($promo, [
+            'code' => 'BOUNDARY',
+            'expires_at' => now()->subSecond(),
+        ]);
+
+        try {
+            $this->createOrder('BOUNDARY');
+            $this->fail('An already expired voucher must not be accepted.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Voucher belum berlaku atau sudah kedaluwarsa.', $exception->getMessage());
+        }
+
+        $this->assertSame(0, Order::query()->count());
+        $this->assertSame(0, $voucher->fresh()->used_count);
+    }
 }
