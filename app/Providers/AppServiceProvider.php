@@ -11,7 +11,9 @@ use App\Observers\JournalObserver;
 use App\Observers\StockMovementObserver;
 use App\Observers\TenantObserver;
 use App\Services\EntitlementService;
+use App\Services\TenantWriteGuard;
 use Illuminate\Auth\Events\Verified;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +32,19 @@ class AppServiceProvider extends ServiceProvider
         Journal::observe(JournalObserver::class);
 
         Event::listen(Verified::class, StartTenantTrialAfterEmailVerification::class);
+
+        $guardTenantWrite = function (string $event, array $payload): void {
+            $model = $payload[0] ?? null;
+
+            if ($model instanceof Model) {
+                app(TenantWriteGuard::class)->assertModelWriteAllowed($model);
+            }
+        };
+
+        Event::listen('eloquent.saving: *', $guardTenantWrite);
+        Event::listen('eloquent.deleting: *', $guardTenantWrite);
+        Event::listen('eloquent.forceDeleting: *', $guardTenantWrite);
+        Event::listen('eloquent.restoring: *', $guardTenantWrite);
 
         Gate::before(function (User $user, string $ability, array $arguments): ?bool {
             $writeAbilities = [
