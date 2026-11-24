@@ -82,18 +82,6 @@ class GenerateMassInvoices
                 ->get();
 
             foreach ($customers as $customer) {
-                $alreadyGenerated = MassInvoice::query()
-                    ->withoutGlobalScope('tenant')
-                    ->where('mass_invoice_schedule_id', $lockedSchedule->id)
-                    ->where('customer_id', $customer->id)
-                    ->whereDate('billing_period_start', $periodStart)
-                    ->whereDate('billing_period_end', $periodEnd)
-                    ->exists();
-
-                if ($alreadyGenerated) {
-                    continue;
-                }
-
                 $orders = Order::query()
                     ->withoutGlobalScope('tenant')
                     ->where('tenant_id', $lockedSchedule->tenant_id)
