@@ -60,21 +60,9 @@ class SubscriptionInvoiceService
             // Authorize against the persisted invoice tenant, not caller-controlled model attributes.
             $this->assertOwnerCanManageTenantId((int) $lockedInvoice->tenant_id);
 
-            if (! in_array($lockedInvoice->status, ['issued', 'pending'], true)) {
-                throw ValidationException::withMessages([
-                    'invoice' => 'Invoice ini tidak dapat menerima percobaan pembayaran baru.',
-                ]);
-            }
-
             if (blank($provider)) {
                 throw ValidationException::withMessages([
                     'provider' => 'Provider pembayaran wajib diisi.',
-                ]);
-            }
-
-            if (BigDecimal::of($lockedInvoice->total_amount)->isLessThanOrEqualTo(0)) {
-                throw ValidationException::withMessages([
-                    'invoice' => 'Invoice dengan total nol tidak memerlukan percobaan pembayaran.',
                 ]);
             }
 
@@ -85,14 +73,29 @@ class SubscriptionInvoiceService
                     ->first();
 
                 if ($existing !== null) {
-                    if ((int) $existing->subscription_invoice_id !== (int) $lockedInvoice->getKey()) {
+                    if (
+                        (int) $existing->subscription_invoice_id !== (int) $lockedInvoice->getKey()
+                        || $existing->provider !== $provider
+                    ) {
                         throw ValidationException::withMessages([
-                            'payment' => 'Idempotency key sudah digunakan untuk invoice lain.',
+                            'payment' => 'Idempotency key sudah digunakan untuk invoice atau provider lain.',
                         ]);
                     }
 
                     return $existing;
                 }
+            }
+
+            if (! in_array($lockedInvoice->status, ['issued', 'pending'], true)) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Invoice ini tidak dapat menerima percobaan pembayaran baru.',
+                ]);
+            }
+
+            if (BigDecimal::of($lockedInvoice->total_amount)->isLessThanOrEqualTo(0)) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Invoice dengan total nol tidak memerlukan percobaan pembayaran.',
+                ]);
             }
 
             $attempt = SubscriptionPayment::create([

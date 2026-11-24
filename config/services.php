@@ -14,6 +14,20 @@ return [
     |
     */
 
+    'payment_gateway' => [
+        'driver' => env('PAYMENT_GATEWAY_DRIVER', 'midtrans'),
+    ],
+
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'snap_base_url' => env('MIDTRANS_SNAP_BASE_URL', 'https://app.sandbox.midtrans.com'),
+        'api_base_url' => env('MIDTRANS_API_BASE_URL', 'https://api.sandbox.midtrans.com'),
+        'expiry_hours' => (int) env('MIDTRANS_EXPIRY_HOURS', 24),
+        'connect_timeout' => (int) env('MIDTRANS_CONNECT_TIMEOUT', 3),
+        'timeout' => (int) env('MIDTRANS_TIMEOUT', 10),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
