@@ -105,7 +105,7 @@ class SubscriptionEntitlementTest extends TestCase
         ]);
 
         $this->actingAs($owner);
-        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
 
         Branch::factory()->for($tenant)->create(['code' => 'BLOCKED']);
     }
