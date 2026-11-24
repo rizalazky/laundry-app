@@ -7,6 +7,7 @@ use App\Models\PlatformSetting;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SubscriptionService
 {
@@ -68,6 +69,16 @@ class SubscriptionService
             $plan = $this->defaultPlan();
 
             if ($plan === null) {
+                // Fail closed: a missing or inactive default plan must never
+                // leave a verified tenant with an unlimited legacy expiry.
+                $lockedTenant->forceFill([
+                    'subscription_ends_at' => now(),
+                ])->save();
+
+                Log::warning('Tenant trial could not be provisioned because no active default plan is configured.', [
+                    'tenant_id' => $lockedTenant->getKey(),
+                ]);
+
                 return null;
             }
 

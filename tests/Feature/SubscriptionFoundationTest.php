@@ -9,7 +9,6 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\SubscriptionService;
-use Illuminate\Auth\Events\Verified;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -148,5 +147,22 @@ class SubscriptionFoundationTest extends TestCase
         $this->assertSame(30, $service->trialDays());
         $this->assertSame(3, $service->gracePeriodDays());
         $this->assertSame('starter', $service->defaultPlan()?->code);
+    }
+
+    public function test_missing_active_default_plan_fails_closed_instead_of_granting_unlimited_legacy_access(): void
+    {
+        $tenant = Tenant::factory()->create([
+            'subscription_ends_at' => null,
+        ]);
+        PlatformSetting::query()->updateOrCreate(
+            ['key' => 'default_plan_code'],
+            ['value' => 'missing-plan'],
+        );
+
+        $subscription = app(SubscriptionService::class)->startTrial($tenant);
+
+        $this->assertNull($subscription);
+        $this->assertTrue($tenant->fresh()->subscription_ends_at->isPast());
+        $this->assertSame(0, Subscription::withoutGlobalScopes()->count());
     }
 }
