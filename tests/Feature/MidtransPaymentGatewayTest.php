@@ -51,6 +51,16 @@ class MidtransPaymentGatewayTest extends TestCase
         $gateway->createPayment($payment);
     }
 
+    public function test_it_rejects_fractional_idr_invoice_amounts(): void
+    {
+        Http::preventStrayRequests();
+
+        $payment = $this->makePayment(amount: '250000.50');
+
+        $this->expectException(ValidationException::class);
+        app(MidtransPaymentGateway::class)->createPayment($payment);
+    }
+
     public function test_it_maps_midtrans_settlement_status_to_succeeded(): void
     {
         config([
