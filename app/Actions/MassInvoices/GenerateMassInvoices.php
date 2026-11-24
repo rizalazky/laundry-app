@@ -12,6 +12,7 @@ use App\Models\User;
 use Brick\Math\BigDecimal;
 use DomainException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class GenerateMassInvoices
@@ -26,6 +27,10 @@ class GenerateMassInvoices
     public function handle(MassInvoiceSchedule $schedule, ?User $actor = null, bool $scheduled = false): int
     {
         if ($actor !== null) {
+            if (Auth::hasUser() && (int) Auth::id() !== (int) $actor->getKey()) {
+                throw new DomainException('Hanya owner tenant yang dapat menjalankan faktur massal.');
+            }
+
             $canonicalActor = User::query()->find($actor->getKey());
 
             if ($canonicalActor === null
