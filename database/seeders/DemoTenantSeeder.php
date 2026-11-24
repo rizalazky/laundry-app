@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Branch;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\SubscriptionService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -42,6 +43,14 @@ class DemoTenantSeeder extends Seeder
 
         if ($tenant->trashed()) {
             $tenant->restore();
+        }
+
+        // Provision the demo tenant through the same idempotent trial flow
+        // used after a real owner's email verification.
+        if (app(SubscriptionService::class)->startTrial($tenant) === null) {
+            throw new RuntimeException(
+                'The demo tenant subscription could not be provisioned. Check the default active subscription plan.',
+            );
         }
 
         if ($tenant->owner_email !== $ownerEmail) {
