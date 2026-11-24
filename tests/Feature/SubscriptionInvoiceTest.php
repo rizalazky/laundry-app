@@ -163,6 +163,30 @@ class SubscriptionInvoiceTest extends TestCase
         app(SubscriptionInvoiceService::class)->createPaymentAttempt($forgedInvoice, 'gateway-a');
     }
 
+
+    public function test_initial_purchase_invoice_is_rejected_after_a_paid_period_exists(): void
+    {
+        [$tenant, $owner, $plan, $subscription] = $this->makeTenantWithPlan();
+        $subscription->forceFill([
+            'status' => 'active',
+            'current_period_start' => now()->subDay(),
+            'current_period_end' => now()->addMonth(),
+        ])->save();
+
+        $this->actingAs($owner);
+        $this->expectException(ValidationException::class);
+        app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $plan);
+    }
+
+    public function test_renewal_invoice_requires_a_previous_paid_period(): void
+    {
+        [$tenant, $owner] = $this->makeTenantWithPlan();
+        $this->actingAs($owner);
+
+        $this->expectException(ValidationException::class);
+        app(SubscriptionInvoiceService::class)->createRenewalInvoice($tenant);
+    }
+
     private function makeTenantWithPlan(string $price = '250000.00'): array
     {
         $tenant = Tenant::factory()->create();
