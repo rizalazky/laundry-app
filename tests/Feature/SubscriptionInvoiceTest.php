@@ -146,6 +146,22 @@ class SubscriptionInvoiceTest extends TestCase
         app(SubscriptionInvoiceService::class)->createPaymentAttempt($invoice, 'gateway-a');
     }
 
+
+    public function test_payment_attempt_cannot_be_created_for_another_tenants_invoice_using_forged_model_attributes(): void
+    {
+        [$tenantA, $ownerA, $planA] = $this->makeTenantWithPlan();
+        $this->actingAs($ownerA);
+        $invoiceA = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenantA, $planA);
+
+        [$tenantB, $ownerB] = $this->makeTenantWithPlan();
+        $forgedInvoice = new SubscriptionInvoice(['tenant_id' => $tenantB->id]);
+        $forgedInvoice->id = $invoiceA->id;
+
+        $this->actingAs($ownerB);
+        $this->expectException(AuthorizationException::class);
+        app(SubscriptionInvoiceService::class)->createPaymentAttempt($forgedInvoice, 'gateway-a');
+    }
+
     private function makeTenantWithPlan(string $price = '250000.00'): array
     {
         $tenant = Tenant::factory()->create();
