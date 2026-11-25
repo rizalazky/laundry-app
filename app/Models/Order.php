@@ -58,6 +58,7 @@ class Order extends Model
             'payment_status' => PaymentStatus::class,
             'order_date' => 'datetime',
             'due_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'subtotal' => 'decimal:2',
             'discount' => 'decimal:2',
             'manual_discount' => 'decimal:2',
