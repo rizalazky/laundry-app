@@ -237,6 +237,55 @@ class MidtransWebhookTest extends TestCase
     }
 
 
+
+    public function test_concurrent_delivery_of_an_in_flight_event_requests_provider_retry(): void
+    {
+        [, $payment] = $this->makePendingPayment();
+        $payload = $this->signedPayload($payment->provider_reference);
+        $event = app(PaymentWebhookEventRecorder::class)->recordMidtrans($payload);
+
+        $event->forceFill([
+            'status' => 'processing',
+            'processing_started_at' => now(),
+        ])->save();
+
+        $this->postJson(route('webhooks.midtrans'), $payload)
+            ->assertServiceUnavailable()
+            ->assertJsonPath('result', 'already_processing');
+
+        $this->assertSame(0, $event->fresh()->processing_attempts);
+        Http::assertNothingSent();
+    }
+
+    public function test_stale_processing_claim_can_be_recovered_by_provider_retry(): void
+    {
+        [, $payment] = $this->makePendingPayment();
+        $payload = $this->signedPayload($payment->provider_reference);
+        $event = app(PaymentWebhookEventRecorder::class)->recordMidtrans($payload);
+
+        $event->forceFill([
+            'status' => 'processing',
+            'processing_started_at' => now()->subMinutes(6),
+        ])->save();
+
+        Http::fake([
+            'https://api.sandbox.midtrans.com/v2/'.$payment->provider_reference.'/status' => Http::response([
+                'order_id' => $payment->provider_reference,
+                'transaction_status' => 'pending',
+                'gross_amount' => '250000.00',
+                'currency' => 'IDR',
+            ]),
+        ]);
+
+        $this->postJson(route('webhooks.midtrans'), $payload)
+            ->assertOk()
+            ->assertJsonPath('result', 'pending');
+
+        $event->refresh();
+        $this->assertSame('processed', $event->status);
+        $this->assertSame(1, $event->processing_attempts);
+    }
+
     public function test_failed_provider_reconciliation_is_persisted_and_can_be_retried(): void
     {
         [, $payment] = $this->makePendingPayment();
