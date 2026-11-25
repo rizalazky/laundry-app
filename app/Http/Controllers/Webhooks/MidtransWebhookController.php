@@ -90,10 +90,12 @@ class MidtransWebhookController extends Controller
         }
 
         if ($claim === 'already_processing') {
+            // Ask the provider to retry instead of acknowledging an event whose
+            // active handler could still fail before persisting its final state.
             return response()->json([
-                'received' => true,
+                'received' => false,
                 'result' => 'already_processing',
-            ]);
+            ], 503);
         }
 
         try {
