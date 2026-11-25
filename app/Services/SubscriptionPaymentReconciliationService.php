@@ -184,6 +184,16 @@ class SubscriptionPaymentReconciliationService
                 return 'already_processed';
             }
 
+            // Midtrans notifications can arrive out of order. Since the Status
+            // API is queried for every callback, never let a non-success state
+            // move a payment backwards or replace an already terminal result.
+            if (
+                in_array($lockedPayment->status, ['failed', 'expired'], true)
+                && in_array($status->status, ['pending', 'failed', 'expired'], true)
+            ) {
+                return 'stale_notification_ignored';
+            }
+
             if (in_array($status->status, ['pending', 'failed', 'expired'], true)) {
                 $lockedPayment->forceFill([
                     'status' => $status->status,
