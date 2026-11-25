@@ -149,6 +149,8 @@ class MassInvoiceSchedulingTest extends TestCase
         $generator->handle($schedule, $owner);
         $this->assertSame($nextRunBeforeManual, $schedule->fresh()->next_run_at->toDateTimeString());
 
+        auth()->logout();
+
         $generator->handle($schedule->fresh(), scheduled: true);
         $this->assertTrue($schedule->fresh()->next_run_at->isFuture());
     }
@@ -170,5 +172,76 @@ class MassInvoiceSchedulingTest extends TestCase
 
         $this->expectException(\DomainException::class);
         app(GenerateMassInvoices::class)->handle($schedule, $cashier);
+    }
+
+    public function test_owner_cannot_run_a_foreign_schedule_with_a_forged_tenant_id(): void
+    {
+        $ownTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($ownTenant)->withRole('tenant_owner')->create();
+
+        $foreignTenant = Tenant::factory()->create();
+        $foreignBranch = Branch::factory()->for($foreignTenant)->create();
+        $foreignCustomer = Customer::factory()->for($foreignTenant)->create();
+        $foreignOrder = Order::factory()->for($foreignBranch)->create([
+            'customer_id' => $foreignCustomer->id,
+            'total' => '25000.00',
+            'paid_amount' => '0.00',
+            'payment_status' => 'unpaid',
+        ]);
+        $foreignOwner = User::factory()->for($foreignTenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($foreignOwner);
+
+        $foreignSchedule = MassInvoiceSchedule::query()->create([
+            'tenant_id' => $foreignTenant->id,
+            'name' => 'Jadwal Tenant Lain',
+            'frequency' => 'monthly',
+            'run_day' => 1,
+            'next_run_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+        $foreignSchedule->customers()->attach($foreignCustomer->id, ['tenant_id' => $foreignTenant->id]);
+
+        // Simulate a forged model payload: the record ID remains foreign while
+        // its in-memory tenant_id is changed to the authenticated owner's tenant.
+        $foreignSchedule->setAttribute('tenant_id', $ownTenant->id);
+
+        $this->actingAs($owner);
+
+        try {
+            app(GenerateMassInvoices::class)->handle($foreignSchedule, $owner);
+            $this->fail('A tenant owner must not generate invoices from a foreign schedule.');
+        } catch (\DomainException $exception) {
+            $this->assertSame('Jadwal faktur tidak ditemukan pada tenant ini.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('mass_invoices', [
+            'tenant_id' => $foreignTenant->id,
+            'mass_invoice_schedule_id' => $foreignSchedule->id,
+        ]);
+        $this->assertDatabaseMissing('mass_invoice_items', [
+            'order_id' => $foreignOrder->id,
+        ]);
+    }
+
+    public function test_manual_generation_requires_an_authenticated_owner_actor(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
+        $schedule = MassInvoiceSchedule::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Jadwal',
+            'frequency' => 'monthly',
+            'run_day' => 1,
+            'next_run_at' => now()->subDay(),
+            'is_active' => true,
+        ]);
+
+        auth()->logout();
+
+        $this->expectException(\DomainException::class);
+        app(GenerateMassInvoices::class)->handle($schedule);
     }
 }
