@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Models\PaymentWebhookEvent;
 use App\Services\PaymentGateways\PaymentGatewayInterface;
+use App\Services\PaymentGateways\PaymentWebhookEventRecorder;
 use App\Services\SubscriptionPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class MidtransWebhookController extends Controller
 {
@@ -15,6 +19,7 @@ class MidtransWebhookController extends Controller
         Request $request,
         PaymentGatewayInterface $gateway,
         SubscriptionPaymentService $payments,
+        PaymentWebhookEventRecorder $events,
     ): JsonResponse {
         if (config('services.payment_gateway.driver') !== 'midtrans') {
             return response()->json(['message' => 'Payment provider is not available.'], 503);
@@ -44,24 +49,95 @@ class MidtransWebhookController extends Controller
             return response()->json(['message' => 'Invalid webhook signature.'], 403);
         }
 
-        // Midtrans' dashboard test notification uses a synthetic order ID that
-        // does not exist in our payment records. Acknowledge it after signature
-        // validation without attempting financial reconciliation.
-        if (str_starts_with((string) $payload['order_id'], 'payment_notif_test_')) {
+        // Persist the authenticated event before any reconciliation work. The
+        // recorder stores a sanitized payload and a stable event fingerprint.
+        $event = $events->recordMidtrans($payload);
+
+        $claim = DB::transaction(function () use ($event): string {
+            $lockedEvent = PaymentWebhookEvent::query()
+                ->whereKey($event->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($lockedEvent->status, ['processed', 'ignored'], true)) {
+                return 'already_processed';
+            }
+
+            // A duplicate callback must not run concurrently with an active
+            // handler. A stale processing claim can be recovered on retry.
+            if (
+                $lockedEvent->status === 'processing'
+                && $lockedEvent->processing_started_at?->greaterThan(now()->subMinutes(5))
+            ) {
+                return 'already_processing';
+            }
+
+            $lockedEvent->forceFill([
+                'status' => 'processing',
+                'processing_attempts' => $lockedEvent->processing_attempts + 1,
+                'processing_started_at' => now(),
+                'last_error' => null,
+            ])->save();
+
+            return 'process';
+        });
+
+        if ($claim === 'already_processed') {
             return response()->json([
                 'received' => true,
-                'test' => true,
+                'result' => 'already_processed',
             ]);
         }
 
-        $result = $payments->handleMidtransWebhook($payload);
+        if ($claim === 'already_processing') {
+            return response()->json([
+                'received' => true,
+                'result' => 'already_processing',
+            ]);
+        }
 
-        // Unknown orders and duplicate/out-of-order notifications are
-        // acknowledged by the reconciliation service; transient provider/API
-        // failures are allowed to bubble up as 5xx so Midtrans can retry.
-        return response()->json([
-            'received' => true,
-            'result' => $result,
-        ]);
+        try {
+            // Midtrans' dashboard test notification uses a synthetic order ID
+            // that does not exist in our payment records. Persist and acknowledge
+            // it after signature validation without financial reconciliation.
+            if (str_starts_with((string) $payload['order_id'], 'payment_notif_test_')) {
+                $result = 'test_notification';
+                $eventStatus = 'ignored';
+            } else {
+                $result = $payments->handleMidtransWebhook($payload);
+                $eventStatus = $result === 'unknown_payment' ? 'ignored' : 'processed';
+            }
+
+            $event->forceFill([
+                'status' => $eventStatus,
+                'processing_result' => $result,
+                'processing_started_at' => null,
+                'processed_at' => now(),
+                'last_error' => null,
+            ])->save();
+
+            if ($result === 'test_notification') {
+                return response()->json([
+                    'received' => true,
+                    'test' => true,
+                ]);
+            }
+
+            // Unknown orders and duplicate/out-of-order notifications are
+            // acknowledged by the reconciliation service; transient provider/API
+            // failures are allowed to bubble up as 5xx so Midtrans can retry.
+            return response()->json([
+                'received' => true,
+                'result' => $result,
+            ]);
+        } catch (Throwable $exception) {
+            $event->forceFill([
+                'status' => 'failed',
+                'processing_started_at' => null,
+                'last_error' => class_basename($exception),
+            ])->save();
+
+            throw $exception;
+        }
     }
 }
