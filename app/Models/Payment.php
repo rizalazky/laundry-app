@@ -26,6 +26,7 @@ class Payment extends Model
         'type',
         'method',
         'amount',
+        'change_amount',
         'paid_at',
         'reference',
         'notes',
@@ -49,6 +50,7 @@ class Payment extends Model
             'type' => PaymentType::class,
             'method' => PaymentMethod::class,
             'amount' => 'decimal:2',
+            'change_amount' => 'decimal:2',
             'paid_at' => 'datetime',
         ];
     }
