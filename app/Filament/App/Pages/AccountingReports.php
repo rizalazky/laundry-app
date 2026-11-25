@@ -100,6 +100,8 @@ class AccountingReports extends Page
      */
     public function getReportData(): array|\Illuminate\Support\Collection
     {
+        abort_unless(static::canAccess(), 403);
+
         $allowedReports = ['general-journal', 'general-ledger', 'income-statement', 'balance-sheet', 'statement-of-equity'];
 
         if (! in_array($this->reportType, $allowedReports, true)) {
