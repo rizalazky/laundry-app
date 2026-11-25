@@ -21,6 +21,7 @@ return [
     'midtrans' => [
         'server_key' => env('MIDTRANS_SERVER_KEY'),
         'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'signature_secret_key' => env('MIDTRANS_SIGNATURE_SECRET_KEY'),
         'snap_base_url' => env('MIDTRANS_SNAP_BASE_URL', 'https://app.sandbox.midtrans.com'),
         'api_base_url' => env('MIDTRANS_API_BASE_URL', 'https://api.sandbox.midtrans.com'),
         'expiry_hours' => (int) env('MIDTRANS_EXPIRY_HOURS', 24),
