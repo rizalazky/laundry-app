@@ -69,6 +69,41 @@ class MidtransWebhookTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_notification_with_missing_required_fields_returns_bad_request(): void
+    {
+        $this->postJson(route('webhooks.midtrans'), [
+            'order_id' => 'SUBPAY-missing-fields',
+        ])->assertBadRequest();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_late_pending_notification_does_not_downgrade_failed_payment(): void
+    {
+        [, $payment] = $this->makePendingPayment();
+
+        $payment->forceFill([
+            'status' => 'failed',
+            'failure_reason' => 'Payment was denied.',
+        ])->save();
+
+        Http::fake([
+            'https://api.sandbox.midtrans.com/v2/'.$payment->provider_reference.'/status' => Http::response([
+                'order_id' => $payment->provider_reference,
+                'transaction_status' => 'pending',
+                'gross_amount' => '250000.00',
+                'currency' => 'IDR',
+            ]),
+        ]);
+
+        $this->postJson(route('webhooks.midtrans'), $this->signedPayload($payment->provider_reference))
+            ->assertOk()
+            ->assertJsonPath('result', 'stale_notification_ignored');
+
+        $this->assertSame('failed', $payment->fresh()->status);
+        $this->assertSame('Payment was denied.', $payment->fresh()->failure_reason);
+    }
+
     public function test_successful_provider_status_with_wrong_amount_does_not_activate_subscription(): void
     {
         [$tenant, $payment, $invoice] = $this->makePendingPayment();
