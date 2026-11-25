@@ -45,7 +45,8 @@ class PaymentLedgerReplaceTest extends TestCase
         );
 
         $attributes = $payment->getRawOriginal();
-        $columns = ['id', 'tenant_id', 'branch_id', 'order_id', 'received_by', 'type', 'method', 'amount', 'paid_at', 'reference', 'notes', 'idempotency_key', 'created_at', 'updated_at'];
+        $this->assertSame('0.00', $payment->change_amount);
+        $columns = ['id', 'tenant_id', 'branch_id', 'order_id', 'received_by', 'type', 'method', 'amount', 'change_amount', 'paid_at', 'reference', 'notes', 'idempotency_key', 'created_at', 'updated_at'];
         $values = array_map(fn (string $column) => $attributes[$column] ?? null, $columns);
 
         foreach ([
@@ -53,7 +54,7 @@ class PaymentLedgerReplaceTest extends TestCase
             array_replace($values, [0 => $payment->id + 1000, 7 => '1.00']),
         ] as $replacement) {
             if ($replacement[0] !== $payment->id) {
-                $replacement[11] = 'immutable-payment-key';
+                $replacement[12] = 'immutable-payment-key';
             }
 
             try {
