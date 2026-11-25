@@ -19,6 +19,8 @@ return new class extends Migration
         ['branch_service_prices', 'price'],
         ['orders', 'subtotal'],
         ['orders', 'discount'],
+        ['orders', 'manual_discount'],
+        ['orders', 'membership_discount'],
         ['orders', 'promo_discount'],
         ['orders', 'total'],
         ['orders', 'paid_amount'],
@@ -67,7 +69,7 @@ return new class extends Migration
             $definition = match ($table.'.'.$column) {
                 'customers.deposit_balance' => 'NOT NULL DEFAULT 0',
                 'services.commission_value' => 'NOT NULL DEFAULT 0',
-                'orders.discount', 'orders.paid_amount' => 'NOT NULL DEFAULT 0',
+                'orders.discount', 'orders.manual_discount', 'orders.membership_discount', 'orders.paid_amount' => 'NOT NULL DEFAULT 0',
                 'orders.promo_discount' => 'NOT NULL DEFAULT 0',
                 'order_items.commission_snapshot' => 'NOT NULL DEFAULT 0',
                 default => 'NOT NULL',
