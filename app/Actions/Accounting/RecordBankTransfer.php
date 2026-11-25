@@ -6,6 +6,8 @@ use App\Models\BankAccount;
 use App\Models\BankTransfer;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
+use App\Models\Tenant;
+use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\Exception\NumberFormatException;
 use Brick\Math\Exception\RoundingNecessaryException;
@@ -21,6 +23,9 @@ class RecordBankTransfer
      * Both bank accounts must map to different active COA accounts so the
      * transfer remains visible in the general ledger.
      *
+     * Authenticated requests require finance authorization. Unauthenticated
+     * calls remain available to trusted internal jobs and system workflows.
+     *
      * @throws DomainException
      */
     public function handle(
@@ -34,10 +39,43 @@ class RecordBankTransfer
         ?int $createdBy = null,
         ?string $idempotencyKey = null,
     ): BankTransfer {
-        $authenticatedTenantId = Auth::user()?->tenant_id;
+        $actor = Auth::user();
 
-        if ($authenticatedTenantId !== null && (int) $authenticatedTenantId !== $tenantId) {
-            throw new DomainException('Tenant transfer tidak sesuai dengan tenant pengguna.');
+        if ($actor !== null) {
+            if (
+                ! $actor instanceof User
+                || ! $actor->is_active
+                || $actor->tenant_id === null
+                || (int) $actor->tenant_id !== $tenantId
+                || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
+                || ! $actor->hasPermissionTo('finance.manage')
+            ) {
+                throw new DomainException('Anda tidak memiliki izin untuk mencatat transfer bank pada tenant ini.');
+            }
+
+            $tenant = Tenant::query()->find($tenantId);
+
+            if ($tenant === null || ! $tenant->hasActiveSubscription()) {
+                throw new DomainException('Tenant tidak aktif atau masa berlangganan telah berakhir.');
+            }
+
+            if ($branchId !== null) {
+                app(FinanceActionAuthorization::class)->authorizeBranch($tenantId, $branchId);
+            } elseif ($actor->role !== 'tenant_owner') {
+                throw new DomainException('Transfer bank untuk pengguna cabang wajib dikaitkan dengan cabang yang berwenang.');
+            }
+
+            if ($createdBy !== null && $createdBy !== (int) $actor->getKey()) {
+                throw new DomainException('Pengguna pencatat transfer harus sesuai dengan akun yang sedang login.');
+            }
+
+            // Never accept an audit actor ID supplied by an authenticated caller.
+            $createdBy = (int) $actor->getKey();
+        } elseif ($createdBy !== null && ! User::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->whereKey($createdBy)
+            ->exists()) {
+            throw new DomainException('Pengguna pencatat transfer tidak ditemukan pada tenant ini.');
         }
 
         if ($sourceBankId === $destinationBankId) {
@@ -100,8 +138,11 @@ class RecordBankTransfer
                 $payloadHash,
             ): BankTransfer {
                 if ($branchId !== null && ! Branch::withoutGlobalScope('tenant')
-                    ->where('tenant_id', $tenantId)->whereKey($branchId)->exists()) {
-                    throw new DomainException('Cabang tidak ditemukan pada tenant ini.');
+                    ->where('tenant_id', $tenantId)
+                    ->where('is_active', true)
+                    ->whereKey($branchId)
+                    ->exists()) {
+                    throw new DomainException('Cabang tidak ditemukan, nonaktif, atau bukan milik tenant ini.');
                 }
 
                 $banks = BankAccount::withoutGlobalScope('tenant')
@@ -150,7 +191,7 @@ class RecordBankTransfer
                     'idempotency_key' => $idempotencyKey,
                     'payload_hash' => $payloadHash,
                     'transferred_at' => $transferredAt,
-                    'created_by' => $createdBy ?? Auth::id(),
+                    'created_by' => $createdBy,
                 ]);
 
                 app(CreateJournal::class)->handle(
@@ -172,10 +213,11 @@ class RecordBankTransfer
                             'credit' => (string) $transferAmount,
                         ],
                     ],
-                    createdBy: $createdBy ?? Auth::id(),
+                    createdBy: $createdBy,
                 );
 
                 return $transfer;
-        })->load(['branch', 'sourceBank', 'destinationBank']);
+            },
+        )->load(['branch', 'sourceBank', 'destinationBank']);
     }
 }
