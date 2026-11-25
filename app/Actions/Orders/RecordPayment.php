@@ -109,6 +109,7 @@ class RecordPayment
                 'type' => $type,
                 'method' => $method,
                 'amount' => (string) $amount,
+                'change_amount' => '0.00',
                 'paid_at' => $paidAt ?? now(),
                 'reference' => $reference,
                 'notes' => $notes,
