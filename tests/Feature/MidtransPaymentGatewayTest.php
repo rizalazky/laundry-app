@@ -107,7 +107,10 @@ class MidtransPaymentGatewayTest extends TestCase
 
     public function test_it_verifies_midtrans_webhook_signature(): void
     {
-        config(['services.midtrans.server_key' => 'sandbox-server-key']);
+        config([
+            'services.midtrans.server_key' => 'sandbox-server-key',
+            'services.midtrans.signature_secret_key' => 'sandbox-signature-secret',
+        ]);
 
         $payload = [
             'order_id' => 'SUBPAY-7-55',
@@ -116,7 +119,7 @@ class MidtransPaymentGatewayTest extends TestCase
         ];
         $payload['signature_key'] = hash(
             'sha512',
-            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'sandbox-server-key',
+            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'sandbox-signature-secret',
         );
 
         $gateway = app(MidtransPaymentGateway::class);
