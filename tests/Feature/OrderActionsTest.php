@@ -627,7 +627,13 @@ class OrderActionsTest extends TestCase
             $order->fresh(),
             OrderStatus::Cancelled,
             $manager,
+            note: 'Pelanggan membatalkan pesanan.',
         );
+
+        $cancelledOrder = $order->fresh();
+        $this->assertSame(OrderStatus::Cancelled, $cancelledOrder->status);
+        $this->assertNotNull($cancelledOrder->cancelled_at);
+        $this->assertSame('Pelanggan membatalkan pesanan.', $cancelledOrder->cancel_reason);
 
         $productionLog = $order->productionLogs()->sole();
 
