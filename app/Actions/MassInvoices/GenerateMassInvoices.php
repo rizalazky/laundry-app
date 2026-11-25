@@ -27,26 +27,40 @@ class GenerateMassInvoices
     public function handle(MassInvoiceSchedule $schedule, ?User $actor = null, bool $scheduled = false): int
     {
         if ($actor !== null) {
-            if (Auth::hasUser() && (int) Auth::id() !== (int) $actor->getKey()) {
+            if (! Auth::hasUser() || (int) Auth::id() !== (int) $actor->getKey()) {
                 throw new DomainException('Hanya owner tenant yang dapat menjalankan faktur massal.');
             }
 
-            $canonicalActor = User::query()->find($actor->getKey());
+            $actor = User::query()->find($actor->getKey());
 
-            if ($canonicalActor === null
-                || ! $canonicalActor->is_active
-                || $canonicalActor->role !== 'tenant_owner'
-                || (int) $canonicalActor->tenant_id !== (int) $schedule->tenant_id) {
+            if ($actor === null
+                || ! $actor->is_active
+                || $actor->role !== 'tenant_owner'
+                || $actor->tenant_id === null
+                || (int) $actor->tenant_id !== (int) $schedule->tenant_id) {
                 throw new DomainException('Hanya owner tenant yang dapat menjalankan faktur massal.');
             }
+        } elseif (! $scheduled || Auth::hasUser()) {
+            // Manual runs must carry the authenticated owner. Actor-less runs are
+            // reserved for the trusted scheduler process, outside web sessions.
+            throw new DomainException('Hanya proses terjadwal yang dapat menjalankan faktur tanpa akun owner.');
         }
 
         return DB::transaction(function () use ($schedule, $actor, $scheduled): int {
-            $lockedSchedule = MassInvoiceSchedule::query()
+            $scheduleQuery = MassInvoiceSchedule::query()
                 ->withoutGlobalScope('tenant')
-                ->whereKey($schedule->getKey())
-                ->lockForUpdate()
-                ->firstOrFail();
+                ->whereKey($schedule->getKey());
+
+            if ($actor !== null) {
+                // Never trust tenant_id on the caller-supplied model instance.
+                $scheduleQuery->where('tenant_id', $actor->tenant_id);
+            }
+
+            $lockedSchedule = $scheduleQuery->lockForUpdate()->first();
+
+            if ($lockedSchedule === null) {
+                throw new DomainException('Jadwal faktur tidak ditemukan pada tenant ini.');
+            }
 
             if ($scheduled && ! $lockedSchedule->is_active) {
                 throw new DomainException('Jadwal faktur sedang tidak aktif.');
