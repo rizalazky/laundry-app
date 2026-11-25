@@ -57,6 +57,8 @@ class BusinessPerformance extends Page
      */
     public function getBranchOptions(): array
     {
+        abort_unless(static::canAccess(), 403);
+
         return Branch::query()
             ->where('tenant_id', Auth::user()?->tenant_id)
             ->where('is_active', true)
@@ -71,6 +73,8 @@ class BusinessPerformance extends Page
      */
     public function getAnalytics(): array
     {
+        abort_unless(static::canAccess(), 403);
+
         try {
             $from = CarbonImmutable::createFromFormat('!Y-m-d', $this->fromDate);
             $to = CarbonImmutable::createFromFormat('!Y-m-d', $this->toDate);
