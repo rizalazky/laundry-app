@@ -33,7 +33,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table): void {
-            $table->timestamp('cancelled_at')->nullable();
+            $table->dateTime('cancelled_at')->nullable();
             $table->text('cancel_reason')->nullable();
         });
 
