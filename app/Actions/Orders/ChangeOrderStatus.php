@@ -141,7 +141,13 @@ class ChangeOrderStatus
                 ]);
             }
 
-            $locked->forceFill(['status' => $to])->save();
+            $locked->forceFill([
+                'status' => $to,
+                'cancelled_at' => $to === OrderStatus::Cancelled ? $transitionedAt : null,
+                'cancel_reason' => $to === OrderStatus::Cancelled && is_string($note) && trim($note) !== ''
+                    ? trim($note)
+                    : null,
+            ])->save();
 
             if ($to === OrderStatus::Cancelled) {
                 app(PostOrderRevenue::class)->handle($locked);
