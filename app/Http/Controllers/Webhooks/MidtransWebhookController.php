@@ -36,7 +36,7 @@ class MidtransWebhookController extends Controller
         if (! $gateway->verifyWebhook($payload, $request->headers->all())) {
             Log::warning('Midtrans webhook signature verification failed.', [
                 'order_id' => (string) $payload['order_id'],
-                'has_server_key' => filled(config('services.midtrans.server_key')),
+                'has_signature_secret_key' => filled(config('services.midtrans.signature_secret_key')),
             ]);
 
             // Keep the non-2xx response: this is a security/authentication

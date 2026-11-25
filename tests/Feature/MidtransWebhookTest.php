@@ -24,6 +24,7 @@ class MidtransWebhookTest extends TestCase
         config([
             'services.payment_gateway.driver' => 'midtrans',
             'services.midtrans.server_key' => 'webhook-server-key',
+            'services.midtrans.signature_secret_key' => 'webhook-signature-secret',
             'services.midtrans.api_base_url' => 'https://api.sandbox.midtrans.com',
         ]);
 
@@ -62,6 +63,25 @@ class MidtransWebhookTest extends TestCase
         [, $payment] = $this->makePendingPayment();
         $payload = $this->signedPayload($payment->provider_reference);
         $payload['signature_key'] = str_repeat('0', 128);
+
+        $this->postJson(route('webhooks.midtrans'), $payload)->assertForbidden();
+
+        $this->assertSame('pending', $payment->fresh()->status);
+        Http::assertNothingSent();
+    }
+
+    public function test_server_key_signature_is_rejected_when_signature_secret_key_is_configured(): void
+    {
+        [, $payment] = $this->makePendingPayment();
+        $payload = [
+            'order_id' => $payment->provider_reference,
+            'status_code' => '200',
+            'gross_amount' => '250000.00',
+        ];
+        $payload['signature_key'] = hash(
+            'sha512',
+            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'webhook-server-key',
+        );
 
         $this->postJson(route('webhooks.midtrans'), $payload)->assertForbidden();
 
@@ -189,7 +209,7 @@ class MidtransWebhookTest extends TestCase
 
         $payload['signature_key'] = hash(
             'sha512',
-            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'webhook-server-key',
+            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'webhook-signature-secret',
         );
 
         $this->postJson(route('webhooks.midtrans'), $payload)
@@ -262,7 +282,7 @@ class MidtransWebhookTest extends TestCase
 
         $payload['signature_key'] = hash(
             'sha512',
-            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'webhook-server-key',
+            $payload['order_id'].$payload['status_code'].$payload['gross_amount'].'webhook-signature-secret',
         );
 
         return $payload;

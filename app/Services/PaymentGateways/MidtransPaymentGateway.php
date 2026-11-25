@@ -134,17 +134,17 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
 
     public function verifyWebhook(array $payload, array $headers = []): bool
     {
-        $serverKey = (string) config('services.midtrans.server_key');
+        $signatureSecretKey = trim((string) config('services.midtrans.signature_secret_key'));
         $orderId = (string) ($payload['order_id'] ?? '');
         $statusCode = (string) ($payload['status_code'] ?? '');
         $grossAmount = (string) ($payload['gross_amount'] ?? '');
         $signature = strtolower((string) ($payload['signature_key'] ?? ''));
 
-        if ($serverKey === '' || $orderId === '' || $statusCode === '' || $grossAmount === '' || $signature === '') {
+        if ($signatureSecretKey === '' || $orderId === '' || $statusCode === '' || $grossAmount === '' || $signature === '') {
             return false;
         }
 
-        $expectedSignature = hash('sha512', $orderId.$statusCode.$grossAmount.$serverKey);
+        $expectedSignature = hash('sha512', $orderId.$statusCode.$grossAmount.$signatureSecretKey);
 
         return hash_equals($expectedSignature, $signature);
     }
