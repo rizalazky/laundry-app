@@ -45,7 +45,7 @@ class PaymentLedgerReplaceTest extends TestCase
         );
 
         $attributes = $payment->getRawOriginal();
-        $columns = ['id', 'tenant_id', 'branch_id', 'order_id', 'received_by', 'type', 'method', 'amount', 'paid_at', 'reference', 'notes', 'idempotency_key', 'created_at', 'updated_at'];
+        $columns = ['id', 'tenant_id', 'branch_id', 'order_id', 'received_by', 'type', 'method', 'amount', 'change_amount', 'paid_at', 'reference', 'notes', 'idempotency_key', 'created_at', 'updated_at'];
         $values = array_map(fn (string $column) => $attributes[$column] ?? null, $columns);
 
         foreach ([
