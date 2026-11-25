@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\PaymentWebhookEvent;
 use App\Models\Plan;
+use App\Services\PaymentGateways\PaymentWebhookEventRecorder;
 use App\Models\Subscription;
 use App\Models\SubscriptionInvoice;
 use App\Models\SubscriptionPayment;
@@ -55,6 +57,13 @@ class MidtransWebhookTest extends TestCase
         $this->assertNotNull($invoice->fresh()->paid_at);
         $this->assertSame('active', $tenant->subscription()->firstOrFail()->fresh()->status);
         $this->assertTrue($tenant->fresh()->subscription_ends_at->equalTo($invoice->period_end));
+        $event = PaymentWebhookEvent::query()->sole();
+        $this->assertSame('midtrans', $event->provider);
+        $this->assertSame('processed', $event->status);
+        $this->assertSame('paid', $event->processing_result);
+        $this->assertSame(1, $event->processing_attempts);
+        $this->assertNotNull($event->signature_verified_at);
+        $this->assertArrayNotHasKey('signature_key', $event->payload);
         Http::assertSentCount(1);
     }
 
@@ -67,6 +76,7 @@ class MidtransWebhookTest extends TestCase
         $this->postJson(route('webhooks.midtrans'), $payload)->assertForbidden();
 
         $this->assertSame('pending', $payment->fresh()->status);
+        $this->assertSame(0, PaymentWebhookEvent::query()->count());
         Http::assertNothingSent();
     }
 
@@ -174,6 +184,9 @@ class MidtransWebhookTest extends TestCase
             ),
         );
         $this->assertSame('paid', $invoice->fresh()->status);
+        $this->assertSame(1, PaymentWebhookEvent::query()->count());
+        $this->assertSame(1, PaymentWebhookEvent::query()->sole()->processing_attempts);
+        Http::assertSentCount(1);
     }
 
     public function test_pending_provider_status_does_not_mark_invoice_paid(): void
@@ -217,7 +230,116 @@ class MidtransWebhookTest extends TestCase
             ->assertJsonPath('received', true)
             ->assertJsonPath('test', true);
 
+        $event = PaymentWebhookEvent::query()->sole();
+        $this->assertSame('ignored', $event->status);
+        $this->assertSame('test_notification', $event->processing_result);
         Http::assertNothingSent();
+    }
+
+
+
+    public function test_concurrent_delivery_of_an_in_flight_event_requests_provider_retry(): void
+    {
+        [, $payment] = $this->makePendingPayment();
+        $payload = $this->signedPayload($payment->provider_reference);
+        $event = app(PaymentWebhookEventRecorder::class)->recordMidtrans($payload);
+
+        $event->forceFill([
+            'status' => 'processing',
+            'processing_started_at' => now(),
+        ])->save();
+
+        $this->postJson(route('webhooks.midtrans'), $payload)
+            ->assertServiceUnavailable()
+            ->assertJsonPath('result', 'already_processing');
+
+        $this->assertSame(0, $event->fresh()->processing_attempts);
+        Http::assertNothingSent();
+    }
+
+    public function test_stale_processing_claim_can_be_recovered_by_provider_retry(): void
+    {
+        [, $payment] = $this->makePendingPayment();
+        $payload = $this->signedPayload($payment->provider_reference);
+        $event = app(PaymentWebhookEventRecorder::class)->recordMidtrans($payload);
+
+        $event->forceFill([
+            'status' => 'processing',
+            'processing_started_at' => now()->subMinutes(6),
+        ])->save();
+
+        Http::fake([
+            'https://api.sandbox.midtrans.com/v2/'.$payment->provider_reference.'/status' => Http::response([
+                'order_id' => $payment->provider_reference,
+                'transaction_status' => 'pending',
+                'gross_amount' => '250000.00',
+                'currency' => 'IDR',
+            ]),
+        ]);
+
+        $this->postJson(route('webhooks.midtrans'), $payload)
+            ->assertOk()
+            ->assertJsonPath('result', 'pending');
+
+        $event->refresh();
+        $this->assertSame('processed', $event->status);
+        $this->assertSame(1, $event->processing_attempts);
+    }
+
+    public function test_failed_provider_reconciliation_is_persisted_and_can_be_retried(): void
+    {
+        [, $payment] = $this->makePendingPayment();
+
+        Http::fake([
+            'https://api.sandbox.midtrans.com/v2/'.$payment->provider_reference.'/status' => Http::sequence()
+                ->push(['message' => 'Temporary provider outage.'], 503)
+                ->push([
+                    'order_id' => $payment->provider_reference,
+                    'transaction_status' => 'settlement',
+                    'payment_type' => 'bank_transfer',
+                    'gross_amount' => '250000.00',
+                    'currency' => 'IDR',
+                    'settlement_time' => '2026-11-24 10:30:00',
+                ]),
+        ]);
+
+        $payload = $this->signedPayload($payment->provider_reference);
+
+        $this->postJson(route('webhooks.midtrans'), $payload)->assertServerError();
+
+        $event = PaymentWebhookEvent::query()->sole();
+        $this->assertSame('failed', $event->status);
+        $this->assertSame(1, $event->processing_attempts);
+        $this->assertNotNull($event->last_error);
+
+        $this->postJson(route('webhooks.midtrans'), $payload)
+            ->assertOk()
+            ->assertJsonPath('result', 'paid');
+
+        $event->refresh();
+        $this->assertSame('processed', $event->status);
+        $this->assertSame(2, $event->processing_attempts);
+        $this->assertNotNull($event->processed_at);
+        $this->assertSame('succeeded', $payment->fresh()->status);
+    }
+
+    public function test_distinct_midtrans_transaction_statuses_have_distinct_event_fingerprints(): void
+    {
+        $recorder = app(PaymentWebhookEventRecorder::class);
+
+        $base = [
+            'order_id' => 'SUBPAY-STATUS-TRANSITIONS',
+            'transaction_id' => 'midtrans-transaction-123',
+            'status_code' => '200',
+            'gross_amount' => '250000.00',
+            'transaction_time' => '2026-11-25 10:00:00',
+        ];
+
+        $pending = $recorder->recordMidtrans([...$base, 'transaction_status' => 'pending']);
+        $settled = $recorder->recordMidtrans([...$base, 'transaction_status' => 'settlement']);
+
+        $this->assertNotSame($pending->provider_event_id, $settled->provider_event_id);
+        $this->assertSame(2, PaymentWebhookEvent::query()->count());
     }
 
     private function makePendingPayment(): array
