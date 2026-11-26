@@ -38,9 +38,10 @@ class SubscriptionInvoiceActivationService
 
             if (
                 (int) $subscription->plan_id === (int) $lockedInvoice->plan_id
-                && $subscription->current_period_start?->equalTo($lockedInvoice->period_start)
                 && $subscription->current_period_end?->equalTo($lockedInvoice->period_end)
                 && $subscription->status === 'active'
+                && ($lockedInvoice->type === 'upgrade'
+                    || $subscription->current_period_start?->equalTo($lockedInvoice->period_start))
             ) {
                 return 'already_activated';
             }
@@ -58,6 +59,18 @@ class SubscriptionInvoiceActivationService
                 && $lockedInvoice->period_start->lt($subscription->current_period_end)
             ) {
                 return 'period_conflict';
+            }
+
+            if ($lockedInvoice->type === 'upgrade') {
+                // An upgrade changes entitlements immediately but preserves the
+                // original billing period boundaries.
+                $subscription->forceFill([
+                    'plan_id' => $lockedInvoice->plan_id ?? $subscription->plan_id,
+                    'status' => 'active',
+                    'grace_ends_at' => null,
+                ])->save();
+
+                return 'activated';
             }
 
             $subscription->forceFill([
