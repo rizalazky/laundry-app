@@ -187,9 +187,8 @@ class SubscriptionInvoiceService
             ->where('type', $type)
             ->where('plan_id', $plan->getKey())
             ->where('billing_interval', $billingInterval)
-            ->where('period_start', $periodStart)
-            ->where('period_end', $periodEnd)
             ->whereIn('status', ['issued', 'pending'])
+            ->latest('id')
             ->first();
 
         if ($existing !== null) {
@@ -198,8 +197,8 @@ class SubscriptionInvoiceService
 
         $conflictingInvoice = SubscriptionInvoice::withoutGlobalScopes()
             ->where('subscription_id', $subscription->getKey())
-            ->where('period_start', $periodStart)
             ->whereIn('status', ['issued', 'pending'])
+            ->latest('id')
             ->first();
 
         if ($conflictingInvoice !== null) {
