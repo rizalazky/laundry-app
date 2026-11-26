@@ -91,6 +91,7 @@ class SubscriptionPlanPurchaseTest extends TestCase
 
         Carbon::setTestNow($invoice->period_start);
         $this->assertSame('activated', $activation->activateIfDue($invoice));
+        $this->assertSame('plan_changed', \\App\\Models\\SubscriptionEvent::query()->latest('id')->value('event_type'));
         $this->assertSame($targetPlan->id, $subscription->fresh()->plan_id);
         $this->assertTrue($subscription->fresh()->current_period_start->equalTo($invoice->period_start));
         $this->assertTrue($tenant->fresh()->subscription_ends_at->equalTo($invoice->period_end));
@@ -125,6 +126,7 @@ class SubscriptionPlanPurchaseTest extends TestCase
         ]);
 
         $this->assertSame('activated', app(SubscriptionInvoiceActivationService::class)->activateIfDue($invoice));
+        $this->assertSame('plan_upgraded', \\App\\Models\\SubscriptionEvent::query()->latest('id')->value('event_type'));
         $this->assertSame($targetPlan->id, $subscription->fresh()->plan_id);
         $this->assertTrue($subscription->fresh()->current_period_start->equalTo($originalStart));
         $this->assertTrue($subscription->fresh()->current_period_end->equalTo($originalEnd));
