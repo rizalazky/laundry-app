@@ -1,6 +1,87 @@
 <x-filament-panels::page>
     <div class="space-y-6">
         <x-filament::section>
+            <x-slot name="heading">Pricing & Paket</x-slot>
+            <x-slot name="description">Bandingkan paket aktif dan pilih periode berlangganan yang sesuai dengan kebutuhan bisnis Anda.</x-slot>
+
+            @if ($plans->isEmpty())
+                <p class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    Belum ada paket yang tersedia. Silakan hubungi administrator platform.
+                </p>
+            @else
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    @foreach ($plans as $plan)
+                        <article class="flex h-full flex-col rounded-xl border border-gray-200 p-5 dark:border-gray-700">
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-gray-950 dark:text-white">{{ $plan->name }}</h3>
+                                    @if ($plan->description)
+                                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $plan->description }}</p>
+                                    @endif
+                                </div>
+                                @if ($subscription?->plan_id === $plan->id)
+                                    <x-filament::badge color="success">Paket saat ini</x-filament::badge>
+                                @endif
+                            </div>
+
+                            <div class="mt-5 grid grid-cols-2 gap-3">
+                                <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Bulanan</p>
+                                    <p class="mt-1 text-base font-semibold text-gray-950 dark:text-white">
+                                        @if ((float) $plan->monthly_price <= 0)
+                                            Gratis
+                                        @else
+                                            {{ $plan->currency }} {{ number_format((float) $plan->monthly_price, 0, ',', '.') }}
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Tahunan</p>
+                                    <p class="mt-1 text-base font-semibold text-gray-950 dark:text-white">
+                                        @if ($plan->yearly_price === null)
+                                            Tidak tersedia
+                                        @elseif ((float) $plan->yearly_price <= 0)
+                                            Gratis
+                                        @else
+                                            {{ $plan->currency }} {{ number_format((float) $plan->yearly_price, 0, ',', '.') }}
+                                        @endif
+                                    </p>
+                                </div>
+                            </div>
+
+                            @if ($plan->features->isNotEmpty())
+                                <div class="mt-5 flex-1">
+                                    <p class="mb-2 text-sm font-medium text-gray-950 dark:text-white">Fitur & limit</p>
+                                    <ul class="space-y-2 text-sm">
+                                        @foreach ($plan->features as $feature)
+                                            <li class="flex items-start justify-between gap-3">
+                                                <span class="text-gray-600 dark:text-gray-300">{{ str($feature->feature_code)->replace('_', ' ')->title() }}</span>
+                                                <span class="text-right font-medium text-gray-950 dark:text-white">
+                                                    @if (is_bool($feature->value))
+                                                        {{ $feature->value ? 'Termasuk' : 'Tidak termasuk' }}
+                                                    @elseif ($feature->value === 'unlimited')
+                                                        Tanpa batas
+                                                    @elseif ($feature->value === null)
+                                                        —
+                                                    @else
+                                                        {{ $feature->value }}
+                                                    @endif
+                                                </span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @else
+                                <p class="mt-5 flex-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Detail fitur dan limit belum dikonfigurasi.
+                                </p>
+                            @endif
+                        </article>
+                    @endforeach
+                </div>
+            @endif
+        </x-filament::section>
+        <x-filament::section>
             <x-slot name="heading">Status Langganan</x-slot>
             <x-slot name="description">Informasi paket dan periode berlangganan bisnis Anda.</x-slot>
 

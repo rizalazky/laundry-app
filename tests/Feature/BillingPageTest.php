@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\App\Pages\Billing;
 use App\Models\Plan;
+use App\Models\PlanFeature;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
@@ -64,6 +65,37 @@ class BillingPageTest extends TestCase
             ->test(Billing::class)
             ->assertSee($invoiceA->invoice_number)
             ->assertDontSee($invoiceB->invoice_number);
+    }
+
+
+    public function test_billing_page_displays_active_pricing_plans_with_prices_and_features(): void
+    {
+        [$tenant, $owner, $plan] = $this->makeTenantWithSubscription();
+
+        PlanFeature::query()->create([
+            'plan_id' => $plan->id,
+            'feature_code' => 'max_outlets',
+            'value' => 3,
+        ]);
+
+        Plan::query()->create([
+            'code' => 'hidden-plan',
+            'name' => 'Hidden Plan',
+            'monthly_price' => 999000,
+            'currency' => 'IDR',
+            'is_active' => false,
+        ]);
+
+        Livewire::actingAs($owner)
+            ->test(Billing::class)
+            ->assertOk()
+            ->assertSee('Pricing & Paket')
+            ->assertSee('Professional')
+            ->assertSee('IDR 250.000')
+            ->assertSee('Maksimal Outlets')
+            ->assertSee('3')
+            ->assertSee('Paket saat ini')
+            ->assertDontSee('Hidden Plan');
     }
 
     private function makeTenantWithSubscription(): array
