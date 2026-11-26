@@ -187,11 +187,8 @@ class SubscriptionInvoiceService
         }
 
         $fullPrice = $billingInterval === 'yearly' ? $plan->yearly_price : $plan->monthly_price;
-        $fullPriceDecimal = BigDecimal::of($fullPrice);
-        $amountDecimal = BigDecimal::of($amount);
-        $discount = $fullPriceDecimal->compareTo($amountDecimal) > 0
-            ? $fullPriceDecimal->minus($amountDecimal)->toScale(2)
-            : BigDecimal::of('0.00');
+        // Proration is the invoice subtotal itself, not a promotional discount.
+        $discount = '0.00';
 
         return SubscriptionInvoice::create([
             'tenant_id' => $tenant->getKey(),
@@ -371,6 +368,19 @@ class SubscriptionInvoiceService
             ->whereIn('status', ['issued', 'pending'])
             ->latest('id')
             ->first();
+
+        $paidFuturePurchase = SubscriptionInvoice::withoutGlobalScopes()
+            ->where('subscription_id', $subscription->getKey())
+            ->where('status', 'paid')
+            ->where('period_start', '>', now())
+            ->where('period_end', '>', now())
+            ->exists();
+
+        if ($paidFuturePurchase) {
+            throw ValidationException::withMessages([
+                'invoice' => 'Sudah ada pembelian paket yang menunggu masa aktif. Invoice perpanjangan baru dapat dibuat setelah paket tersebut aktif.',
+            ]);
+        }
 
         if ($conflictingInvoice !== null) {
             throw ValidationException::withMessages([
