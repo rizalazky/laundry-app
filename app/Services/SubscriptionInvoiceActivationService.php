@@ -23,7 +23,7 @@ class SubscriptionInvoiceActivationService
                 return 'not_paid';
             }
 
-            if ($lockedInvoice->period_start->isFuture()) {
+            if ($lockedInvoice->period_start->isFuture() && $lockedInvoice->type !== 'initial') {
                 return 'scheduled';
             }
 
