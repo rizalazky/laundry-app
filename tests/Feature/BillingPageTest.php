@@ -75,6 +75,39 @@ class BillingPageTest extends TestCase
         ]);
     }
 
+    public function test_owner_can_redirect_to_midtrans_checkout_for_an_invoice(): void
+    {
+        config([
+            'services.payment_gateway.driver' => 'midtrans',
+            'services.midtrans.server_key' => 'sandbox-server-key',
+            'services.midtrans.snap_base_url' => 'https://app.sandbox.midtrans.com',
+        ]);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token',
+            ], 201),
+        ]);
+
+        [$tenant, $owner, $plan] = $this->makeTenantWithSubscription();
+        $this->actingAs($owner);
+        $invoice = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $plan);
+
+        Livewire::actingAs($owner)
+            ->test(Billing::class)
+            ->call('payInvoice', $invoice->id)
+            ->assertRedirect('https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token');
+
+        $this->assertDatabaseHas('subscription_payments', [
+            'tenant_id' => $tenant->id,
+            'subscription_invoice_id' => $invoice->id,
+            'provider' => 'midtrans',
+            'status' => 'pending',
+        ]);
+    }
+
     public function test_only_tenant_owner_can_access_billing_page(): void
     {
         [$tenant, $owner] = $this->makeTenantWithSubscription();
