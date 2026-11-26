@@ -212,6 +212,40 @@ class AccountingReportsTest extends TestCase
         $this->assertTrue(AccountingReports::canAccess());
     }
 
+
+    public function test_accounting_report_data_is_denied_after_reports_permission_is_revoked(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($branch);
+
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'reports.view'],
+            ['name' => 'Lihat Laporan', 'group' => 'Laporan'],
+        );
+
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $permission->id,
+        ]);
+
+        $this->actingAs($manager);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(AccountingReports::class);
+
+        RolePermission::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('role', 'branch_manager')
+            ->where('permission_id', $permission->id)
+            ->delete();
+
+        $component->call('getReportData')->assertForbidden();
+    }
+
     /**
      * @param  list<array{account_code: string, debit: string, credit: string}>  $entries
      */

@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Filament\App\Pages\BusinessPerformance;
+use App\Models\Branch;
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -55,5 +59,38 @@ class BusinessPerformancePageTest extends TestCase
         $this->assertFalse(BusinessPerformance::canAccess());
         $this->actingAs($user);
         $this->assertFalse(BusinessPerformance::canAccess());
+    }
+
+    public function test_business_analytics_are_denied_after_reports_permission_is_revoked(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($branch);
+
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'reports.view'],
+            ['name' => 'Lihat Laporan', 'group' => 'Laporan'],
+        );
+
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $permission->id,
+        ]);
+
+        $this->actingAs($manager);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(BusinessPerformance::class);
+
+        RolePermission::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('role', 'branch_manager')
+            ->where('permission_id', $permission->id)
+            ->delete();
+
+        $component->call('getAnalytics')->assertForbidden();
     }
 }

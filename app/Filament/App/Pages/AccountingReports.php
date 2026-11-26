@@ -68,6 +68,8 @@ class AccountingReports extends Page
      */
     public function getAccountOptions(): array
     {
+        abort_unless(static::canAccess(), 403);
+
         return ChartOfAccount::query()
             ->where('is_active', true)
             ->orderBy('code')
@@ -83,6 +85,8 @@ class AccountingReports extends Page
      */
     public function getBranchOptions(): array
     {
+        abort_unless(static::canAccess(), 403);
+
         return Branch::query()
             ->where('tenant_id', Auth::user()?->tenant_id)
             ->where('is_active', true)
@@ -96,6 +100,8 @@ class AccountingReports extends Page
      */
     public function getReportData(): array|\Illuminate\Support\Collection
     {
+        abort_unless(static::canAccess(), 403);
+
         $allowedReports = ['general-journal', 'general-ledger', 'income-statement', 'balance-sheet', 'statement-of-equity'];
 
         if (! in_array($this->reportType, $allowedReports, true)) {
