@@ -22,8 +22,6 @@ class Subscription extends Model
         'current_period_end',
         'grace_ends_at',
         'cancel_at_period_end',
-        'scheduled_plan_id',
-        'scheduled_change_at',
     ];
 
     protected function casts(): array
@@ -35,7 +33,6 @@ class Subscription extends Model
             'current_period_end' => 'datetime',
             'grace_ends_at' => 'datetime',
             'cancel_at_period_end' => 'boolean',
-            'scheduled_change_at' => 'datetime',
         ];
     }
 
@@ -47,11 +44,6 @@ class Subscription extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
-    }
-
-    public function scheduledPlan(): BelongsTo
-    {
-        return $this->belongsTo(Plan::class, 'scheduled_plan_id');
     }
 
     public function invoices(): HasMany
