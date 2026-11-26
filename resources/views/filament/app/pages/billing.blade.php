@@ -2,7 +2,17 @@
     <div class="space-y-6">
         <x-filament::section>
             <x-slot name="heading">Pricing & Paket</x-slot>
-            <x-slot name="description">Bandingkan harga, fitur, dan limit dari paket langganan yang tersedia.</x-slot>
+            <x-slot name="description">Bandingkan harga, fitur, dan limit dari paket langganan yang tersedia. Pembelian paket lebih mahal aktif setelah pembayaran berhasil; paket lebih murah mulai setelah periode aktif berakhir.</x-slot>
+
+            <div class="mb-4 max-w-xs">
+                <label for="planBillingInterval" class="mb-2 block text-sm font-medium text-gray-950 dark:text-white">Periode pembelian</label>
+                <x-filament::input.wrapper>
+                    <select id="planBillingInterval" wire:model="billingInterval" class="w-full border-0 bg-transparent text-sm focus:ring-0">
+                        <option value="monthly">Bulanan</option>
+                        <option value="yearly">Tahunan</option>
+                    </select>
+                </x-filament::input.wrapper>
+            </div>
 
             @if ($plans->isEmpty())
                 <p class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
@@ -42,6 +52,19 @@
                                 </label>
                             @endif
 
+                            @if ($subscription && $subscription->current_period_end !== null)
+                                <div class="mt-4">
+                                    <x-filament::button
+                                        size="sm"
+                                        color="{{ $subscription->plan_id === $plan->id ? 'gray' : 'primary' }}"
+                                        wire:click="purchasePlan({{ $plan->id }})"
+                                        wire:loading.attr="disabled"
+                                        wire:target="purchasePlan({{ $plan->id }})"
+                                    >
+                                        {{ $subscription->plan_id === $plan->id ? 'Beli periode berikutnya' : 'Beli paket ini' }}
+                                    </x-filament::button>
+                                </div>
+                            @endif
 
                             <div class="mt-5 grid grid-cols-2 gap-3">
                                 <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
