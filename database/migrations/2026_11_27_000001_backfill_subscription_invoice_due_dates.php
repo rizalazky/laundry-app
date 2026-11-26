@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
@@ -9,9 +10,16 @@ return new class extends Migration {
         DB::table('subscription_invoices')
             ->whereNull('due_at')
             ->whereIn('status', ['issued', 'pending'])
-            ->update([
-                'due_at' => DB::raw('DATE_ADD(created_at, INTERVAL 24 HOUR)'),
-            ]);
+            ->orderBy('id')
+            ->chunkById(100, function ($invoices): void {
+                foreach ($invoices as $invoice) {
+                    DB::table('subscription_invoices')
+                        ->where('id', $invoice->id)
+                        ->update([
+                            'due_at' => Carbon::parse($invoice->created_at)->addHours(24),
+                        ]);
+                }
+            });
     }
 
     public function down(): void
