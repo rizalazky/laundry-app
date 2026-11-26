@@ -41,6 +41,12 @@ class SubscriptionInvoiceService
                 ]);
             }
 
+            if ($subscription->scheduled_plan_id !== null) {
+                throw ValidationException::withMessages([
+                    'subscription' => 'Invoice perpanjangan dapat dibuat setelah perubahan paket terjadwal mulai berlaku.',
+                ]);
+            }
+
             $plan = Plan::query()->findOrFail($subscription->plan_id);
 
             return $this->buildInvoice($tenant, $subscription, $plan, 'renewal', $billingInterval);
