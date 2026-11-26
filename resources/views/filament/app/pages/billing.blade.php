@@ -55,7 +55,11 @@
                                     <ul class="space-y-2 text-sm">
                                         @foreach ($plan->features as $feature)
                                             <li class="flex items-start justify-between gap-3">
-                                                <span class="text-gray-600 dark:text-gray-300">{{ str($feature->feature_code)->replace('_', ' ')->title() }}</span>
+                                                <span class="text-gray-600 dark:text-gray-300">{{ match ($feature->feature_code) {
+                                                        'max_outlets' => 'Maksimal Outlet',
+                                                        'max_users' => 'Maksimal Pengguna',
+                                                        default => str($feature->feature_code)->replace('_', ' ')->title(),
+                                                    } }}</span>
                                                 <span class="text-right font-medium text-gray-950 dark:text-white">
                                                     @if (is_bool($feature->value))
                                                         {{ $feature->value ? 'Termasuk' : 'Tidak termasuk' }}

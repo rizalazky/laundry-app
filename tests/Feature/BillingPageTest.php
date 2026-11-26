@@ -70,7 +70,7 @@ class BillingPageTest extends TestCase
 
     public function test_billing_page_displays_active_pricing_plans_with_prices_and_features(): void
     {
-        [$tenant, $owner, $plan] = $this->makeTenantWithSubscription();
+        [, $owner, $plan] = $this->makeTenantWithSubscription();
 
         PlanFeature::query()->create([
             'plan_id' => $plan->id,
@@ -92,7 +92,7 @@ class BillingPageTest extends TestCase
             ->assertSee('Pricing & Paket')
             ->assertSee('Professional')
             ->assertSee('IDR 250.000')
-            ->assertSee('Maksimal Outlets')
+            ->assertSee('Maksimal Outlet')
             ->assertSee('3')
             ->assertSee('Paket saat ini')
             ->assertDontSee('Hidden Plan');
