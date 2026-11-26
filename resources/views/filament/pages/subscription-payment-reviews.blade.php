@@ -34,7 +34,7 @@
                                 {{ $event->metadata['currency'] ?? 'IDR' }} {{ number_format((float) ($event->metadata['amount'] ?? 0), 2, ',', '.') }}
                             </td>
                             <td class="px-4 py-3 font-mono text-xs">{{ $event->metadata['provider_reference'] ?? '—' }}</td>
-                            <td class="whitespace-nowrap px-4 py-3">{{ isset($event->metadata['invoice_due_at']) ? \Illuminate\\Support\\Carbon::parse($event->metadata['invoice_due_at'])->format('d M Y H:i:s') : '—' }}</td>
+                            <td class="whitespace-nowrap px-4 py-3">{{ isset($event->metadata['invoice_due_at']) ? \Illuminate\Support\Carbon::parse($event->metadata['invoice_due_at'])->format('d M Y H:i:s') : '—' }}</td>
                             <td class="whitespace-nowrap px-4 py-3">
                                 <x-filament::button
                                     size="sm"
