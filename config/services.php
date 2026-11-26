@@ -14,6 +14,10 @@ return [
     |
     */
 
+    'subscription' => [
+        'invoice_validity_hours' => (int) env('SUBSCRIPTION_INVOICE_VALIDITY_HOURS', 24),
+    ],
+
     'payment_gateway' => [
         'driver' => env('PAYMENT_GATEWAY_DRIVER', 'midtrans'),
     ],
