@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('loyalty:expire-points')->everyMinute()->withoutOverlapping();
 Schedule::command('mass-invoices:run-due')->everyMinute()->withoutOverlapping();
 Schedule::command('subscriptions:activate-paid-invoices')->everyMinute()->withoutOverlapping();
+Schedule::command('subscriptions:sync-lifecycle')->everyMinute()->withoutOverlapping();
