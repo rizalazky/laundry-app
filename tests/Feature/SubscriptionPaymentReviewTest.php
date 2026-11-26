@@ -23,7 +23,7 @@ class SubscriptionPaymentReviewTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
-        $admin = User::factory()->withRole('super_admin')->create();
+        $admin = User::factory()->superAdmin()->create();
 
         $this->actingAs($owner);
         $this->assertFalse(SubscriptionPaymentReviews::canAccess());
@@ -68,7 +68,7 @@ class SubscriptionPaymentReviewTest extends TestCase
     {
         [$subscription, $invoice, $payment] = $this->makeLatePayment();
         $event = $this->recordLatePaymentEvent($subscription, $invoice, $payment);
-        $admin = User::factory()->withRole('super_admin')->create();
+        $admin = User::factory()->superAdmin()->create();
 
         $this->actingAs($admin);
         $page = app(SubscriptionPaymentReviews::class);
