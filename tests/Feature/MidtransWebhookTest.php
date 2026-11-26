@@ -62,6 +62,16 @@ class MidtransWebhookTest extends TestCase
         $this->assertSame('processed', $event->status);
         $this->assertSame('paid', $event->processing_result);
         $this->assertSame(1, $event->processing_attempts);
+        $this->assertDatabaseHas('subscription_events', [
+            'subscription_id' => $tenant->subscription()->value('id'),
+            'event_type' => 'payment_received',
+            'invoice_id' => $invoice->id,
+        ]);
+        $this->assertDatabaseHas('subscription_events', [
+            'subscription_id' => $tenant->subscription()->value('id'),
+            'event_type' => 'subscription_activated',
+            'invoice_id' => $invoice->id,
+        ]);
         $this->assertNotNull($event->signature_verified_at);
         $this->assertArrayNotHasKey('signature_key', $event->payload);
         Http::assertSentCount(1);
