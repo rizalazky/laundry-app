@@ -143,39 +143,7 @@ class SubscriptionPaymentReconciliationService
                     'paid_at' => $paidAt,
                 ])->save();
 
-                $subscription = Subscription::withoutGlobalScopes()
-                    ->whereKey($invoice->subscription_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-
-                $invoicePeriodEnd = $invoice->period_end;
-                $currentPeriodEnd = $subscription->current_period_end;
-
-                // Never move an already-extended subscription backwards.
-                if ($currentPeriodEnd === null || $invoicePeriodEnd->gt($currentPeriodEnd)) {
-                    $subscription->forceFill([
-                        'plan_id' => $invoice->plan_id ?? $subscription->plan_id,
-                        'status' => 'active',
-                        'current_period_start' => $invoice->period_start,
-                        'current_period_end' => $invoicePeriodEnd,
-                        'grace_ends_at' => null,
-                    ])->save();
-
-                    $tenant = Tenant::withoutGlobalScopes()
-                        ->whereKey($invoice->tenant_id)
-                        ->lockForUpdate()
-                        ->first();
-
-                    if ($tenant !== null) {
-                        $tenantEnd = $tenant->subscription_ends_at;
-
-                        if ($tenantEnd === null || $invoicePeriodEnd->gt($tenantEnd)) {
-                            $tenant->forceFill([
-                                'subscription_ends_at' => $invoicePeriodEnd,
-                            ])->save();
-                        }
-                    }
-                }
+                app(SubscriptionInvoiceActivationService::class)->activateIfDue($invoice);
 
                 return 'paid';
             }

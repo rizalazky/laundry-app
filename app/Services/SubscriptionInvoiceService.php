@@ -9,6 +9,7 @@ use App\Models\SubscriptionPayment;
 use App\Models\Tenant;
 use App\Models\User;
 use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -40,12 +41,7 @@ class SubscriptionInvoiceService
                     'subscription' => 'Renewal hanya tersedia setelah periode berlangganan pertama terbentuk.',
                 ]);
             }
-
-            if ($subscription->scheduled_plan_id !== null) {
-                throw ValidationException::withMessages([
-                    'subscription' => 'Invoice perpanjangan dapat dibuat setelah perubahan paket terjadwal mulai berlaku.',
-                ]);
-            }
+ 
 
             $plan = Plan::query()->findOrFail($subscription->plan_id);
 
@@ -53,6 +49,173 @@ class SubscriptionInvoiceService
         });
 
         return $this->settleFreeInvoiceIfNeeded($invoice);
+    }
+
+    public function createPlanPurchaseInvoice(Tenant $tenant, Plan $targetPlan, string $billingInterval = 'monthly'): SubscriptionInvoice
+    {
+        $invoice = DB::transaction(function () use ($tenant, $targetPlan, $billingInterval): SubscriptionInvoice {
+            $this->assertOwnerCanManage($tenant);
+
+            $subscription = Subscription::withoutGlobalScopes()
+                ->where('tenant_id', $tenant->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($subscription->current_period_end === null && $subscription->current_period_start === null) {
+                $plan = Plan::query()->where('is_active', true)->findOrFail($targetPlan->getKey());
+
+                return $this->buildInvoice($tenant, $subscription, $plan, 'initial', $billingInterval);
+            }
+
+            $plan = Plan::query()->where('is_active', true)->findOrFail($targetPlan->getKey());
+            if (! in_array($billingInterval, ['monthly', 'yearly'], true)) {
+                throw ValidationException::withMessages([
+                    'billing_interval' => 'Periode tagihan harus bulanan atau tahunan.',
+                ]);
+            }
+
+            $targetPrice = $billingInterval === 'yearly' ? $plan->yearly_price : $plan->monthly_price;
+            if ($targetPrice === null || BigDecimal::of($targetPrice)->isLessThan(0)) {
+                throw ValidationException::withMessages([
+                    'plan' => 'Paket tidak memiliki harga valid untuk periode yang dipilih.',
+                ]);
+            }
+
+            $periodEnd = $subscription->current_period_end;
+            $hasActivePaidPeriod = $periodEnd !== null && $periodEnd->isFuture();
+
+            if (! $hasActivePaidPeriod) {
+                return $this->createPurchasedPlanInvoice(
+                    $tenant, $subscription, $plan, 'renewal', $billingInterval,
+                    now(), $this->periodEndFrom(now(), $billingInterval), (string) $targetPrice,
+                );
+            }
+
+            $activeInvoice = SubscriptionInvoice::withoutGlobalScopes()
+                ->where('subscription_id', $subscription->getKey())
+                ->where('status', 'paid')
+                ->where('plan_id', $subscription->plan_id)
+                ->where('period_start', '<=', now())
+                ->where('period_end', '>=', now())
+                ->latest('id')
+                ->first();
+
+            $activeInterval = $activeInvoice?->billing_interval ?? $billingInterval;
+            if ($activeInterval !== $billingInterval) {
+                throw ValidationException::withMessages([
+                    'billing_interval' => 'Perubahan paket harus menggunakan periode tagihan yang sama dengan paket aktif.',
+                ]);
+            }
+
+            $currentPlan = Plan::query()->findOrFail($subscription->plan_id);
+            $currentPrice = $billingInterval === 'yearly'
+                ? $currentPlan->yearly_price
+                : $currentPlan->monthly_price;
+
+            if ($currentPrice === null) {
+                throw ValidationException::withMessages([
+                    'plan' => 'Harga paket aktif tidak tersedia untuk periode tagihan ini.',
+                ]);
+            }
+
+            $comparison = BigDecimal::of($targetPrice)->compareTo(BigDecimal::of($currentPrice));
+            if ($comparison > 0) {
+                $periodStart = now();
+                $currentPeriodStart = $subscription->current_period_start
+                    ?? ($billingInterval === 'yearly' ? $periodEnd->copy()->subYear() : $periodEnd->copy()->subMonth());
+                $totalSeconds = max(1, $currentPeriodStart->diffInSeconds($periodEnd));
+                $remainingSeconds = max(0, now()->diffInSeconds($periodEnd, false));
+                $difference = BigDecimal::of($targetPrice)->minus(BigDecimal::of($currentPrice));
+                $amount = $difference
+                    ->multipliedBy((string) $remainingSeconds)
+                    ->dividedBy((string) $totalSeconds, 2, RoundingMode::HalfUp)
+                    ->toScale(2);
+
+                return $this->createPurchasedPlanInvoice(
+                    $tenant, $subscription, $plan, 'upgrade', $billingInterval,
+                    $periodStart, $periodEnd, (string) $amount,
+                );
+            }
+
+            return $this->createPurchasedPlanInvoice(
+                $tenant, $subscription, $plan, 'renewal', $billingInterval,
+                $periodEnd, $this->periodEndFrom($periodEnd, $billingInterval), (string) $targetPrice,
+            );
+        });
+
+        return $this->settleFreeInvoiceIfNeeded($invoice);
+    }
+
+    private function createPurchasedPlanInvoice(
+        Tenant $tenant,
+        Subscription $subscription,
+        Plan $plan,
+        string $type,
+        string $billingInterval,
+        Carbon $periodStart,
+        Carbon $periodEnd,
+        string $amount,
+    ): SubscriptionInvoice {
+        $existing = SubscriptionInvoice::withoutGlobalScopes()
+            ->where('subscription_id', $subscription->getKey())
+            ->where('plan_id', $plan->getKey())
+            ->where('type', $type)
+            ->where('period_start', $periodStart)
+            ->whereIn('status', ['issued', 'pending'])
+            ->latest('id')
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $openInvoice = SubscriptionInvoice::withoutGlobalScopes()
+            ->where('subscription_id', $subscription->getKey())
+            ->whereIn('status', ['issued', 'pending'])
+            ->exists();
+
+        $paidFuturePurchase = SubscriptionInvoice::withoutGlobalScopes()
+            ->where('subscription_id', $subscription->getKey())
+            ->where('status', 'paid')
+            ->where('period_start', '>', now())
+            ->where('period_end', '>', now())
+            ->exists();
+
+        if ($openInvoice || $paidFuturePurchase) {
+            throw ValidationException::withMessages([
+                'invoice' => 'Masih ada pembelian paket yang belum selesai atau menunggu masa aktif. Selesaikan periode tersebut sebelum membeli paket lain.',
+            ]);
+        }
+
+        $fullPrice = $billingInterval === 'yearly' ? $plan->yearly_price : $plan->monthly_price;
+        // Proration is the invoice subtotal itself, not a promotional discount.
+        $discount = '0.00';
+
+        return SubscriptionInvoice::create([
+            'tenant_id' => $tenant->getKey(),
+            'subscription_id' => $subscription->getKey(),
+            'plan_id' => $plan->getKey(),
+            'invoice_number' => $this->invoiceNumber($tenant),
+            'type' => $type,
+            'plan_code_snapshot' => $plan->code,
+            'plan_name_snapshot' => $plan->name,
+            'billing_interval' => $billingInterval,
+            'unit_price_snapshot' => (string) $fullPrice,
+            'subtotal' => $amount,
+            'discount_amount' => (string) $discount,
+            'total_amount' => $amount,
+            'currency' => $plan->currency,
+            'status' => 'issued',
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
+        ]);
+    }
+
+    private function periodEndFrom(Carbon $periodStart, string $billingInterval): Carbon
+    {
+        return $billingInterval === 'yearly'
+            ? $periodStart->copy()->addYear()
+            : $periodStart->copy()->addMonth();
     }
 
     public function createPaymentAttempt(
@@ -207,6 +370,19 @@ class SubscriptionInvoiceService
             ->latest('id')
             ->first();
 
+        $paidFuturePurchase = SubscriptionInvoice::withoutGlobalScopes()
+            ->where('subscription_id', $subscription->getKey())
+            ->where('status', 'paid')
+            ->where('period_start', '>', now())
+            ->where('period_end', '>', now())
+            ->exists();
+
+        if ($paidFuturePurchase) {
+            throw ValidationException::withMessages([
+                'invoice' => 'Sudah ada pembelian paket yang menunggu masa aktif. Invoice perpanjangan baru dapat dibuat setelah paket tersebut aktif.',
+            ]);
+        }
+
         if ($conflictingInvoice !== null) {
             throw ValidationException::withMessages([
                 'invoice' => 'Masih ada invoice aktif untuk periode ini. Selesaikan pembayaran invoice tersebut sebelum membuat invoice paket atau periode lain.',
@@ -268,33 +444,7 @@ class SubscriptionInvoiceService
                 'paid_at' => $paidAt,
             ])->save();
 
-            $subscription = Subscription::withoutGlobalScopes()
-                ->whereKey($lockedInvoice->subscription_id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $periodEnd = $lockedInvoice->period_end;
-
-            if ($subscription->current_period_end === null || $periodEnd->gt($subscription->current_period_end)) {
-                $subscription->forceFill([
-                    'plan_id' => $lockedInvoice->plan_id ?? $subscription->plan_id,
-                    'status' => 'active',
-                    'current_period_start' => $lockedInvoice->period_start,
-                    'current_period_end' => $periodEnd,
-                    'grace_ends_at' => null,
-                ])->save();
-
-                $tenant = Tenant::withoutGlobalScopes()
-                    ->whereKey($lockedInvoice->tenant_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($tenant !== null && ($tenant->subscription_ends_at === null || $periodEnd->gt($tenant->subscription_ends_at))) {
-                    $tenant->forceFill([
-                        'subscription_ends_at' => $periodEnd,
-                    ])->save();
-                }
-            }
+            app(SubscriptionInvoiceActivationService::class)->activateIfDue($lockedInvoice);
 
             return $lockedInvoice->refresh();
         });

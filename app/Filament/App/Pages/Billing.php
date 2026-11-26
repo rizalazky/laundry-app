@@ -8,7 +8,6 @@ use App\Models\SubscriptionInvoice;
 use App\Models\User;
 use App\Services\SubscriptionInvoiceService;
 use App\Services\SubscriptionPaymentService;
-use App\Services\SubscriptionPlanChangeService;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
@@ -104,38 +103,45 @@ class Billing extends Page
         }
     }
 
-    public function schedulePlanChange(int $planId): void
-    {
-        $user = Auth::user();
-        abort_unless($user instanceof User && static::canAccess(), 403);
 
+    public function purchasePlan(int $planId): void
+    {
         $validated = validator(['planId' => $planId], [
             'planId' => ['required', 'integer', 'exists:plans,id'],
         ])->validate();
 
-        app(SubscriptionPlanChangeService::class)->scheduleChange(
-            $user->tenant,
-            Plan::query()->findOrFail((int) $validated['planId']),
-        );
-
-        Notification::make()
-            ->title('Perubahan paket dijadwalkan')
-            ->body('Paket baru akan berlaku setelah periode langganan saat ini berakhir.')
-            ->success()
-            ->send();
-    }
-
-    public function cancelScheduledPlanChange(): void
-    {
         $user = Auth::user();
         abort_unless($user instanceof User && static::canAccess(), 403);
 
-        app(SubscriptionPlanChangeService::class)->cancelScheduledChange($user->tenant);
+        $plan = Plan::query()
+            ->where('is_active', true)
+            ->findOrFail((int) $validated['planId']);
 
-        Notification::make()
-            ->title('Jadwal perubahan paket dibatalkan')
-            ->success()
-            ->send();
+        try {
+            $invoice = app(SubscriptionInvoiceService::class)->createPlanPurchaseInvoice(
+                $user->tenant,
+                $plan,
+                $this->billingInterval,
+            );
+
+            if ($invoice->status === 'paid') {
+                $message = $invoice->period_start->isFuture()
+                    ? 'Pembelian tercatat. Paket akan aktif pada '.$invoice->period_start->format('d M Y H:i').'.'
+                    : ($invoice->type === 'upgrade'
+                        ? 'Upgrade paket berhasil diaktifkan.'
+                        : 'Paket berhasil diaktifkan.');
+            } else {
+                $message = 'Nomor invoice: '.$invoice->invoice_number;
+            }
+
+            Notification::make()
+                ->title($invoice->status === 'paid' ? 'Pembelian paket diproses' : 'Invoice siap')
+                ->body($message)
+                ->success()
+                ->send();
+        } catch (ValidationException $exception) {
+            throw $exception;
+        }
     }
 
     public function payInvoice(int $invoiceId)
@@ -166,7 +172,7 @@ class Billing extends Page
         $user = Auth::user();
 
         $subscription = Subscription::query()
-            ->with(['plan.features', 'scheduledPlan'])
+            ->with('plan.features')
             ->where('tenant_id', $user->tenant_id)
             ->first();
 
