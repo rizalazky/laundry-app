@@ -128,7 +128,46 @@ class SubscriptionPaymentReconciliationService
                     return 'invoice_already_paid';
                 }
 
-                if (! in_array($invoice->status, ['issued', 'pending'], true)) {
+                $settledWithinValidity = $invoice->due_at !== null
+                    && $paidAt->lessThanOrEqualTo($invoice->due_at);
+
+                if ($invoice->due_at !== null && $paidAt->greaterThan($invoice->due_at)) {
+                    Log::critical('Midtrans settled a subscription payment after its invoice validity expired.', [
+                        'payment_id' => $lockedPayment->getKey(),
+                        'invoice_id' => $invoice->getKey(),
+                        'provider_reference' => $lockedPayment->provider_reference,
+                        'paid_at' => $paidAt->toIso8601String(),
+                        'due_at' => $invoice->due_at->toIso8601String(),
+                    ]);
+
+                    $subscription = Subscription::withoutGlobalScopes()
+                        ->whereKey($invoice->subscription_id)
+                        ->first();
+
+                    if ($subscription !== null) {
+                        app(SubscriptionEventRecorder::class)->record($subscription, 'payment_received', [
+                            'invoice_id' => $invoice->getKey(),
+                            'payment_id' => $lockedPayment->getKey(),
+                            'metadata' => [
+                                'provider' => $lockedPayment->provider,
+                                'provider_reference' => $lockedPayment->provider_reference,
+                                'amount' => $lockedPayment->amount,
+                                'currency' => $invoice->currency,
+                                'late_payment' => true,
+                                'requires_manual_review' => true,
+                                'invoice_due_at' => $invoice->due_at->toIso8601String(),
+                            ],
+                            'occurred_at' => $paidAt,
+                        ]);
+                    }
+
+                    return 'late_payment_requires_review';
+                }
+
+                $invoiceCanBePaid = in_array($invoice->status, ['issued', 'pending'], true)
+                    || ($invoice->status === 'expired' && $settledWithinValidity);
+
+                if (! $invoiceCanBePaid) {
                     Log::critical('Midtrans settled a payment for an invoice that is no longer payable.', [
                         'payment_id' => $lockedPayment->getKey(),
                         'invoice_id' => $invoice->getKey(),
