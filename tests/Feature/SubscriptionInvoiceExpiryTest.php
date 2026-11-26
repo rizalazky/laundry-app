@@ -42,6 +42,7 @@ class SubscriptionInvoiceExpiryTest extends TestCase
         [$tenant, $owner, $plan] = $this->makeTenantPlanAndSubscription();
         Auth::login($owner);
 
+        $this->travelTo(now()->startOfSecond());
         $invoice = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $plan);
 
         $this->assertTrue($invoice->due_at->equalTo($invoice->created_at->copy()->addHours(24)));
