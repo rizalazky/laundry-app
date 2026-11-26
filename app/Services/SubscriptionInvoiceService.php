@@ -128,7 +128,7 @@ class SubscriptionInvoiceService
                 $difference = BigDecimal::of($targetPrice)->minus(BigDecimal::of($currentPrice));
                 $amount = $difference
                     ->multipliedBy((string) $remainingSeconds)
-                    ->dividedBy((string) $totalSeconds, 2, RoundingMode::HALF_UP)
+                    ->dividedBy((string) $totalSeconds, 2, RoundingMode::HalfUp)
                     ->toScale(2);
 
                 return $this->createPurchasedPlanInvoice(
