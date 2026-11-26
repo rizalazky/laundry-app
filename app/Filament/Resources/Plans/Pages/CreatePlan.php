@@ -1,9 +1,9 @@
 <?php
 
-namespace App\\Filament\\Resources\\Plans\\Pages;
+namespace App\Filament\Resources\Plans\Pages;
 
-use App\\Filament\\Resources\\Plans\\PlanResource;
-use Filament\\Resources\\Pages\\CreateRecord;
+use App\Filament\Resources\Plans\PlanResource;
+use Filament\Resources\Pages\CreateRecord;
 
 class CreatePlan extends CreateRecord
 {
