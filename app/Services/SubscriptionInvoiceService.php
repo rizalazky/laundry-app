@@ -40,12 +40,7 @@ class SubscriptionInvoiceService
                     'subscription' => 'Renewal hanya tersedia setelah periode berlangganan pertama terbentuk.',
                 ]);
             }
-
-            if ($subscription->scheduled_plan_id !== null) {
-                throw ValidationException::withMessages([
-                    'subscription' => 'Invoice perpanjangan dapat dibuat setelah perubahan paket terjadwal mulai berlaku.',
-                ]);
-            }
+ 
 
             $plan = Plan::query()->findOrFail($subscription->plan_id);
 
