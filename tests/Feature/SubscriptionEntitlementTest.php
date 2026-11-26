@@ -200,12 +200,12 @@ class SubscriptionEntitlementTest extends TestCase
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
 
         $this->actingAs($owner);
-        $model = new class extends \\Illuminate\\Database\\Eloquent\\Model {};
+        $model = new class extends \Illuminate\Database\Eloquent\Model {};
         $model->setAttribute('tenant_id', $tenant->id);
         $model->setAttribute('branch_id', $foreignBranch->id);
 
-        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
-        app(\\App\\Services\\TenantWriteGuard::class)->assertModelWriteAllowed($model);
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        app(\App\Services\TenantWriteGuard::class)->assertModelWriteAllowed($model);
     }
 
     private function subscription(Tenant $tenant, string $status, array $attributes = []): Subscription
