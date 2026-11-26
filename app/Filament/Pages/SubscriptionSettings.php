@@ -1,15 +1,15 @@
 <?php
 
-namespace App\\Filament\\Pages;
+namespace App\Filament\Pages;
 
-use App\\Models\\Plan;
-use App\\Models\\PlatformSetting;
-use App\\Models\\User;
-use Filament\\Notifications\\Notification;
-use Filament\\Pages\\Page;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Validation\\Rule;
+use App\Models\Plan;
+use App\Models\PlatformSetting;
+use App\Models\User;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use UnitEnum;
 
 class SubscriptionSettings extends Page
@@ -20,7 +20,7 @@ class SubscriptionSettings extends Page
 
     protected static ?string $navigationLabel = 'Subscription Settings';
 
-    protected static string|\\BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
 
     protected static string|UnitEnum|null $navigationGroup = 'Platform';
 
