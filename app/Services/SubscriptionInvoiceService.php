@@ -240,6 +240,12 @@ class SubscriptionInvoiceService
                 ]);
             }
 
+            if ($lockedInvoice->due_at !== null && $lockedInvoice->due_at->lessThanOrEqualTo(now())) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Masa berlaku invoice sudah berakhir. Buat invoice baru untuk melanjutkan pembayaran.',
+                ]);
+            }
+
             if ($idempotencyKey !== null) {
                 $existing = SubscriptionPayment::withoutGlobalScopes()
                     ->where('tenant_id', $lockedInvoice->tenant_id)
@@ -258,12 +264,6 @@ class SubscriptionInvoiceService
 
                     return $existing;
                 }
-            }
-
-            if ($lockedInvoice->due_at !== null && $lockedInvoice->due_at->isPast()) {
-                throw ValidationException::withMessages([
-                    'invoice' => 'Masa berlaku invoice sudah berakhir. Buat invoice baru untuk melanjutkan pembayaran.',
-                ]);
             }
 
             if (! in_array($lockedInvoice->status, ['issued', 'pending'], true)) {
@@ -285,6 +285,7 @@ class SubscriptionInvoiceService
                 'payment_method' => $paymentMethod,
                 'amount' => $lockedInvoice->total_amount,
                 'status' => 'pending',
+                'expires_at' => $lockedInvoice->due_at,
                 'idempotency_key' => $idempotencyKey,
             ]);
 
@@ -415,6 +416,7 @@ class SubscriptionInvoiceService
             'status' => 'issued',
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
+            'due_at' => now()->addHours((int) config('services.subscription.invoice_validity_hours', 24)),
         ]);
     }
 
