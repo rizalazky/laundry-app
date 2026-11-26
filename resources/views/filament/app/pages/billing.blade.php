@@ -24,6 +24,19 @@
                                 @endif
                             </div>
 
+                            @if ($subscription && $subscription->current_period_start === null && $subscription->current_period_end === null)
+                                <label class="mt-4 flex cursor-pointer items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-sm font-medium text-primary-700 dark:border-primary-700 dark:bg-primary-950 dark:text-primary-300">
+                                    <input
+                                        type="radio"
+                                        name="selectedPlanId"
+                                        value="{{ $plan->id }}"
+                                        wire:model="selectedPlanId"
+                                        class="border-gray-300 text-primary-600 focus:ring-primary-500"
+                                    >
+                                    Pilih paket ini
+                                </label>
+                            @endif
+
                             <div class="mt-5 grid grid-cols-2 gap-3">
                                 <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                                     <p class="text-xs text-gray-500 dark:text-gray-400">Bulanan</p>
@@ -124,7 +137,13 @@
 
         <x-filament::section>
             <x-slot name="heading">Buat Invoice</x-slot>
-            <x-slot name="description">Buat invoice pembelian awal atau perpanjangan paket yang sedang digunakan.</x-slot>
+            <x-slot name="description">
+                @if ($subscription && $subscription->current_period_start === null && $subscription->current_period_end === null)
+                    Pilih paket aktif di atas, lalu buat invoice sesuai periode yang diinginkan.
+                @else
+                    Buat invoice perpanjangan untuk paket yang sedang digunakan.
+                @endif
+            </x-slot>
 
             @if ($subscription)
                 <form wire:submit="createInvoice" class="flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -138,9 +157,16 @@
                         </x-filament::input.wrapper>
                         @error('billingInterval') <p class="mt-1 text-sm text-danger-600">{{ $message }}</p> @enderror
                     </div>
-                    <x-filament::button type="submit" icon="heroicon-m-document-plus" wire:loading.attr="disabled" wire:target="createInvoice">
-                        Buat invoice
-                    </x-filament::button>
+                    @if ($subscription->current_period_start === null && $subscription->current_period_end === null)
+                        @error('selectedPlanId') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
+                        <x-filament::button type="submit" icon="heroicon-m-document-plus" wire:loading.attr="disabled" wire:target="createInvoice">
+                            Buat invoice paket terpilih
+                        </x-filament::button>
+                    @else
+                        <x-filament::button type="submit" icon="heroicon-m-document-plus" wire:loading.attr="disabled" wire:target="createInvoice">
+                            Buat invoice perpanjangan
+                        </x-filament::button>
+                    @endif
                 </form>
             @endif
         </x-filament::section>
