@@ -1,11 +1,11 @@
 <?php
 
-namespace App\\Console\\Commands;
+namespace App\Console\Commands;
 
-use App\\Models\\SubscriptionPayment;
-use App\\Services\\SubscriptionPaymentReconciliationService;
-use Illuminate\\Console\\Command;
-use Illuminate\\Support\\Facades\\Log;
+use App\Models\SubscriptionPayment;
+use App\Services\SubscriptionPaymentReconciliationService;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class ReconcilePendingSubscriptionPayments extends Command
