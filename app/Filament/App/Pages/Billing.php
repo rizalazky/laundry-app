@@ -2,6 +2,7 @@
 
 namespace App\Filament\App\Pages;
 
+use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\SubscriptionInvoice;
 use App\Models\User;
@@ -116,6 +117,12 @@ class Billing extends Page
         $gatewayDriver = (string) config('services.payment_gateway.driver');
 
         return [
+            'plans' => Plan::query()
+                ->where('is_active', true)
+                ->with('features')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
             'subscription' => $subscription,
             'invoices' => $invoices,
             'gatewayConfigured' => $gatewayDriver === 'midtrans'
