@@ -1,12 +1,12 @@
 <?php
 
-namespace App\\Filament\\Pages;
+namespace App\Filament\Pages;
 
-use App\\Models\\SubscriptionEvent;
-use App\\Services\\SubscriptionEventRecorder;
-use Filament\\Pages\\Page;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Support\\Facades\\DB;
+use App\Models\SubscriptionEvent;
+use App\Services\SubscriptionEventRecorder;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use UnitEnum;
 
 class SubscriptionPaymentReviews extends Page
@@ -17,7 +17,7 @@ class SubscriptionPaymentReviews extends Page
 
     protected static ?string $navigationLabel = 'Payment Reviews';
 
-    protected static string|\\BackedEnum|null $navigationIcon = 'heroicon-o-exclamation-triangle';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-exclamation-triangle';
 
     protected static string|UnitEnum|null $navigationGroup = 'Platform';
 
