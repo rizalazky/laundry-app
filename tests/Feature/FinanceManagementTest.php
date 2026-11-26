@@ -259,4 +259,46 @@ class FinanceManagementTest extends TestCase
 
         $this->assertFalse(ChartOfAccountResource::canEdit($systemAccount));
     }
+
+    public function test_manual_journal_rechecks_finance_permission_when_livewire_mutation_runs(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($branch);
+
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'finance.manage'],
+            ['name' => 'Kelola Keuangan', 'group' => 'Keuangan'],
+        );
+
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $permission->id,
+        ]);
+
+        $this->actingAs($manager);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(ManualJournal::class)
+            ->set('journalDate', '2026-11-25T09:00')
+            ->set('branchId', (string) $branch->id)
+            ->set('description', 'Jurnal setelah izin dicabut')
+            ->set('entries', [
+                ['account_code' => '1000', 'debit' => '100000.00', 'credit' => '0.00'],
+                ['account_code' => '3000', 'debit' => '0.00', 'credit' => '100000.00'],
+            ]);
+
+        RolePermission::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('role', 'branch_manager')
+            ->where('permission_id', $permission->id)
+            ->delete();
+
+        $component->call('createJournal')->assertForbidden();
+
+        $this->assertSame(0, Journal::query()->where('tenant_id', $tenant->id)->count());
+    }
 }

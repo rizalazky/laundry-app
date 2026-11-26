@@ -108,6 +108,8 @@ class ManualJournal extends Page
 
     public function createJournal(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->referenceId = $this->referenceId === '' ? null : $this->referenceId;
 
         $data = $this->validate([
