@@ -42,10 +42,9 @@ class SubscriptionInvoiceExpiryTest extends TestCase
         [$tenant, $owner, $plan] = $this->makeTenantPlanAndSubscription();
         Auth::login($owner);
 
-        $before = now();
         $invoice = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $plan);
 
-        $this->assertTrue($invoice->due_at->equalTo($before->copy()->addHours(24)));
+        $this->assertTrue($invoice->due_at->equalTo($invoice->created_at->copy()->addHours(24)));
     }
 
     public function test_expiry_command_marks_due_unpaid_invoice_expired_and_records_event(): void
@@ -79,6 +78,7 @@ class SubscriptionInvoiceExpiryTest extends TestCase
     public function test_late_successful_payment_is_recorded_but_does_not_activate_expired_invoice(): void
     {
         [$tenant, $invoice, $payment] = $this->makeInvoiceAndPayment(now()->subMinute());
+        $invoice->forceFill(['status' => 'expired'])->save();
 
         Http::fake([
             'https://api.sandbox.midtrans.com/v2/'.$payment->provider_reference.'/status' => Http::response([
@@ -183,7 +183,7 @@ class SubscriptionInvoiceExpiryTest extends TestCase
             'discount_amount' => '0.00',
             'total_amount' => '250000.00',
             'currency' => 'IDR',
-            'status' => $dueAt->isPast() ? 'expired' : 'pending',
+            'status' => 'pending',
             'period_start' => now()->subMinute(),
             'period_end' => now()->addMonth(),
             'due_at' => $dueAt,
