@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Subscription;
+use Filament\Notifications\Notification as FilamentNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -31,19 +32,22 @@ class SubscriptionRenewalReminderNotification extends Notification
         $planName = $this->subscription->plan?->name ?? 'Paket aktif';
         $periodEnd = $this->subscription->current_period_end;
 
-        return [
-            'type' => 'subscription_renewal_reminder',
-            'title' => 'Masa aktif paket akan berakhir',
-            'body' => sprintf(
+        return FilamentNotification::make()
+            ->title('Masa aktif paket akan berakhir')
+            ->body(sprintf(
                 '%s akan berakhir dalam %d hari. Perpanjang sebelum %s.',
                 $planName,
                 $this->daysRemaining,
                 $periodEnd?->format('d M Y H:i') ?? '-',
-            ),
-            'url' => '/app/billing',
-            'subscription_id' => $this->subscription->getKey(),
-            'days_remaining' => $this->daysRemaining,
-            'period_end' => $periodEnd?->toIso8601String(),
-        ];
+            ))
+            ->icon('heroicon-o-clock')
+            ->iconColor('warning')
+            ->viewData([
+                'type' => 'subscription_renewal_reminder',
+                'subscription_id' => $this->subscription->getKey(),
+                'days_remaining' => $this->daysRemaining,
+                'period_end' => $periodEnd?->toIso8601String(),
+            ])
+            ->getDatabaseMessage();
     }
 }

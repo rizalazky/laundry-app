@@ -24,7 +24,7 @@ class SubscriptionRenewalReminderTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_sends_h7_reminder_to_active_tenant_owner_and_records_audit_event(): void
+    public function test_sends_h7_filament_database_notification_to_active_tenant_owner_and_records_audit_event(): void
     {
         Carbon::setTestNow('2026-11-27 09:00:00');
 
@@ -33,10 +33,16 @@ class SubscriptionRenewalReminderTest extends TestCase
         $this->artisan('subscriptions:send-renewal-reminders')->assertSuccessful();
 
         $this->assertSame(1, $owner->notifications()->count());
+        $this->assertSame(
+            1,
+            $owner->notifications()->where('data->format', 'filament')->count(),
+        );
+
         $notification = $owner->notifications()->sole();
-        $this->assertSame('subscription_renewal_reminder', $notification->data['type']);
-        $this->assertSame(7, $notification->data['days_remaining']);
-        $this->assertSame('/app/billing', $notification->data['url']);
+        $this->assertSame('filament', $notification->data['format']);
+        $this->assertSame('Masa aktif paket akan berakhir', $notification->data['title']);
+        $this->assertSame('subscription_renewal_reminder', $notification->data['viewData']['type']);
+        $this->assertSame(7, $notification->data['viewData']['days_remaining']);
         $this->assertDatabaseHas('subscription_renewal_reminders', [
             'tenant_id' => $tenant->id,
             'subscription_id' => $subscription->id,
