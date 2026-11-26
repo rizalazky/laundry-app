@@ -39,6 +39,74 @@ class SubscriptionInvoiceTest extends TestCase
         $this->assertSame('issued', $invoice->status);
     }
 
+    public function test_owner_can_select_another_active_plan_for_initial_purchase(): void
+    {
+        [$tenant, $owner, , $subscription] = $this->makeTenantWithPlan();
+        $selectedPlan = Plan::query()->create([
+            'code' => 'enterprise-'.Str::lower(Str::random(8)),
+            'name' => 'Enterprise',
+            'monthly_price' => '750000.00',
+            'yearly_price' => '7500000.00',
+            'currency' => 'IDR',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner);
+
+        $invoice = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $selectedPlan, 'yearly');
+
+        $this->assertSame($selectedPlan->id, $invoice->plan_id);
+        $this->assertSame('Enterprise', $invoice->plan_name_snapshot);
+        $this->assertSame('yearly', $invoice->billing_interval);
+        $this->assertSame('7500000.00', $invoice->total_amount);
+        $this->assertSame($subscription->plan_id, $subscription->fresh()->plan_id);
+        $this->assertSame('trialing', $subscription->fresh()->status);
+    }
+
+    public function test_owner_cannot_create_a_second_open_invoice_for_a_different_plan_or_period(): void
+    {
+        [$tenant, $owner] = $this->makeTenantWithPlan();
+        $otherPlan = Plan::query()->create([
+            'code' => 'team-'.Str::lower(Str::random(8)),
+            'name' => 'Team',
+            'monthly_price' => '400000.00',
+            'yearly_price' => '4000000.00',
+            'currency' => 'IDR',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner);
+        $service = app(SubscriptionInvoiceService::class);
+        $service->createInitialInvoice($tenant, $otherPlan);
+
+        $this->expectException(ValidationException::class);
+        $service->createInitialInvoice($tenant, $otherPlan, 'yearly');
+    }
+
+    public function test_zero_price_initial_invoice_is_settled_and_activates_the_selected_plan(): void
+    {
+        [$tenant, $owner, , $subscription] = $this->makeTenantWithPlan('0.00');
+        $freePlan = Plan::query()->create([
+            'code' => 'free-'.Str::lower(Str::random(8)),
+            'name' => 'Free',
+            'monthly_price' => '0.00',
+            'yearly_price' => '0.00',
+            'currency' => 'IDR',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner);
+
+        $invoice = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $freePlan);
+
+        $this->assertSame('paid', $invoice->status);
+        $this->assertNotNull($invoice->paid_at);
+        $this->assertSame('active', $subscription->fresh()->status);
+        $this->assertSame($freePlan->id, $subscription->fresh()->plan_id);
+        $this->assertTrue($subscription->fresh()->current_period_end->equalTo($invoice->period_end));
+        $this->assertTrue($tenant->fresh()->subscription_ends_at->equalTo($invoice->period_end));
+    }
+
     public function test_owner_can_create_a_renewal_invoice_and_duplicate_open_invoice_is_reused(): void
     {
         [$tenant, $owner, , $subscription] = $this->makeTenantWithPlan();

@@ -20,12 +20,14 @@ class SubscriptionInvoiceService
 {
     public function createInitialInvoice(Tenant $tenant, Plan $plan, string $billingInterval = 'monthly'): SubscriptionInvoice
     {
-        return $this->createInvoice($tenant, $plan, 'initial', $billingInterval);
+        $invoice = $this->createInvoice($tenant, $plan, 'initial', $billingInterval);
+
+        return $this->settleFreeInvoiceIfNeeded($invoice);
     }
 
     public function createRenewalInvoice(Tenant $tenant, string $billingInterval = 'monthly'): SubscriptionInvoice
     {
-        return DB::transaction(function () use ($tenant, $billingInterval): SubscriptionInvoice {
+        $invoice = DB::transaction(function () use ($tenant, $billingInterval): SubscriptionInvoice {
             $this->assertOwnerCanManage($tenant);
 
             $subscription = Subscription::withoutGlobalScopes()
@@ -43,6 +45,8 @@ class SubscriptionInvoiceService
 
             return $this->buildInvoice($tenant, $subscription, $plan, 'renewal', $billingInterval);
         });
+
+        return $this->settleFreeInvoiceIfNeeded($invoice);
     }
 
     public function createPaymentAttempt(
@@ -172,18 +176,35 @@ class SubscriptionInvoiceService
             ? $periodStart->copy()->addYear()
             : $periodStart->copy()->addMonth();
 
+        if (BigDecimal::of($price)->isLessThan(0)) {
+            throw ValidationException::withMessages([
+                'plan' => 'Harga paket tidak boleh bernilai negatif.',
+            ]);
+        }
+
         $existing = SubscriptionInvoice::withoutGlobalScopes()
             ->where('subscription_id', $subscription->getKey())
             ->where('type', $type)
             ->where('plan_id', $plan->getKey())
             ->where('billing_interval', $billingInterval)
-            ->where('period_start', $periodStart)
-            ->where('period_end', $periodEnd)
             ->whereIn('status', ['issued', 'pending'])
+            ->latest('id')
             ->first();
 
         if ($existing !== null) {
             return $existing;
+        }
+
+        $conflictingInvoice = SubscriptionInvoice::withoutGlobalScopes()
+            ->where('subscription_id', $subscription->getKey())
+            ->whereIn('status', ['issued', 'pending'])
+            ->latest('id')
+            ->first();
+
+        if ($conflictingInvoice !== null) {
+            throw ValidationException::withMessages([
+                'invoice' => 'Masih ada invoice aktif untuk periode ini. Selesaikan pembayaran invoice tersebut sebelum membuat invoice paket atau periode lain.',
+            ]);
         }
 
         $amount = (string) $price;
@@ -206,6 +227,71 @@ class SubscriptionInvoiceService
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
         ]);
+    }
+
+    private function settleFreeInvoiceIfNeeded(SubscriptionInvoice $invoice): SubscriptionInvoice
+    {
+        if (BigDecimal::of($invoice->total_amount)->isGreaterThan(0) || $invoice->status === 'paid') {
+            return $invoice;
+        }
+
+        return DB::transaction(function () use ($invoice): SubscriptionInvoice {
+            $lockedInvoice = SubscriptionInvoice::withoutGlobalScopes()
+                ->whereKey($invoice->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedInvoice->status === 'paid') {
+                return $lockedInvoice;
+            }
+
+            if (! in_array($lockedInvoice->status, ['issued', 'pending'], true)) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Invoice gratis ini tidak lagi dapat diaktifkan.',
+                ]);
+            }
+
+            if (BigDecimal::of($lockedInvoice->total_amount)->isGreaterThan(0)) {
+                return $lockedInvoice;
+            }
+
+            $paidAt = now();
+
+            $lockedInvoice->forceFill([
+                'status' => 'paid',
+                'paid_at' => $paidAt,
+            ])->save();
+
+            $subscription = Subscription::withoutGlobalScopes()
+                ->whereKey($lockedInvoice->subscription_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $periodEnd = $lockedInvoice->period_end;
+
+            if ($subscription->current_period_end === null || $periodEnd->gt($subscription->current_period_end)) {
+                $subscription->forceFill([
+                    'plan_id' => $lockedInvoice->plan_id ?? $subscription->plan_id,
+                    'status' => 'active',
+                    'current_period_start' => $lockedInvoice->period_start,
+                    'current_period_end' => $periodEnd,
+                    'grace_ends_at' => null,
+                ])->save();
+
+                $tenant = Tenant::withoutGlobalScopes()
+                    ->whereKey($lockedInvoice->tenant_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($tenant !== null && ($tenant->subscription_ends_at === null || $periodEnd->gt($tenant->subscription_ends_at))) {
+                    $tenant->forceFill([
+                        'subscription_ends_at' => $periodEnd,
+                    ])->save();
+                }
+            }
+
+            return $lockedInvoice->refresh();
+        });
     }
 
     private function nextPeriodStart(Subscription $subscription): Carbon

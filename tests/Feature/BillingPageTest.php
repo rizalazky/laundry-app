@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\SubscriptionInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -35,6 +36,76 @@ class BillingPageTest extends TestCase
             'type' => 'initial',
             'billing_interval' => 'monthly',
             'status' => 'issued',
+        ]);
+    }
+
+    public function test_owner_can_select_a_different_active_plan_before_the_first_paid_period(): void
+    {
+        [$tenant, $owner, $currentPlan] = $this->makeTenantWithSubscription();
+        $selectedPlan = Plan::query()->create([
+            'code' => 'enterprise-'.Str::lower(Str::random(8)),
+            'name' => 'Enterprise',
+            'monthly_price' => '750000.00',
+            'yearly_price' => '7500000.00',
+            'currency' => 'IDR',
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        Livewire::actingAs($owner)
+            ->test(Billing::class)
+            ->assertOk()
+            ->set('selectedPlanId', (string) $selectedPlan->id)
+            ->set('billingInterval', 'yearly')
+            ->call('createInvoice')
+            ->assertHasNoErrors()
+            ->assertSee('Pilih paket ini');
+
+        $this->assertDatabaseHas('subscription_invoices', [
+            'tenant_id' => $tenant->id,
+            'plan_id' => $selectedPlan->id,
+            'type' => 'initial',
+            'billing_interval' => 'yearly',
+            'total_amount' => '7500000.00',
+            'status' => 'issued',
+        ]);
+        $this->assertDatabaseMissing('subscription_invoices', [
+            'tenant_id' => $tenant->id,
+            'plan_id' => $currentPlan->id,
+            'type' => 'initial',
+        ]);
+    }
+
+    public function test_owner_can_redirect_to_midtrans_checkout_for_an_invoice(): void
+    {
+        config([
+            'services.payment_gateway.driver' => 'midtrans',
+            'services.midtrans.server_key' => 'sandbox-server-key',
+            'services.midtrans.snap_base_url' => 'https://app.sandbox.midtrans.com',
+        ]);
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token',
+            ], 201),
+        ]);
+
+        [$tenant, $owner, $plan] = $this->makeTenantWithSubscription();
+        $this->actingAs($owner);
+        $invoice = app(SubscriptionInvoiceService::class)->createInitialInvoice($tenant, $plan);
+
+        Livewire::actingAs($owner)
+            ->test(Billing::class)
+            ->call('payInvoice', $invoice->id)
+            ->assertRedirect('https://app.sandbox.midtrans.com/snap/v2/vtweb/snap-token');
+
+        $this->assertDatabaseHas('subscription_payments', [
+            'tenant_id' => $tenant->id,
+            'subscription_invoice_id' => $invoice->id,
+            'provider' => 'midtrans',
+            'status' => 'pending',
         ]);
     }
 

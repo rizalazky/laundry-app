@@ -28,6 +28,8 @@ class Billing extends Page
 
     public string $billingInterval = 'monthly';
 
+    public ?string $selectedPlanId = null;
+
     public static function canAccess(): bool
     {
         $user = Auth::user();
@@ -42,6 +44,13 @@ class Billing extends Page
     public function mount(): void
     {
         abort_unless(static::canAccess(), 403);
+
+        $user = Auth::user();
+        $subscription = Subscription::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->first();
+
+        $this->selectedPlanId = $subscription ? (string) $subscription->plan_id : null;
     }
 
     public function createInvoice(): void
@@ -61,13 +70,32 @@ class Billing extends Page
         try {
             $service = app(SubscriptionInvoiceService::class);
 
-            $invoice = $subscription->current_period_start === null
-                ? $service->createInitialInvoice($user->tenant, $subscription->plan, $validated['billingInterval'])
-                : $service->createRenewalInvoice($user->tenant, $validated['billingInterval']);
+            if ($subscription->current_period_start === null && $subscription->current_period_end === null) {
+                $planData = $this->validate([
+                    'selectedPlanId' => ['required', 'integer', 'exists:plans,id'],
+                ]);
+
+                $plan = Plan::query()
+                    ->where('is_active', true)
+                    ->findOrFail((int) $planData['selectedPlanId']);
+
+                $invoice = $service->createInitialInvoice(
+                    $user->tenant,
+                    $plan,
+                    $validated['billingInterval'],
+                );
+            } else {
+                $invoice = $service->createRenewalInvoice(
+                    $user->tenant,
+                    $validated['billingInterval'],
+                );
+            }
 
             Notification::make()
-                ->title('Invoice siap')
-                ->body('Nomor invoice: '.$invoice->invoice_number)
+                ->title($invoice->status === 'paid' ? 'Paket berhasil diaktifkan' : 'Invoice siap')
+                ->body($invoice->status === 'paid'
+                    ? 'Paket '.$invoice->plan_name_snapshot.' telah aktif.'
+                    : 'Nomor invoice: '.$invoice->invoice_number)
                 ->success()
                 ->send();
         } catch (ValidationException $exception) {
