@@ -6,7 +6,6 @@ use App\Http\Middleware\EnsureTenantOwnerEmailIsVerified;
 use App\Models\Branch;
 use App\Models\Plan;
 use App\Models\PlatformSetting;
-use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
@@ -14,7 +13,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class EmailVerificationFlowTest extends TestCase
