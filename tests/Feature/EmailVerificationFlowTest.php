@@ -141,10 +141,10 @@ class EmailVerificationFlowTest extends TestCase
 
     public function test_registration_is_rejected_when_platform_registration_is_disabled(): void
     {
-        PlatformSetting::query()->create([
-            'key' => 'registration_enabled',
-            'value' => false,
-        ]);
+        PlatformSetting::query()->updateOrCreate(
+            ['key' => 'registration_enabled'],
+            ['value' => false],
+        );
 
         $this->post(route('register.store'), [
             'owner_name' => 'Laundry Owner',
@@ -184,7 +184,7 @@ class EmailVerificationFlowTest extends TestCase
 
     private function createDefaultPlan(): Plan
     {
-        return Plan::query()->create([
+        return Plan::query()->firstOrCreate([
             'code' => 'starter',
             'name' => 'Starter',
             'monthly_price' => 0,
