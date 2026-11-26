@@ -50,4 +50,9 @@ class Subscription extends Model
     {
         return $this->hasMany(SubscriptionInvoice::class);
     }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(SubscriptionEvent::class);
+    }
 }
