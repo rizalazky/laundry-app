@@ -266,7 +266,7 @@ class TenantOwnedChildModelIsolationTest extends TestCase
                 'last_number' => 1,
             ]);
             $this->fail('A tenant user must not create an invoice sequence for a foreign branch.');
-        } catch (ModelNotFoundException) {
+        } catch (AuthorizationException) {
             $this->assertDatabaseMissing('invoice_sequences', [
                 'branch_id' => $foreignBranch->id,
                 'last_number' => 1,

@@ -61,20 +61,39 @@ class SubscriptionInvoiceActivationService
                 return 'period_conflict';
             }
 
+            $fromStatus = $subscription->status;
+            $fromPlanId = (int) $subscription->plan_id;
+            $toPlanId = (int) ($lockedInvoice->plan_id ?? $subscription->plan_id);
+            $hadPaidPeriod = $subscription->current_period_end !== null;
+
             if ($lockedInvoice->type === 'upgrade') {
                 // An upgrade changes entitlements immediately but preserves the
                 // original billing period boundaries.
                 $subscription->forceFill([
-                    'plan_id' => $lockedInvoice->plan_id ?? $subscription->plan_id,
+                    'plan_id' => $toPlanId,
                     'status' => 'active',
                     'grace_ends_at' => null,
                 ])->save();
+
+                app(SubscriptionEventRecorder::class)->record($subscription, 'plan_upgraded', [
+                    'invoice_id' => $lockedInvoice->getKey(),
+                    'from_status' => $fromStatus,
+                    'to_status' => 'active',
+                    'from_plan_id' => $fromPlanId,
+                    'to_plan_id' => $toPlanId,
+                    'metadata' => [
+                        'invoice_number' => $lockedInvoice->invoice_number,
+                        'amount' => $lockedInvoice->total_amount,
+                        'billing_interval' => $lockedInvoice->billing_interval,
+                        'period_end' => $lockedInvoice->period_end->toIso8601String(),
+                    ],
+                ]);
 
                 return 'activated';
             }
 
             $subscription->forceFill([
-                'plan_id' => $lockedInvoice->plan_id ?? $subscription->plan_id,
+                'plan_id' => $toPlanId,
                 'status' => 'active',
                 'current_period_start' => $lockedInvoice->period_start,
                 'current_period_end' => $lockedInvoice->period_end,
@@ -91,6 +110,26 @@ class SubscriptionInvoiceActivationService
                     'subscription_ends_at' => $lockedInvoice->period_end,
                 ])->save();
             }
+
+            $eventType = ! $hadPaidPeriod
+                ? 'subscription_activated'
+                : ($fromPlanId !== $toPlanId ? 'plan_changed' : 'subscription_renewed');
+
+            app(SubscriptionEventRecorder::class)->record($subscription, $eventType, [
+                'invoice_id' => $lockedInvoice->getKey(),
+                'from_status' => $fromStatus,
+                'to_status' => 'active',
+                'from_plan_id' => $fromPlanId,
+                'to_plan_id' => $toPlanId,
+                'metadata' => [
+                    'invoice_number' => $lockedInvoice->invoice_number,
+                    'invoice_type' => $lockedInvoice->type,
+                    'amount' => $lockedInvoice->total_amount,
+                    'billing_interval' => $lockedInvoice->billing_interval,
+                    'period_start' => $lockedInvoice->period_start->toIso8601String(),
+                    'period_end' => $lockedInvoice->period_end->toIso8601String(),
+                ],
+            ]);
 
             return 'activated';
         });

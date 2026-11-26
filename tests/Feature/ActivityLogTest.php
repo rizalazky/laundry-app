@@ -24,6 +24,7 @@ use App\Services\ActivityLogger;
 use DomainException;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -313,9 +314,16 @@ class ActivityLogTest extends TestCase
 
     private function foreignContext(): array
     {
+        $authenticatedUser = Auth::user();
+        Auth::logout();
+
         $tenant = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $employee = User::factory()->for($tenant)->withRole('cashier')->create();
+
+        if ($authenticatedUser !== null) {
+            Auth::login($authenticatedUser);
+        }
 
         return [$tenant, $owner, $employee];
     }

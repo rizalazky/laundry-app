@@ -178,6 +178,36 @@ class SubscriptionEntitlementTest extends TestCase
         $this->assertTrue(app(EntitlementService::class)->canCreateBranch($tenant));
     }
 
+    public function test_tenant_write_guard_rejects_model_writes_for_another_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        $model = new class extends \Illuminate\Database\Eloquent\Model {};
+        $model->setAttribute('tenant_id', $otherTenant->id);
+
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        app(\App\Services\TenantWriteGuard::class)->assertModelWriteAllowed($model);
+    }
+
+    public function test_tenant_write_guard_rejects_branch_references_from_another_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $foreignBranch = Branch::factory()->for($otherTenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        $model = new class extends \Illuminate\Database\Eloquent\Model {};
+        $model->setAttribute('tenant_id', $tenant->id);
+        $model->setAttribute('branch_id', $foreignBranch->id);
+
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        app(\App\Services\TenantWriteGuard::class)->assertModelWriteAllowed($model);
+    }
+
     private function subscription(Tenant $tenant, string $status, array $attributes = []): Subscription
     {
         $plan = $attributes['plan_id'] ?? $this->plan()->id;

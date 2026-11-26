@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
@@ -16,22 +18,54 @@ class TenantWriteGuard
             return;
         }
 
+        $modelTenantId = $this->resolveTenantId($model);
+
+        if ($modelTenantId !== null && (int) $modelTenantId !== (int) $user->tenant_id) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk mengubah data tenant lain.');
+        }
+
         // Subscription and billing records must remain writable for renewal
-        // and payment processing while operational data is read-only.
+        // and payment processing while operational data is read-only. Tenant
+        // ownership is still checked before this exception is applied.
         if (str_starts_with($model::class, 'App\\Models\\Subscription')) {
             return;
         }
 
-        $modelTenantId = $model->getAttribute('tenant_id');
+        if ($modelTenantId !== null) {
+            app(EntitlementService::class)->assertCanWrite($user->tenant);
+        }
+    }
 
-        if ($modelTenantId === null || (int) $modelTenantId !== (int) $user->tenant_id) {
-            return;
+    private function resolveTenantId(Model $model): ?int
+    {
+        $tenantId = $model->getAttribute('tenant_id');
+
+        $resolvedTenantId = $tenantId === null ? null : (int) $tenantId;
+
+        foreach (['branch_id', 'location_id', 'source_branch_id', 'destination_branch_id'] as $branchAttribute) {
+            $branchId = $model->getAttribute($branchAttribute);
+
+            if ($branchId === null) {
+                continue;
+            }
+
+            $branchTenantId = Branch::withoutGlobalScopes()
+                ->whereKey($branchId)
+                ->value('tenant_id');
+
+            if ($branchTenantId === null) {
+                continue;
+            }
+
+            $branchTenantId = (int) $branchTenantId;
+
+            if ($resolvedTenantId !== null && $resolvedTenantId !== $branchTenantId) {
+                throw new AuthorizationException('Cabang pada data tidak sesuai dengan tenant pemilik.');
+            }
+
+            $resolvedTenantId = $branchTenantId;
         }
 
-        $tenant = $user->tenant;
-
-        if ($tenant !== null) {
-            app(EntitlementService::class)->assertCanWrite($tenant);
-        }
+        return $resolvedTenantId;
     }
 }
