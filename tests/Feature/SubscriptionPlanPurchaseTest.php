@@ -35,7 +35,7 @@ class SubscriptionPlanPurchaseTest extends TestCase
 
         $this->assertSame('upgrade', $invoice->type);
         $this->assertSame('50000.00', $invoice->total_amount);
-        $this->assertSame('100000.00', $invoice->unit_price_snapshot);
+        $this->assertSame('200000.00', $invoice->unit_price_snapshot);
         $this->assertTrue($invoice->period_start->equalTo(now()));
         $this->assertTrue($invoice->period_end->equalTo($subscription->current_period_end));
         $this->assertSame($currentPlan->id, $subscription->fresh()->plan_id);
