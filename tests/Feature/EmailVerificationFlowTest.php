@@ -184,14 +184,16 @@ class EmailVerificationFlowTest extends TestCase
 
     private function createDefaultPlan(): Plan
     {
-        return Plan::query()->firstOrCreate([
-            'code' => 'starter',
-            'name' => 'Starter',
-            'monthly_price' => 0,
-            'yearly_price' => 0,
-            'currency' => 'IDR',
-            'is_active' => true,
-        ]);
+        return Plan::query()->firstOrCreate(
+            ['code' => 'starter'],
+            [
+                'name' => 'Starter',
+                'monthly_price' => 0,
+                'yearly_price' => 0,
+                'currency' => 'IDR',
+                'is_active' => true,
+            ],
+        );
     }
 
     private function verificationUrl(User $owner): string
