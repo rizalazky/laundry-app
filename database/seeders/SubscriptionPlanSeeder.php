@@ -1,10 +1,10 @@
 <?php
 
-namespace Database\\Seeders;
+namespace Database\Seeders;
 
-use App\\Models\\Plan;
-use App\\Models\\PlatformSetting;
-use Illuminate\\Database\\Seeder;
+use App\Models\Plan;
+use App\Models\PlatformSetting;
+use Illuminate\Database\Seeder;
 
 class SubscriptionPlanSeeder extends Seeder
 {
@@ -27,7 +27,7 @@ class SubscriptionPlanSeeder extends Seeder
                     'sort_order' => 1,
                 ])->save();
             } else {
-                $basic = Plan::query()->firstOrCreate(
+                Plan::query()->firstOrCreate(
                     ['code' => 'basic'],
                     [
                         'name' => 'Basic',
@@ -68,7 +68,7 @@ class SubscriptionPlanSeeder extends Seeder
             ],
         );
 
-        PlatformSetting::query()->updateOrCreate(
+        PlatformSetting::query()->firstOrCreate(
             ['key' => 'default_plan_code'],
             ['value' => 'basic'],
         );
