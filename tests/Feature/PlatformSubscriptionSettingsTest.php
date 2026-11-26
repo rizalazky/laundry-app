@@ -113,7 +113,7 @@ class PlatformSubscriptionSettingsTest extends TestCase
         $admin = User::factory()->superAdmin()->create();
         $tenant = Tenant::factory()->create();
         $plan = $this->createPlan('pro', 'Pro');
-        $trialEndsAt = now()->addDays(30);
+        $trialEndsAt = now()->addDays(30)->startOfSecond();
 
         $subscription = Subscription::withoutGlobalScopes()->create([
             'tenant_id' => $tenant->id,
