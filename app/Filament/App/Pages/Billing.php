@@ -1,17 +1,17 @@
 <?php
 
-namespace App\\Filament\\App\\Pages;
+namespace App\Filament\App\Pages;
 
-use App\\Models\\Plan;
-use App\\Models\\Subscription;
-use App\\Models\\SubscriptionInvoice;
-use App\\Models\\User;
-use App\\Services\\SubscriptionInvoiceService;
-use App\\Services\\SubscriptionPaymentService;
-use Filament\\Notifications\\Notification;
-use Filament\\Pages\\Page;
-use Illuminate\\Support\\Facades\\Auth;
-use Illuminate\\Validation\\ValidationException;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\SubscriptionInvoice;
+use App\Models\User;
+use App\Services\SubscriptionInvoiceService;
+use App\Services\SubscriptionPaymentService;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 class Billing extends Page
@@ -20,7 +20,7 @@ class Billing extends Page
 
     protected static ?string $slug = 'billing';
 
-    protected static string|\\BackedEnum|null $navigationIcon = 'heroicon-o-credit-card';
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-credit-card';
 
     protected static string|UnitEnum|null $navigationGroup = 'Keuangan & Laporan';
 
