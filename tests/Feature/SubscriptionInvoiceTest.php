@@ -101,10 +101,20 @@ class SubscriptionInvoiceTest extends TestCase
 
         $this->assertSame('paid', $invoice->status);
         $this->assertNotNull($invoice->paid_at);
+        $this->assertSame('trialing', $subscription->fresh()->status);
+        $this->assertNull($subscription->fresh()->current_period_end);
+
+        Carbon::setTestNow($invoice->period_start);
+        $this->assertSame(
+            'activated',
+            app(\\App\\Services\\SubscriptionInvoiceActivationService::class)->activateIfDue($invoice),
+        );
+
         $this->assertSame('active', $subscription->fresh()->status);
         $this->assertSame($freePlan->id, $subscription->fresh()->plan_id);
         $this->assertTrue($subscription->fresh()->current_period_end->equalTo($invoice->period_end));
         $this->assertTrue($tenant->fresh()->subscription_ends_at->equalTo($invoice->period_end));
+        Carbon::setTestNow();
     }
 
     public function test_owner_can_create_a_renewal_invoice_and_duplicate_open_invoice_is_reused(): void
