@@ -89,7 +89,7 @@ class BillingPageTest extends TestCase
         Livewire::actingAs($owner)
             ->test(Billing::class)
             ->assertOk()
-            ->assertSee('Pricing & Paket')
+            ->assertSee('Pricing & Paket', escape: false)
             ->assertSee('Professional')
             ->assertSee('IDR 250.000')
             ->assertSee('Maksimal Outlet')
