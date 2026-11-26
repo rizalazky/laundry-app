@@ -79,7 +79,7 @@ class PlanForm
                 ]),
 
             Section::make('Fitur & Batas Penggunaan')
-                ->description('Gunakan kode fitur yang dibaca EntitlementService, misalnya max_outlets, max_users, atau kode fitur boolean. Nilai dapat berupa true, false, angka, atau unlimited.')
+                ->description('Gunakan kode fitur yang dibaca EntitlementService, misalnya max_outlets, max_users, atau kode fitur boolean. Nilai true/false disimpan sebagai boolean, angka sebagai angka, dan unlimited sebagai teks khusus.')
                 ->schema([
                     Repeater::make('features')
                         ->relationship()
@@ -93,8 +93,13 @@ class PlanForm
 
                             TextInput::make('value')
                                 ->label('Nilai')
+                                ->helperText('Contoh: true, false, 5, 2.5, unlimited, atau teks lain.')
                                 ->required()
-                                ->maxLength(255),
+                                ->maxLength(255)
+                                ->formatStateUsing(fn ($state): string => is_bool($state)
+                                    ? ($state ? 'true' : 'false')
+                                    : (string) $state)
+                                ->dehydrateStateUsing(fn ($state): mixed => self::castFeatureValue($state)),
                         ])
                         ->columns(2)
                         ->defaultItems(0)
@@ -103,5 +108,29 @@ class PlanForm
                         ->collapsible(),
                 ]),
         ]);
+    }
+
+    private static function castFeatureValue(mixed $state): mixed
+    {
+        $value = trim((string) $state);
+        $normalized = strtolower($value);
+
+        if ($normalized === 'true' || $normalized === 'false') {
+            return $normalized === 'true';
+        }
+
+        if ($normalized === 'unlimited') {
+            return 'unlimited';
+        }
+
+        if (preg_match('/^-?\d+$/', $value) === 1) {
+            return (int) $value;
+        }
+
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        return $value;
     }
 }

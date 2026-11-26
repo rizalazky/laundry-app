@@ -16,7 +16,7 @@ class PlatformPlanManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_super_admin_can_open_plan_catalog_and_create_a_plan_with_entitlements(): void
+    public function test_super_admin_can_open_plan_catalog_and_create_a_plan_with_typed_entitlements(): void
     {
         $admin = User::factory()->superAdmin()->create();
 
@@ -34,6 +34,8 @@ class PlatformPlanManagementTest extends TestCase
                 'features' => [
                     ['feature_code' => 'max_outlets', 'value' => '5'],
                     ['feature_code' => 'custom_reports', 'value' => 'true'],
+                    ['feature_code' => 'max_users', 'value' => 'unlimited'],
+                    ['feature_code' => 'storage_gb', 'value' => '2.5'],
                 ],
             ])
             ->call('create')
@@ -43,16 +45,10 @@ class PlatformPlanManagementTest extends TestCase
 
         $this->assertSame('150000.00', $plan->monthly_price);
         $this->assertSame('1500000.00', $plan->yearly_price);
-        $this->assertDatabaseHas('plan_features', [
-            'plan_id' => $plan->id,
-            'feature_code' => 'max_outlets',
-            'value' => '"5"',
-        ]);
-        $this->assertDatabaseHas('plan_features', [
-            'plan_id' => $plan->id,
-            'feature_code' => 'custom_reports',
-            'value' => '"true"',
-        ]);
+        $this->assertSame(5, $plan->features()->where('feature_code', 'max_outlets')->firstOrFail()->value);
+        $this->assertTrue($plan->features()->where('feature_code', 'custom_reports')->firstOrFail()->value);
+        $this->assertSame('unlimited', $plan->features()->where('feature_code', 'max_users')->firstOrFail()->value);
+        $this->assertSame(2.5, $plan->features()->where('feature_code', 'storage_gb')->firstOrFail()->value);
     }
 
     public function test_only_active_super_admin_without_tenant_can_manage_plan_catalog(): void
