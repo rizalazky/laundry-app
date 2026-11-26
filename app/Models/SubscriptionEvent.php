@@ -30,9 +30,24 @@ class SubscriptionEvent extends Model
         ];
     }
 
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     public function subscription(): BelongsTo
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    public function fromPlan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'from_plan_id');
+    }
+
+    public function toPlan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'to_plan_id');
     }
 
     public function invoice(): BelongsTo
