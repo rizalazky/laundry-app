@@ -103,6 +103,40 @@ class Billing extends Page
         }
     }
 
+    public function schedulePlanChange(int $planId): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && static::canAccess(), 403);
+
+        $validated = validator(['planId' => $planId], [
+            'planId' => ['required', 'integer', 'exists:plans,id'],
+        ])->validate();
+
+        app(SubscriptionPlanChangeService::class)->scheduleChange(
+            $user->tenant,
+            Plan::query()->findOrFail((int) $validated['planId']),
+        );
+
+        Notification::make()
+            ->title('Perubahan paket dijadwalkan')
+            ->body('Paket baru akan berlaku setelah periode langganan saat ini berakhir.')
+            ->success()
+            ->send();
+    }
+
+    public function cancelScheduledPlanChange(): void
+    {
+        $user = Auth::user();
+        abort_unless($user instanceof User && static::canAccess(), 403);
+
+        app(SubscriptionPlanChangeService::class)->cancelScheduledChange($user->tenant);
+
+        Notification::make()
+            ->title('Jadwal perubahan paket dibatalkan')
+            ->success()
+            ->send();
+    }
+
     public function payInvoice(int $invoiceId)
     {
         $user = Auth::user();
