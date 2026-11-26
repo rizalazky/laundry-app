@@ -107,7 +107,7 @@ class SubscriptionInvoiceTest extends TestCase
         Carbon::setTestNow($invoice->period_start);
         $this->assertSame(
             'activated',
-            app(\\App\\Services\\SubscriptionInvoiceActivationService::class)->activateIfDue($invoice),
+            app(\App\Services\SubscriptionInvoiceActivationService::class)->activateIfDue($invoice),
         );
 
         $this->assertSame('active', $subscription->fresh()->status);
