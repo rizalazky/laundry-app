@@ -104,6 +104,46 @@ class Billing extends Page
     }
 
 
+    public function purchasePlan(int $planId): void
+    {
+        $validated = validator(['planId' => $planId], [
+            'planId' => ['required', 'integer', 'exists:plans,id'],
+        ])->validate();
+
+        $user = Auth::user();
+        abort_unless($user instanceof User && static::canAccess(), 403);
+
+        $plan = Plan::query()
+            ->where('is_active', true)
+            ->findOrFail((int) $validated['planId']);
+
+        try {
+            $invoice = app(SubscriptionInvoiceService::class)->createPlanPurchaseInvoice(
+                $user->tenant,
+                $plan,
+                $this->billingInterval,
+            );
+
+            if ($invoice->status === 'paid') {
+                $message = $invoice->period_start->isFuture()
+                    ? 'Pembelian tercatat. Paket akan aktif pada '.$invoice->period_start->format('d M Y H:i').'.'
+                    : ($invoice->type === 'upgrade'
+                        ? 'Upgrade paket berhasil diaktifkan.'
+                        : 'Paket berhasil diaktifkan.');
+            } else {
+                $message = 'Nomor invoice: '.$invoice->invoice_number;
+            }
+
+            Notification::make()
+                ->title($invoice->status === 'paid' ? 'Pembelian paket diproses' : 'Invoice siap')
+                ->body($message)
+                ->success()
+                ->send();
+        } catch (ValidationException $exception) {
+            throw $exception;
+        }
+    }
+
     public function payInvoice(int $invoiceId)
     {
         $user = Auth::user();
