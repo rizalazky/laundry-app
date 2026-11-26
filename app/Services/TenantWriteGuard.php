@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
@@ -22,16 +24,43 @@ class TenantWriteGuard
             return;
         }
 
-        $modelTenantId = $model->getAttribute('tenant_id');
+        $modelTenantId = $this->resolveTenantId($model);
 
-        if ($modelTenantId === null || (int) $modelTenantId !== (int) $user->tenant_id) {
+        if ($modelTenantId === null) {
             return;
         }
 
-        $tenant = $user->tenant;
-
-        if ($tenant !== null) {
-            app(EntitlementService::class)->assertCanWrite($tenant);
+        if ((int) $modelTenantId !== (int) $user->tenant_id) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk mengubah data tenant lain.');
         }
+
+        app(EntitlementService::class)->assertCanWrite($user->tenant);
+    }
+
+    private function resolveTenantId(Model $model): ?int
+    {
+        $tenantId = $model->getAttribute('tenant_id');
+
+        if ($tenantId !== null) {
+            return (int) $tenantId;
+        }
+
+        foreach (['branch_id', 'location_id'] as $branchAttribute) {
+            $branchId = $model->getAttribute($branchAttribute);
+
+            if ($branchId === null) {
+                continue;
+            }
+
+            $branchTenantId = Branch::withoutGlobalScopes()
+                ->whereKey($branchId)
+                ->value('tenant_id');
+
+            if ($branchTenantId !== null) {
+                return (int) $branchTenantId;
+            }
+        }
+
+        return null;
     }
 }
