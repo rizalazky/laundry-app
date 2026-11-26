@@ -2,7 +2,7 @@
     <div class="space-y-6">
         <x-filament::section>
             <x-slot name="heading">Pricing & Paket</x-slot>
-            <x-slot name="description">Bandingkan paket aktif dan pilih periode berlangganan yang sesuai dengan kebutuhan bisnis Anda.</x-slot>
+            <x-slot name="description">Bandingkan harga, fitur, dan limit dari paket langganan yang tersedia.</x-slot>
 
             @if ($plans->isEmpty())
                 <p class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
