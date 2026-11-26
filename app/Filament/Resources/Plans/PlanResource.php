@@ -1,18 +1,18 @@
 <?php
 
-namespace App\\Filament\\Resources\\Plans;
+namespace App\Filament\Resources\Plans;
 
-use App\\Filament\\Resources\\Plans\\Pages\\CreatePlan;
-use App\\Filament\\Resources\\Plans\\Pages\\EditPlan;
-use App\\Filament\\Resources\\Plans\\Pages\\ListPlans;
-use App\\Filament\\Resources\\Plans\\Schemas\\PlanForm;
-use App\\Filament\\Resources\\Plans\\Tables\\PlansTable;
-use App\\Models\\Plan;
+use App\Filament\Resources\Plans\Pages\CreatePlan;
+use App\Filament\Resources\Plans\Pages\EditPlan;
+use App\Filament\Resources\Plans\Pages\ListPlans;
+use App\Filament\Resources\Plans\Schemas\PlanForm;
+use App\Filament\Resources\Plans\Tables\PlansTable;
+use App\Models\Plan;
 use BackedEnum;
-use Filament\\Resources\\Resource;
-use Filament\\Schemas\\Schema;
-use Filament\\Tables\\Table;
-use Illuminate\\Support\\Facades\\Auth;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 use UnitEnum;
 
 class PlanResource extends Resource
