@@ -187,7 +187,11 @@ class SubscriptionInvoiceService
         }
 
         $fullPrice = $billingInterval === 'yearly' ? $plan->yearly_price : $plan->monthly_price;
-        $discount = BigDecimal::of($fullPrice)->minus(BigDecimal::of($amount))->max(BigDecimal::zero())->toScale(2);
+        $fullPriceDecimal = BigDecimal::of($fullPrice);
+        $amountDecimal = BigDecimal::of($amount);
+        $discount = $fullPriceDecimal->compareTo($amountDecimal) > 0
+            ? $fullPriceDecimal->minus($amountDecimal)->toScale(2)
+            : BigDecimal::of('0.00');
 
         return SubscriptionInvoice::create([
             'tenant_id' => $tenant->getKey(),
