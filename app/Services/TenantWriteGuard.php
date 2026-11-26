@@ -40,11 +40,9 @@ class TenantWriteGuard
     {
         $tenantId = $model->getAttribute('tenant_id');
 
-        if ($tenantId !== null) {
-            return (int) $tenantId;
-        }
+        $resolvedTenantId = $tenantId === null ? null : (int) $tenantId;
 
-        foreach (['branch_id', 'location_id'] as $branchAttribute) {
+        foreach (['branch_id', 'location_id', 'source_branch_id', 'destination_branch_id'] as $branchAttribute) {
             $branchId = $model->getAttribute($branchAttribute);
 
             if ($branchId === null) {
@@ -55,11 +53,19 @@ class TenantWriteGuard
                 ->whereKey($branchId)
                 ->value('tenant_id');
 
-            if ($branchTenantId !== null) {
-                return (int) $branchTenantId;
+            if ($branchTenantId === null) {
+                continue;
             }
+
+            $branchTenantId = (int) $branchTenantId;
+
+            if ($resolvedTenantId !== null && $resolvedTenantId !== $branchTenantId) {
+                throw new AuthorizationException('Cabang pada data tidak sesuai dengan tenant pemilik.');
+            }
+
+            $resolvedTenantId = $branchTenantId;
         }
 
-        return null;
+        return $resolvedTenantId;
     }
 }
