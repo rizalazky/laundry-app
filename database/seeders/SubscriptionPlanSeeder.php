@@ -68,9 +68,15 @@ class SubscriptionPlanSeeder extends Seeder
             ],
         );
 
-        PlatformSetting::query()->firstOrCreate(
-            ['key' => 'default_plan_code'],
-            ['value' => 'basic'],
-        );
+        $defaultPlanSetting = PlatformSetting::query()->firstOrNew([
+            'key' => 'default_plan_code',
+        ]);
+
+        // Move the migration's legacy Starter default to Basic, but preserve
+        // any different value already configured by a platform administrator.
+        if (! $defaultPlanSetting->exists || $defaultPlanSetting->value === 'starter') {
+            $defaultPlanSetting->value = 'basic';
+            $defaultPlanSetting->save();
+        }
     }
 }
