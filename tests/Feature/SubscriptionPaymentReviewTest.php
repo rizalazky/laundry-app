@@ -1,19 +1,19 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Filament\\Pages\\SubscriptionPaymentReviews;
-use App\\Models\\Plan;
-use App\\Models\\Subscription;
-use App\\Models\\SubscriptionEvent;
-use App\\Models\\SubscriptionInvoice;
-use App\\Models\\SubscriptionPayment;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Str;
-use Symfony\\Component\\HttpKernel\\Exception\\HttpException;
-use Tests\\TestCase;
+use App\Filament\Pages\SubscriptionPaymentReviews;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\SubscriptionEvent;
+use App\Models\SubscriptionInvoice;
+use App\Models\SubscriptionPayment;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Tests\TestCase;
 
 class SubscriptionPaymentReviewTest extends TestCase
 {
