@@ -39,7 +39,8 @@ class MidtransPaymentGatewayTest extends TestCase
         Http::assertSent(fn (Request $request): bool => $request->url() === 'https://app.sandbox.midtrans.com/snap/v1/transactions'
             && $request['transaction_details']['order_id'] === 'SUBPAY-7-55'
             && $request['transaction_details']['gross_amount'] === 250000
-            && $request['expiry']['duration'] === 24);
+            && $request['expiry']['unit'] === 'minute'
+            && $request['expiry']['duration'] === 1440);
     }
 
     public function test_it_rejects_non_idr_invoice_amounts(): void

@@ -208,6 +208,7 @@ class SubscriptionInvoiceService
             'status' => 'issued',
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
+            'due_at' => now()->addHours((int) config('services.subscription.invoice_validity_hours', 24)),
         ]);
     }
 
@@ -236,6 +237,12 @@ class SubscriptionInvoiceService
             if (blank($provider)) {
                 throw ValidationException::withMessages([
                     'provider' => 'Provider pembayaran wajib diisi.',
+                ]);
+            }
+
+            if ($lockedInvoice->due_at !== null && $lockedInvoice->due_at->lessThanOrEqualTo(now())) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Masa berlaku invoice sudah berakhir. Buat invoice baru untuk melanjutkan pembayaran.',
                 ]);
             }
 
@@ -278,6 +285,7 @@ class SubscriptionInvoiceService
                 'payment_method' => $paymentMethod,
                 'amount' => $lockedInvoice->total_amount,
                 'status' => 'pending',
+                'expires_at' => $lockedInvoice->due_at,
                 'idempotency_key' => $idempotencyKey,
             ]);
 
@@ -408,6 +416,7 @@ class SubscriptionInvoiceService
             'status' => 'issued',
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
+            'due_at' => now()->addHours((int) config('services.subscription.invoice_validity_hours', 24)),
         ]);
     }
 
