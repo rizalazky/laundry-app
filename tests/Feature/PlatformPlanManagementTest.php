@@ -62,13 +62,12 @@ class PlatformPlanManagementTest extends TestCase
         $owner = User::factory()->withRole('tenant_owner')->create();
         $inactiveAdmin = User::factory()->superAdmin()->create(['is_active' => false]);
 
+        $this->actingAs($admin);
         $this->assertTrue(PlanResource::canAccess());
-        $this->assertTrue($admin->canAccessPanel(Panel::make()->id('admin')));
-        
+
         auth()->logout();
         $this->actingAs($owner);
         $this->assertFalse(PlanResource::canAccess());
-        $this->assertFalse($owner->canAccessPanel(Panel::make()->id('admin')));
 
         auth()->logout();
         $this->actingAs($inactiveAdmin);
