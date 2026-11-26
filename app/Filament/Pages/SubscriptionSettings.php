@@ -108,6 +108,7 @@ class SubscriptionSettings extends Page
     {
         return PlatformSetting::query()
             ->where('key', $key)
-            ->value('value') ?? $default;
+            ->first()
+            ?->value ?? $default;
     }
 }
