@@ -208,6 +208,7 @@ class SubscriptionInvoiceService
             'status' => 'issued',
             'period_start' => $periodStart,
             'period_end' => $periodEnd,
+            'due_at' => now()->addHours((int) config('services.subscription.invoice_validity_hours', 24)),
         ]);
     }
 
@@ -257,6 +258,12 @@ class SubscriptionInvoiceService
 
                     return $existing;
                 }
+            }
+
+            if ($lockedInvoice->due_at !== null && $lockedInvoice->due_at->isPast()) {
+                throw ValidationException::withMessages([
+                    'invoice' => 'Masa berlaku invoice sudah berakhir. Buat invoice baru untuk melanjutkan pembayaran.',
+                ]);
             }
 
             if (! in_array($lockedInvoice->status, ['issued', 'pending'], true)) {
