@@ -74,6 +74,12 @@ class SubscriptionPlanChangeService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if ($subscription->scheduled_change_at !== null && $subscription->scheduled_change_at->isPast()) {
+                throw ValidationException::withMessages([
+                    'plan' => 'Perubahan paket sudah memasuki waktu berlaku dan tidak dapat dibatalkan.',
+                ]);
+            }
+
             $subscription->forceFill([
                 'scheduled_plan_id' => null,
                 'scheduled_change_at' => null,
