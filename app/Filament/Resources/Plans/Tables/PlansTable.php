@@ -2,8 +2,6 @@
 
 namespace App\\Filament\\Resources\\Plans\\Tables;
 
-use Filament\\Actions\\BulkActionGroup;
-use Filament\\Actions\\DeleteBulkAction;
 use Filament\\Actions\\EditAction;
 use Filament\\Tables\\Columns\\IconColumn;
 use Filament\\Tables\\Columns\\TextColumn;
@@ -32,13 +30,14 @@ class PlansTable
 
                 TextColumn::make('monthly_price')
                     ->label('Bulanan')
-                    ->money(fn ($record): string => $record->currency)
+                    ->formatStateUsing(fn ($state, $record): string => $record->currency.' '.number_format((float) $state, 0, ',', '.'))
                     ->sortable(),
 
                 TextColumn::make('yearly_price')
                     ->label('Tahunan')
-                    ->money(fn ($record): string => $record->currency)
-                    ->placeholder('Tidak tersedia')
+                    ->formatStateUsing(fn ($state, $record): string => $state === null
+                        ? 'Tidak tersedia'
+                        : $record->currency.' '.number_format((float) $state, 0, ',', '.'))
                     ->sortable(),
 
                 TextColumn::make('features_count')
@@ -56,12 +55,6 @@ class PlansTable
             ])
             ->recordActions([
                 EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make()
-                        ->authorizeIndividualRecords(fn ($record): bool => $record->subscriptions()->doesntExist()),
-                ]),
             ]);
     }
 }
