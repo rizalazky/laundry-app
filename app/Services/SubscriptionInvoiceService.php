@@ -118,15 +118,11 @@ class SubscriptionInvoiceService
             }
 
             $comparison = BigDecimal::of($targetPrice)->compareTo(BigDecimal::of($currentPrice));
-            if ($comparison === 0 && (int) $plan->getKey() === (int) $subscription->plan_id) {
-                throw ValidationException::withMessages([
-                    'plan' => 'Paket ini sedang aktif.',
-                ]);
-            }
-
             if ($comparison > 0) {
                 $periodStart = now();
-                $totalSeconds = max(1, $subscription->current_period_start->diffInSeconds($periodEnd));
+                $currentPeriodStart = $subscription->current_period_start
+                    ?? ($billingInterval === 'yearly' ? $periodEnd->copy()->subYear() : $periodEnd->copy()->subMonth());
+                $totalSeconds = max(1, $currentPeriodStart->diffInSeconds($periodEnd));
                 $remainingSeconds = max(0, now()->diffInSeconds($periodEnd, false));
                 $difference = BigDecimal::of($targetPrice)->minus(BigDecimal::of($currentPrice));
                 $amount = $difference
