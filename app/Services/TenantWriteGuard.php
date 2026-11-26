@@ -18,23 +18,22 @@ class TenantWriteGuard
             return;
         }
 
+        $modelTenantId = $this->resolveTenantId($model);
+
+        if ($modelTenantId !== null && (int) $modelTenantId !== (int) $user->tenant_id) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk mengubah data tenant lain.');
+        }
+
         // Subscription and billing records must remain writable for renewal
-        // and payment processing while operational data is read-only.
+        // and payment processing while operational data is read-only. Tenant
+        // ownership is still checked before this exception is applied.
         if (str_starts_with($model::class, 'App\\Models\\Subscription')) {
             return;
         }
 
-        $modelTenantId = $this->resolveTenantId($model);
-
-        if ($modelTenantId === null) {
-            return;
+        if ($modelTenantId !== null) {
+            app(EntitlementService::class)->assertCanWrite($user->tenant);
         }
-
-        if ((int) $modelTenantId !== (int) $user->tenant_id) {
-            throw new AuthorizationException('Anda tidak memiliki akses untuk mengubah data tenant lain.');
-        }
-
-        app(EntitlementService::class)->assertCanWrite($user->tenant);
     }
 
     private function resolveTenantId(Model $model): ?int
