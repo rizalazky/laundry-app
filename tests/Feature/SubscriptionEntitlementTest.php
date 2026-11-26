@@ -185,7 +185,7 @@ class SubscriptionEntitlementTest extends TestCase
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
 
         $this->actingAs($owner);
-        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
 
         Branch::factory()->for($otherTenant)->create(['code' => 'CROSS-TENANT']);
     }
