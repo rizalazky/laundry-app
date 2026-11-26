@@ -10,4 +10,3 @@ Artisan::command('inspire', function () {
 
 Schedule::command('loyalty:expire-points')->everyMinute()->withoutOverlapping();
 Schedule::command('mass-invoices:run-due')->everyMinute()->withoutOverlapping();
-Schedule::command('subscriptions:apply-scheduled-plan-changes')->everyFiveMinutes()->withoutOverlapping();
