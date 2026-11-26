@@ -66,6 +66,18 @@ class WorkshopOperator extends Page
         }
     }
 
+    /**
+     * Re-check page access on every subsequent Livewire request.
+     *
+     * The initial Filament page check does not protect a component that
+     * remains mounted after the user's role, active state, or permissions
+     * have changed.
+     */
+    public function hydrate(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
     public function scanOrder(): void
     {
         $this->validate([

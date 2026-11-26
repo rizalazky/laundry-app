@@ -7,6 +7,8 @@ use App\Enums\OrderStatus;
 use App\Filament\App\Pages\WorkshopOperator;
 use App\Models\Branch;
 use App\Models\Order;
+use App\Models\Permission;
+use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -59,6 +61,39 @@ class WorkshopOperatorTest extends TestCase
         Livewire::test(WorkshopOperator::class)
             ->assertSee($secondWorkshopOrder->invoice_no)
             ->assertDontSee($mappedOrder->invoice_no);
+    }
+
+    public function test_workshop_queue_access_is_rechecked_after_orders_view_permission_is_revoked(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => true]);
+        $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($branch);
+
+        $permission = Permission::query()->firstOrCreate(
+            ['slug' => 'orders.view'],
+            ['name' => 'Lihat Order', 'group' => 'Operasional'],
+        );
+
+        RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'branch_manager',
+            'permission_id' => $permission->id,
+        ]);
+
+        $this->actingAs($manager);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(WorkshopOperator::class);
+
+        RolePermission::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('role', 'branch_manager')
+            ->where('permission_id', $permission->id)
+            ->delete();
+
+        $component->call('queueOrders')->assertForbidden();
     }
 
     public function test_barcode_scan_selects_an_order_and_starts_a_production_stage_with_a_workshop_worker(): void
