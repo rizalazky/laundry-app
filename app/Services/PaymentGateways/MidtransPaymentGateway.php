@@ -42,9 +42,9 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
         $providerReference = $payment->provider_reference
             ?: sprintf('SUBPAY-%d-%d', $payment->tenant_id, $payment->getKey());
 
-        $expiryHours = (int) config('services.midtrans.expiry_hours', 24);
         $startTime = now();
-        $expiresAt = $startTime->copy()->addHours($expiryHours);
+        $expiresAt = $invoice->due_at?->copy() ?? $startTime->copy()->addHours((int) config('services.midtrans.expiry_hours', 24));
+        $remainingMinutes = max(1, (int) ceil($startTime->diffInSeconds($expiresAt, false) / 60));
 
         $payload = [
             'transaction_details' => [
@@ -53,8 +53,8 @@ class MidtransPaymentGateway implements PaymentGatewayInterface
             ],
             'expiry' => [
                 'start_time' => $startTime->format('Y-m-d H:i:s O'),
-                'unit' => 'hour',
-                'duration' => $expiryHours,
+                'unit' => 'minute',
+                'duration' => $remainingMinutes,
             ],
         ];
 
