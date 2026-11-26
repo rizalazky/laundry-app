@@ -178,6 +178,18 @@ class SubscriptionEntitlementTest extends TestCase
         $this->assertTrue(app(EntitlementService::class)->canCreateBranch($tenant));
     }
 
+    public function test_tenant_write_guard_rejects_model_writes_for_another_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+
+        Branch::factory()->for($otherTenant)->create(['code' => 'CROSS-TENANT']);
+    }
+
     private function subscription(Tenant $tenant, string $status, array $attributes = []): Subscription
     {
         $plan = $attributes['plan_id'] ?? $this->plan()->id;
