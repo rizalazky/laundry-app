@@ -1,10 +1,10 @@
 <?php
 
-namespace App\\Filament\\Resources\\Plans\\Pages;
+namespace App\Filament\Resources\Plans\Pages;
 
-use App\\Filament\\Resources\\Plans\\PlanResource;
-use Filament\\Actions\\DeleteAction;
-use Filament\\Resources\\Pages\\EditRecord;
+use App\Filament\Resources\Plans\PlanResource;
+use Filament\Actions\DeleteAction;
+use Filament\Resources\Pages\EditRecord;
 
 class EditPlan extends EditRecord
 {
