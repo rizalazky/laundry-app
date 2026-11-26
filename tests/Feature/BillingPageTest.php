@@ -38,6 +38,43 @@ class BillingPageTest extends TestCase
         ]);
     }
 
+    public function test_owner_can_select_a_different_active_plan_before_the_first_paid_period(): void
+    {
+        [$tenant, $owner, $currentPlan] = $this->makeTenantWithSubscription();
+        $selectedPlan = Plan::query()->create([
+            'code' => 'enterprise-'.Str::lower(Str::random(8)),
+            'name' => 'Enterprise',
+            'monthly_price' => '750000.00',
+            'yearly_price' => '7500000.00',
+            'currency' => 'IDR',
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        Livewire::actingAs($owner)
+            ->test(Billing::class)
+            ->assertOk()
+            ->set('selectedPlanId', (string) $selectedPlan->id)
+            ->set('billingInterval', 'yearly')
+            ->call('createInvoice')
+            ->assertHasNoErrors()
+            ->assertSee('Pilih paket ini');
+
+        $this->assertDatabaseHas('subscription_invoices', [
+            'tenant_id' => $tenant->id,
+            'plan_id' => $selectedPlan->id,
+            'type' => 'initial',
+            'billing_interval' => 'yearly',
+            'total_amount' => '7500000.00',
+            'status' => 'issued',
+        ]);
+        $this->assertDatabaseMissing('subscription_invoices', [
+            'tenant_id' => $tenant->id,
+            'plan_id' => $currentPlan->id,
+            'type' => 'initial',
+        ]);
+    }
+
     public function test_only_tenant_owner_can_access_billing_page(): void
     {
         [$tenant, $owner] = $this->makeTenantWithSubscription();
