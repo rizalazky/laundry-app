@@ -181,11 +181,32 @@ class SubscriptionPaymentReconciliationService
             }
 
             if (in_array($status->status, ['pending', 'failed', 'expired'], true)) {
+                $previousStatus = $lockedPayment->status;
                 $lockedPayment->forceFill([
                     'status' => $status->status,
                     'payment_method' => $status->paymentMethod ?? $lockedPayment->payment_method,
                     'failure_reason' => $status->failureReason,
                 ])->save();
+
+                if ($previousStatus !== $status->status) {
+                    $subscription = Subscription::withoutGlobalScopes()
+                        ->whereKey($invoice->subscription_id)
+                        ->first();
+
+                    if ($subscription !== null) {
+                        app(SubscriptionEventRecorder::class)->record($subscription, 'payment_status_changed', [
+                            'invoice_id' => $invoice->getKey(),
+                            'payment_id' => $lockedPayment->getKey(),
+                            'metadata' => [
+                                'provider' => $lockedPayment->provider,
+                                'provider_reference' => $lockedPayment->provider_reference,
+                                'from_payment_status' => $previousStatus,
+                                'to_payment_status' => $status->status,
+                                'failure_reason' => $status->failureReason,
+                            ],
+                        ]);
+                    }
+                }
 
                 return $status->status;
             }
