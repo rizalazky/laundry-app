@@ -313,9 +313,16 @@ class ActivityLogTest extends TestCase
 
     private function foreignContext(): array
     {
+        $authenticatedUser = Auth::user();
+        Auth::logout();
+
         $tenant = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $employee = User::factory()->for($tenant)->withRole('cashier')->create();
+
+        if ($authenticatedUser !== null) {
+            Auth::login($authenticatedUser);
+        }
 
         return [$tenant, $owner, $employee];
     }
