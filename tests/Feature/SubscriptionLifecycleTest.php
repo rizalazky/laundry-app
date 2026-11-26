@@ -106,6 +106,19 @@ class SubscriptionLifecycleTest extends TestCase
         $this->assertSame('subscription_expired', SubscriptionEvent::query()->sole()->event_type);
     }
 
+    public function test_subscription_audit_page_is_restricted_to_platform_admins(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $admin = User::factory()->withRole('super_admin')->create();
+
+        $this->actingAs($owner);
+        $this->assertFalse(SubscriptionEvents::canAccess());
+
+        $this->actingAs($admin);
+        $this->assertTrue(SubscriptionEvents::canAccess());
+    }
+
     private function plan(): Plan
     {
         return Plan::query()->create([
