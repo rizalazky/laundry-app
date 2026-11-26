@@ -143,6 +143,24 @@ class SubscriptionPaymentReconciliationService
                     'paid_at' => $paidAt,
                 ])->save();
 
+                $subscription = Subscription::withoutGlobalScopes()
+                    ->whereKey($invoice->subscription_id)
+                    ->first();
+
+                if ($subscription !== null) {
+                    app(SubscriptionEventRecorder::class)->record($subscription, 'payment_received', [
+                        'invoice_id' => $invoice->getKey(),
+                        'payment_id' => $lockedPayment->getKey(),
+                        'metadata' => [
+                            'provider' => $lockedPayment->provider,
+                            'provider_reference' => $lockedPayment->provider_reference,
+                            'amount' => $lockedPayment->amount,
+                            'currency' => $invoice->currency,
+                        ],
+                        'occurred_at' => $paidAt,
+                    ]);
+                }
+
                 app(SubscriptionInvoiceActivationService::class)->activateIfDue($invoice);
 
                 return 'paid';
