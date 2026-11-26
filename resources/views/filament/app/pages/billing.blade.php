@@ -19,9 +19,14 @@
                                         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $plan->description }}</p>
                                     @endif
                                 </div>
-                                @if ($subscription?->plan_id === $plan->id)
-                                    <x-filament::badge color="success">Paket saat ini</x-filament::badge>
-                                @endif
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @if ($subscription?->plan_id === $plan->id)
+                                        <x-filament::badge color="success">Paket saat ini</x-filament::badge>
+                                    @endif
+                                    @if ((string) $selectedPlanId === (string) $plan->id && $subscription && $subscription->current_period_start === null && $subscription->current_period_end === null)
+                                        <x-filament::badge color="info">Dipilih</x-filament::badge>
+                                    @endif
+                                </div>
                             </div>
 
                             @if ($subscription && $subscription->current_period_start === null && $subscription->current_period_end === null)
@@ -156,6 +161,7 @@
                             </select>
                         </x-filament::input.wrapper>
                         @error('billingInterval') <p class="mt-1 text-sm text-danger-600">{{ $message }}</p> @enderror
+                        @error('invoice') <p class="mt-1 text-sm text-danger-600">{{ $message }}</p> @enderror
                     </div>
                     @if ($subscription->current_period_start === null && $subscription->current_period_end === null)
                         @error('selectedPlanId') <p class="text-sm text-danger-600">{{ $message }}</p> @enderror
