@@ -8,11 +8,13 @@ use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use Brick\Math\BigDecimal;
 use Brick\Math\Exception\NumberFormatException;
 use Brick\Math\Exception\RoundingNecessaryException;
 use Carbon\CarbonInterface;
 use DomainException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 
 class RecordBankTransfer
@@ -55,8 +57,15 @@ class RecordBankTransfer
 
             $tenant = Tenant::query()->find($tenantId);
 
-            if ($tenant === null || ! $tenant->hasActiveSubscription()) {
-                throw new DomainException('Tenant tidak aktif atau masa berlangganan telah berakhir.');
+            if ($tenant === null) {
+                throw new DomainException('Tenant tidak aktif atau tidak ditemukan.');
+            }
+
+            try {
+                app(EntitlementService::class)->assertCanWrite($tenant);
+            } catch (AuthorizationException $exception) {
+                // Preserve the existing bank-transfer action exception contract.
+                throw new DomainException($exception->getMessage(), 0, $exception);
             }
 
             if ($branchId !== null) {
