@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Filament\App\Resources\LoyaltyPointRules\LoyaltyPointRuleResource;
+use App\Filament\App\Resources\MemberTiers\MemberTierResource;
+use App\Filament\App\Resources\PointRewards\PointRewardResource;
 use App\Models\Branch;
 use App\Models\LoyaltyPointRule;
 use App\Models\MemberTier;
@@ -52,8 +55,16 @@ class MemberAndLoyaltyResourceTenantBoundaryTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($owner)
-            ->get('/app/'.$branch->code.'/member-tiers/'.$foreignTier->id.'/edit')
+        $this->actingAs($owner);
+
+        $this->assertFalse(MemberTierResource::canEdit($foreignTier));
+        $this->assertFalse(MemberTierResource::canDelete($foreignTier));
+        $this->assertFalse(PointRewardResource::canEdit($foreignReward));
+        $this->assertFalse(PointRewardResource::canDelete($foreignReward));
+        $this->assertFalse(LoyaltyPointRuleResource::canEdit($foreignRule));
+        $this->assertFalse(LoyaltyPointRuleResource::canDelete($foreignRule));
+
+        $this->get('/app/'.$branch->code.'/member-tiers/'.$foreignTier->id.'/edit')
             ->assertNotFound();
 
         $this->actingAs($owner)
