@@ -117,4 +117,23 @@ class RolePermissionManagementTest extends TestCase
             ->set('role', 'operator')
             ->assertSet('selectedPermissions', [$permission->id]);
     }
+
+    public function test_permission_matrix_page_rejects_livewire_requests_after_owner_is_deactivated(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = \App\Models\Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(RolePermissions::class);
+
+        $owner->update(['is_active' => false]);
+
+        $component
+            ->call('getPermissionGroups')
+            ->assertForbidden();
+    }
 }
