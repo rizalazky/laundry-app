@@ -225,11 +225,22 @@ class OrderReceiptTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_receipt_is_blocked_when_the_subscription_has_expired(): void
+    public function test_receipt_remains_available_when_the_subscription_has_expired(): void
     {
         $order = $this->makeOrder();
         $cashier = $this->staff('cashier');
         $this->tenant->update(['subscription_ends_at' => now()->subDay()]);
+
+        $this->actingAs($cashier)
+            ->get(route('orders.receipt', $order))
+            ->assertOk();
+    }
+
+    public function test_inactive_tenant_cannot_open_a_receipt(): void
+    {
+        $order = $this->makeOrder();
+        $cashier = $this->staff('cashier');
+        $this->tenant->update(['is_active' => false]);
 
         $this->actingAs($cashier)
             ->get(route('orders.receipt', $order))
