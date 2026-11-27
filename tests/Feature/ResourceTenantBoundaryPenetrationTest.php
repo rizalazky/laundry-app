@@ -6,11 +6,17 @@ use App\Filament\App\Resources\ActivityLogs\ActivityLogResource;
 use App\Filament\App\Resources\AffiliateReferrals\AffiliateReferralResource;
 use App\Filament\App\Resources\Attendances\AttendanceResource;
 use App\Filament\App\Resources\EmployeeLoans\EmployeeLoanResource;
+use App\Filament\App\Resources\Expenses\ExpenseResource;
+use App\Filament\App\Resources\CashSettlements\CashSettlementResource;
 use App\Filament\App\Resources\Investors\InvestorResource;
 use App\Filament\App\Resources\MassInvoices\MassInvoiceResource;
 use App\Filament\App\Resources\MassInvoiceSchedules\MassInvoiceScheduleResource;
 use App\Filament\App\Resources\ProfitSharings\ProfitSharingResource;
 use App\Models\ActivityLog;
+use App\Models\BankAccount;
+use App\Models\CashSettlement;
+use App\Models\ChartOfAccount;
+use App\Models\Expense;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\EmployeeLoan;
@@ -135,6 +141,45 @@ class ResourceTenantBoundaryPenetrationTest extends TestCase
         );
     }
 
+    public function test_expense_and_cash_settlement_resources_are_scoped_to_the_active_branch(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $managedBranch = Branch::factory()->for($tenant)->create();
+        $unmanagedBranch = Branch::factory()->for($tenant)->create();
+        $foreignBranch = Branch::factory()->for($foreignTenant)->create();
+
+        $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($managedBranch);
+
+        $localAccount = $this->createAccount($tenant, 'EXP-9200', 'expense');
+        $foreignAccount = $this->createAccount($foreignTenant, 'EXP-9200', 'expense');
+        $localBank = $this->createBankAccount($tenant, $localAccount, 'LOCAL-EXP-BANK');
+        $foreignBank = $this->createBankAccount($foreignTenant, $foreignAccount, 'FOREIGN-EXP-BANK');
+
+        $managedExpense = $this->createExpense($tenant, $managedBranch, $localAccount, $manager);
+        $this->createExpense($tenant, $unmanagedBranch, $localAccount, $manager);
+        $this->createExpense($foreignTenant, $foreignBranch, $foreignAccount, $manager);
+
+        $managedSettlement = $this->createSettlement($tenant, $managedBranch, $localBank, $manager);
+        $this->createSettlement($tenant, $unmanagedBranch, $localBank, $manager);
+        $this->createSettlement($foreignTenant, $foreignBranch, $foreignBank, $manager);
+
+        $this->grantPermission($tenant, 'branch_manager', 'finance.view');
+        $this->actingAs($manager);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($managedBranch);
+
+        $this->assertSame(
+            [$managedExpense->id],
+            ExpenseResource::getEloquentQuery()->pluck('id')->all(),
+        );
+        $this->assertSame(
+            [$managedSettlement->id],
+            CashSettlementResource::getEloquentQuery()->pluck('id')->all(),
+        );
+    }
+
     public function test_investor_and_profit_sharing_resources_exclude_foreign_tenant_records(): void
     {
         $tenant = Tenant::factory()->create();
@@ -226,6 +271,58 @@ class ResourceTenantBoundaryPenetrationTest extends TestCase
             AffiliateReferralResource::getEloquentQuery()->pluck('id')->all(),
         );
         $this->assertNotContains($foreignReferral->id, AffiliateReferralResource::getEloquentQuery()->pluck('id')->all());
+    }
+
+    private function createAccount(Tenant $tenant, string $code, string $type): ChartOfAccount
+    {
+        return ChartOfAccount::query()->create([
+            'tenant_id' => $tenant->id,
+            'code' => $code,
+            'name' => $code.' Test Account',
+            'account_type' => $type,
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+    }
+
+    private function createBankAccount(Tenant $tenant, ChartOfAccount $account, string $number): BankAccount
+    {
+        return BankAccount::query()->create([
+            'tenant_id' => $tenant->id,
+            'coa_id' => $account->id,
+            'bank_name' => 'Bank '.$number,
+            'account_number' => $number,
+            'holder_name' => 'Test Holder',
+            'is_active' => true,
+        ]);
+    }
+
+    private function createExpense(Tenant $tenant, Branch $branch, ChartOfAccount $account, User $creator): Expense
+    {
+        return Expense::query()->create([
+            'tenant_id' => $tenant->id,
+            'location_type' => 'branch',
+            'location_id' => $branch->id,
+            'coa_id' => $account->id,
+            'payment_source_type' => Expense::SOURCE_CASH,
+            'amount' => '25000.00',
+            'description' => 'Test expense',
+            'spent_at' => now(),
+            'created_by' => $creator->id,
+        ]);
+    }
+
+    private function createSettlement(Tenant $tenant, Branch $branch, BankAccount $bank, User $creator): CashSettlement
+    {
+        return CashSettlement::query()->create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'source_type' => CashSettlement::SOURCE_OUTLET_CASH,
+            'amount' => '25000.00',
+            'target_bank_id' => $bank->id,
+            'settled_at' => now(),
+            'created_by' => $creator->id,
+        ]);
     }
 
     private function createLoan(Tenant $tenant, User $employee, User $creator): EmployeeLoan
