@@ -89,6 +89,36 @@ class AffiliateReferralTest extends TestCase
         );
     }
 
+    public function test_read_only_tenant_cannot_update_an_existing_affiliate_referral(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
+
+        $referral = app(RegisterAffiliateReferral::class)->handle(
+            $tenant->id,
+            Tenant::factory()->create()->id,
+            10,
+        );
+
+        $plan = Plan::query()->create([
+            'code' => 'affiliate-status-read-only',
+            'name' => 'Read Only Plan',
+            'monthly_price' => 99000,
+            'is_active' => true,
+        ]);
+        Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'status' => 'trialing',
+            'trial_ends_at' => now()->subDay(),
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+
+        $referral->update(['status' => AffiliateReferral::STATUS_APPROVED]);
+    }
+
     public function test_referral_registration_requires_the_authenticated_owner_of_the_referrer_tenant(): void
     {
         $tenant = Tenant::factory()->create();
