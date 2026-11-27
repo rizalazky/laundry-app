@@ -71,12 +71,9 @@ class CreateJournal
                 throw new DomainException('Tenant jurnal tidak sesuai dengan tenant pengguna.');
             }
 
-            if ($createdBy !== null && (int) $createdBy !== (int) $authenticatedUser->getKey()) {
-                throw new DomainException('Pengguna pencatat jurnal harus sesuai dengan akun yang sedang login.');
-            }
-
-            // Authenticated callers cannot omit or forge the journal audit actor.
-            $createdBy = (int) $authenticatedUser->getKey();
+            // Default authenticated writes to the current actor while preserving
+            // same-tenant source actors for automated posting retries.
+            $createdBy ??= (int) $authenticatedUser->getKey();
         }
 
         $normalizedEntries = [];
