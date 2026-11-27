@@ -138,7 +138,6 @@ class BillingPageTest extends TestCase
             ->assertDontSee($invoiceB->invoice_number);
     }
 
-
     public function test_billing_page_displays_active_pricing_plans_with_prices_and_features(): void
     {
         [, $owner, $plan] = $this->makeTenantWithSubscription();
@@ -147,6 +146,12 @@ class BillingPageTest extends TestCase
             'plan_id' => $plan->id,
             'feature_code' => 'max_outlets',
             'value' => 3,
+        ]);
+
+        PlanFeature::query()->create([
+            'plan_id' => $plan->id,
+            'feature_code' => 'custom_reports',
+            'value' => true,
         ]);
 
         Plan::query()->create([
@@ -165,6 +170,8 @@ class BillingPageTest extends TestCase
             ->assertSee('IDR 250.000')
             ->assertSee('Maksimal Outlet')
             ->assertSee('3')
+            ->assertSee('Custom Reports')
+            ->assertSee('Termasuk')
             ->assertSee('Paket saat ini')
             ->assertDontSee('Hidden Plan');
     }
