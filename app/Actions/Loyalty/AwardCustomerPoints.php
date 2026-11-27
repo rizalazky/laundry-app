@@ -4,7 +4,9 @@ namespace App\Actions\Loyalty;
 
 use App\Models\Customer;
 use App\Models\PointLog;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -51,5 +53,13 @@ class AwardCustomerPoints
         ) {
             throw new AuthorizationException('Anda tidak memiliki izin untuk mengelola poin pelanggan.');
         }
+
+        $tenant = Tenant::query()->find($actor->tenant_id);
+
+        if ($tenant === null) {
+            throw new AuthorizationException('Tenant loyalty tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
     }
 }
