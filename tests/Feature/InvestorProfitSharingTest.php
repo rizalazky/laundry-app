@@ -13,6 +13,7 @@ use App\Models\ProfitSharing;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -195,6 +196,51 @@ class InvestorProfitSharingTest extends TestCase
         }
 
         $this->assertSame(ProfitSharing::STATUS_DRAFT, $foreignSharing->fresh()->status);
+    }
+
+    public function test_generation_rejects_read_only_tenant_before_creating_profit_sharing(): void
+    {
+        [$tenant, $branch, $owner] = $this->setupOwner();
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+
+        $this->actingAs($owner);
+
+        try {
+            app(GenerateProfitSharings::class)->handle($tenant->id, $branch->id, '2026-10');
+            $this->fail('Expected read-only subscription authorization to reject generation.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseCount('profit_sharings', 0);
+        }
+    }
+
+    public function test_payment_rejects_read_only_tenant_without_changing_profit_sharing_or_journal(): void
+    {
+        [$tenant, $branch, $owner] = $this->setupOwner();
+        $investor = $this->createInvestor($tenant->id, $branch->id, 'Investor A', '25.00');
+        $sharing = ProfitSharing::withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'investor_id' => $investor->id,
+            'period_month' => '2026-10',
+            'net_profit_base' => '800000.00',
+            'share_percent_snapshot' => '25.00',
+            'payout_amount' => '200000.00',
+            'status' => ProfitSharing::STATUS_DRAFT,
+        ]);
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+
+        $this->actingAs($owner);
+
+        try {
+            app(MarkProfitSharingPaid::class)->handle($tenant->id, $sharing->id, '1000');
+            $this->fail('Expected read-only subscription authorization to reject payment.');
+        } catch (AuthorizationException) {
+            $this->assertSame(ProfitSharing::STATUS_DRAFT, $sharing->fresh()->status);
+            $this->assertNull($sharing->fresh()->journal_id);
+            $this->assertDatabaseMissing('journals', [
+                'reference_type' => 'investor_profit_sharing',
+                'reference_id' => $sharing->id,
+            ]);
+        }
     }
 
     private function setupOwner(): array
