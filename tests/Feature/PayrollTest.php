@@ -21,6 +21,7 @@ use App\Models\Service;
 use App\Models\Tenant;
 use App\Models\User;
 use DomainException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -284,6 +285,39 @@ class PayrollTest extends TestCase
         }
 
         $this->assertDatabaseCount('payrolls', 0);
+    }
+
+    public function test_read_only_tenant_cannot_create_payroll(): void
+    {
+        [$tenant, $owner, $employee] = $this->context();
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+        $this->actingAs($owner);
+
+        try {
+            app(CreatePayroll::class)->handle($owner, (int) $employee->getKey(), now()->format('Y-m'), '0.00');
+            $this->fail('A read-only tenant must not create payroll.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseCount('payrolls', 0);
+        }
+    }
+
+    public function test_read_only_tenant_cannot_mark_payroll_paid_or_repay_employee_loan(): void
+    {
+        [$tenant, $owner, $employee] = $this->context();
+        $this->actingAs($owner);
+
+        $loan = app(CreateEmployeeLoan::class)->handle($owner, (int) $employee->getKey(), '500000.00');
+        $payroll = app(CreatePayroll::class)->handle($owner, (int) $employee->getKey(), now()->format('Y-m'), '200000.00');
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+
+        try {
+            app(MarkPayrollPaid::class)->handle($owner, (int) $payroll->getKey());
+            $this->fail('A read-only tenant must not mark payroll as paid.');
+        } catch (AuthorizationException) {
+            $this->assertSame('draft', $payroll->fresh()->status);
+            $this->assertSame('500000.00', $loan->fresh()->remaining_amount);
+            $this->assertDatabaseCount('employee_loan_repayments', 0);
+        }
     }
 
     private function context(string $baseSalary = '5000000.00'): array

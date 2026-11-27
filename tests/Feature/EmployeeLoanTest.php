@@ -11,6 +11,7 @@ use App\Models\RolePermission;
 use App\Models\Tenant;
 use App\Models\User;
 use DomainException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -181,6 +182,37 @@ class EmployeeLoanTest extends TestCase
         }
 
         $this->assertDatabaseCount('employee_loans', 0);
+    }
+
+    public function test_read_only_tenant_cannot_issue_employee_loan(): void
+    {
+        [$tenant, $owner, $employee] = $this->context();
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+        $this->actingAs($owner);
+
+        try {
+            app(CreateEmployeeLoan::class)->handle($owner, (int) $employee->getKey(), '100.00');
+            $this->fail('A read-only tenant must not issue employee loans.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseCount('employee_loans', 0);
+        }
+    }
+
+    public function test_read_only_tenant_cannot_record_employee_loan_repayment(): void
+    {
+        [$tenant, $owner, $employee] = $this->context();
+        $this->actingAs($owner);
+        $loan = app(CreateEmployeeLoan::class)->handle($owner, (int) $employee->getKey(), '500.00');
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+
+        try {
+            app(RecordEmployeeLoanRepayment::class)->handle($owner, (int) $loan->getKey(), '100.00');
+            $this->fail('A read-only tenant must not record employee loan repayments.');
+        } catch (AuthorizationException) {
+            $this->assertSame('500.00', $loan->fresh()->remaining_amount);
+            $this->assertSame('active', $loan->fresh()->status);
+            $this->assertDatabaseCount('employee_loan_repayments', 0);
+        }
     }
 
     private function context(): array
