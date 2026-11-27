@@ -110,6 +110,20 @@ class SubscriptionEntitlementTest extends TestCase
         Branch::factory()->for($tenant)->create(['code' => 'BLOCKED']);
     }
 
+    public function test_tenant_write_guard_recognizes_tenant_model_primary_key_for_read_only_writes(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->subscription($tenant, 'trialing', [
+            'trial_ends_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($owner);
+        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+
+        app(\\App\\Services\\TenantWriteGuard::class)->assertModelWriteAllowed($tenant);
+    }
+
     public function test_plan_feature_values_are_resolved_from_the_tenant_subscription(): void
     {
         $tenant = Tenant::factory()->create();
