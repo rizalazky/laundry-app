@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Permission;
+use App\Models\Plan;
 use App\Models\RolePermission;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\RolePermissionService;
@@ -87,6 +89,38 @@ class RolePermissionServiceTest extends TestCase
         try {
             $service->sync($tenant, 'cashier', []);
             $this->fail('Non-owner tenant staff must not change the permission matrix.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseCount('role_permissions', 0);
+        }
+    }
+
+    public function test_read_only_tenant_owner_cannot_change_permission_matrix(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $plan = Plan::query()->create([
+            'code' => 'role-permissions-read-only',
+            'name' => 'Read Only Plan',
+            'monthly_price' => 99000,
+            'is_active' => true,
+        ]);
+        Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'status' => 'trialing',
+            'trial_ends_at' => now()->subDay(),
+        ]);
+        $permission = Permission::query()->create([
+            'name' => 'Lihat Pesanan',
+            'slug' => 'orders.view',
+            'group' => 'Pesanan',
+        ]);
+
+        $this->actingAs($owner);
+
+        try {
+            app(RolePermissionService::class)->sync($tenant, 'cashier', [$permission->id]);
+            $this->fail('Read-only tenants must not change role permissions.');
         } catch (AuthorizationException) {
             $this->assertDatabaseCount('role_permissions', 0);
         }
