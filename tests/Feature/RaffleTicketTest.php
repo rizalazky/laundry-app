@@ -147,4 +147,27 @@ class RaffleTicketTest extends TestCase
         $this->expectException(AuthorizationException::class);
         app(IssueRaffleTickets::class)->handle($cashier, $raffle->id, $customer->id);
     }
+
+    public function test_read_only_tenant_cannot_issue_raffle_tickets(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $customer = $tenant->customers()->create(['name' => 'Pelanggan Read-only']);
+        $raffle = Raffle::query()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Undian Read-only',
+            'status' => Raffle::STATUS_ACTIVE,
+        ]);
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+
+        $this->actingAs($owner);
+
+        try {
+            app(IssueRaffleTickets::class)->handle($owner, $raffle->id, $customer->id, 2);
+            $this->fail('A read-only tenant must not issue raffle tickets.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseCount('raffle_tickets', 0);
+        }
+    }
+
 }
