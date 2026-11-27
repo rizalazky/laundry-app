@@ -140,4 +140,42 @@ class CustomerLoyaltyTest extends TestCase
         $this->expectException(AuthorizationException::class);
         app(AwardCustomerPoints::class)->handle($cashier, $localCustomer->id, 10);
     }
+
+    public function test_loyalty_actions_reject_a_foreign_tenant_owner_as_the_supplied_actor(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $foreignOwner = User::factory()->for($foreignTenant)->withRole('tenant_owner')->create();
+        $foreignCustomer = $foreignTenant->customers()->create([
+            'name' => 'Pelanggan Tenant Lain',
+            'loyalty_points' => 100,
+        ]);
+        $foreignReward = PointReward::query()->create([
+            'tenant_id' => $foreignTenant->id,
+            'reward_name' => 'Hadiah Tenant Lain',
+            'points_required' => 50,
+            'stock' => 2,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner);
+
+        try {
+            app(AwardCustomerPoints::class)->handle($foreignOwner, $foreignCustomer->id, 10);
+            $this->fail('A caller must not supply another tenant owner as the loyalty action actor.');
+        } catch (AuthorizationException) {
+            $this->assertSame(100, (int) $foreignCustomer->fresh()->loyalty_points);
+        }
+
+        try {
+            app(RedeemCustomerReward::class)->handle($foreignOwner, $foreignCustomer->id, $foreignReward->id);
+            $this->fail('A caller must not redeem rewards using another tenant owner as the action actor.');
+        } catch (AuthorizationException) {
+            $this->assertSame(100, (int) $foreignCustomer->fresh()->loyalty_points);
+            $this->assertSame('2.00', $foreignReward->fresh()->stock);
+        }
+
+        $this->assertDatabaseCount('point_logs', 0);
+    }
 }
