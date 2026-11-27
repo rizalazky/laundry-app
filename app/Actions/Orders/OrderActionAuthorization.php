@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\Order;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 
@@ -37,8 +38,12 @@ class OrderActionAuthorization
 
         $tenant = Tenant::query()->find($authorizedBranch->tenant_id);
 
-        if ($tenant === null || ($requireActiveBusiness && ! $tenant->hasActiveSubscription())) {
-            throw new DomainException('Masa aktif langganan bisnis Anda telah berakhir atau bisnis sedang tidak aktif.');
+        if ($tenant === null) {
+            throw new DomainException('Tenant tidak ditemukan.');
+        }
+
+        if ($requireActiveBusiness) {
+            app(EntitlementService::class)->assertCanWrite($tenant);
         }
 
         if ($actor->role !== 'tenant_owner' && ! $actor->branches()
@@ -93,8 +98,12 @@ class OrderActionAuthorization
 
             $tenant = Tenant::query()->find($lockedOrder->tenant_id);
 
-            if ($tenant === null || ($requireActiveBusiness && ! $tenant->hasActiveSubscription())) {
-                throw new DomainException('Masa aktif langganan bisnis Anda telah berakhir atau bisnis sedang tidak aktif.');
+            if ($tenant === null) {
+                throw new DomainException('Tenant tidak ditemukan.');
+            }
+
+            if ($requireActiveBusiness) {
+                app(EntitlementService::class)->assertCanWrite($tenant);
             }
 
             $allowedBranchIds = $lockedOrder->workshop_id !== null
