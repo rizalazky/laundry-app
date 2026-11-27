@@ -36,13 +36,26 @@ class RolePermissions extends Page
             && Auth::user()?->tenant_id !== null;
     }
 
+    /**
+     * Re-check access on every Livewire request. A page mounted by an owner
+     * must not remain usable after that account is deactivated or demoted.
+     */
+    public function hydrate(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
     public function mount(RolePermissionService $permissionService): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->loadRolePermissions($permissionService);
     }
 
     public function updatedRole(RolePermissionService $permissionService): void
     {
+        abort_unless(static::canAccess(), 403);
+
         if (! in_array($this->role, RolePermissionService::CONFIGURABLE_ROLES, true)) {
             $this->role = 'cashier';
         }
@@ -52,6 +65,8 @@ class RolePermissions extends Page
 
     public function getPermissionGroups(): array
     {
+        abort_unless(static::canAccess(), 403);
+
         return Permission::query()
             ->orderBy('group')
             ->orderBy('name')
@@ -93,6 +108,8 @@ class RolePermissions extends Page
 
     protected function loadRolePermissions(RolePermissionService $permissionService): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $user = Auth::user();
 
         abort_unless($user?->tenant_id !== null, 403);
