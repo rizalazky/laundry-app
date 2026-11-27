@@ -8,6 +8,9 @@ use App\Models\AffiliatePayout;
 use App\Models\AffiliateReferral;
 use App\Models\User;
 use App\Models\Tenant;
+use App\Models\Plan;
+use App\Models\Subscription;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -19,6 +22,8 @@ class AffiliateReferralTest extends TestCase
     public function test_pending_payout_can_be_marked_paid_once(): void
     {
         $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
         $referred = Tenant::factory()->create();
         $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, $referred->id, 10);
         $referral->update(['status' => AffiliateReferral::STATUS_APPROVED]);
@@ -43,6 +48,8 @@ class AffiliateReferralTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $otherTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
         $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, Tenant::factory()->create()->id, 10);
         $payout = $referral->payouts()->create([
             'tenant_id' => $tenant->id,
@@ -52,6 +59,7 @@ class AffiliateReferralTest extends TestCase
         ]);
         $otherOwner = User::factory()->create(['tenant_id' => $otherTenant->id, 'role' => 'tenant_owner', 'is_active' => true]);
 
+        $this->actingAs($otherOwner);
         $this->expectException(ValidationException::class);
         app(UpdateAffiliatePayoutStatus::class)->handle($otherOwner, $payout->id, AffiliatePayout::STATUS_PAID);
     }
@@ -59,6 +67,8 @@ class AffiliateReferralTest extends TestCase
     public function test_cashier_cannot_forge_tenant_owner_role_to_update_affiliate_payout(): void
     {
         $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
         $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, Tenant::factory()->create()->id, 10);
         $payout = $referral->payouts()->create([
             'tenant_id' => $tenant->id,
@@ -84,6 +94,8 @@ class AffiliateReferralTest extends TestCase
     public function test_tenant_can_be_registered_as_an_affiliate_referral(): void
     {
         $referrer = Tenant::factory()->create();
+        $owner = User::factory()->for($referrer)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
         $referred = Tenant::factory()->create();
 
         $referral = app(RegisterAffiliateReferral::class)->handle(
@@ -105,6 +117,8 @@ class AffiliateReferralTest extends TestCase
     public function test_referral_rejects_self_referral_and_invalid_commission_rate(): void
     {
         $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
         $other = Tenant::factory()->create();
 
         try {
@@ -127,14 +141,15 @@ class AffiliateReferralTest extends TestCase
     public function test_referred_tenant_can_only_be_attributed_once(): void
     {
         $firstReferrer = Tenant::factory()->create();
-        $secondReferrer = Tenant::factory()->create();
+        $owner = User::factory()->for($firstReferrer)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
         $referred = Tenant::factory()->create();
         $action = app(RegisterAffiliateReferral::class);
 
         $action->handle($firstReferrer->id, $referred->id, 10);
 
         try {
-            $action->handle($secondReferrer->id, $referred->id, 15);
+            $action->handle($firstReferrer->id, $referred->id, 15);
             $this->fail('Expected duplicate referral validation.');
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('referred_tenant_id', $exception->errors());
