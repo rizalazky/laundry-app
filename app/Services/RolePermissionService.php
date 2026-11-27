@@ -42,6 +42,10 @@ class RolePermissionService
             throw new AuthorizationException('Hanya owner aktif yang dapat mengubah matriks hak akses tenant sendiri.');
         }
 
+        // This service writes through query-builder delete/insert operations,
+        // which do not dispatch Eloquent model events or TenantWriteGuard.
+        app(EntitlementService::class)->assertCanWrite($tenant);
+
         if (! in_array($role, self::CONFIGURABLE_ROLES, true)) {
             throw ValidationException::withMessages([
                 'role' => 'Role ini tidak dapat dikonfigurasi melalui matriks izin tenant.',
