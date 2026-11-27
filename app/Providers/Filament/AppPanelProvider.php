@@ -40,6 +40,7 @@ class AppPanelProvider extends PanelProvider
             ->multiFactorAuthentication([
                 AppAuthentication::make()->recoverable(),
             ])
+            ->databaseNotifications()
             ->tenantMenuItems([
                 'profile' => fn (\Filament\Actions\Action $action): \Filament\Actions\Action => $action
                     ->label('Pengaturan Cabang')

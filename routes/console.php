@@ -14,3 +14,4 @@ Schedule::command('subscriptions:activate-paid-invoices')->everyMinute()->withou
 Schedule::command('subscriptions:sync-lifecycle')->everyMinute()->withoutOverlapping();
 Schedule::command('subscriptions:expire-invoices')->everyMinute()->withoutOverlapping();
 Schedule::command('subscriptions:reconcile-pending-payments')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('subscriptions:send-renewal-reminders')->dailyAt('09:00')->withoutOverlapping();
