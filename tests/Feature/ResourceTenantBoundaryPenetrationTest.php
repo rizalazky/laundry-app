@@ -36,6 +36,47 @@ class ResourceTenantBoundaryPenetrationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_unscoped_foreign_model_cannot_be_reassigned_by_an_authenticated_tenant_user(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $foreignAccount = ChartOfAccount::query()->create([
+            'tenant_id' => $foreignTenant->id,
+            'code' => 'FOREIGN-REASSIGN-001',
+            'name' => 'Foreign Account',
+            'account_type' => 'asset',
+            'is_system' => false,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner);
+
+        $unscopedForeignAccount = ChartOfAccount::withoutGlobalScopes()->findOrFail($foreignAccount->id);
+        $unscopedForeignAccount->name = 'Attempted Tenant Takeover';
+
+        try {
+            $unscopedForeignAccount->save();
+            $this->fail('An unscoped foreign model must not be reassigned into the authenticated tenant.');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $exception) {
+            $this->assertSame(
+                'Anda tidak memiliki akses untuk mengubah data tenant lain.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseHas('chart_of_accounts', [
+            'id' => $foreignAccount->id,
+            'tenant_id' => $foreignTenant->id,
+            'name' => 'Foreign Account',
+        ]);
+        $this->assertDatabaseMissing('chart_of_accounts', [
+            'id' => $foreignAccount->id,
+            'tenant_id' => $tenant->id,
+        ]);
+    }
+
     public function test_attendance_resource_is_scoped_to_tenant_and_managed_branches(): void
     {
         $tenant = Tenant::factory()->create();
