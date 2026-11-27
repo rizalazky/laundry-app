@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\EntitlementService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -15,7 +16,7 @@ class AwardCustomerPoints
 {
     public function handle(User $actor, int $customerId, int $points, ?string $description = null): PointLog
     {
-        $this->authorize($actor);
+        $actor = $this->authorize($actor);
 
         if ($points < 1) {
             throw ValidationException::withMessages(['points' => 'Jumlah poin harus lebih dari nol.']);
@@ -44,10 +45,16 @@ class AwardCustomerPoints
         });
     }
 
-    private function authorize(User $actor): void
+    private function authorize(User $actor): User
     {
+        if (Auth::hasUser() && (int) Auth::id() !== (int) $actor->getKey()) {
+            throw new AuthorizationException('Anda tidak memiliki izin untuk mengelola poin pelanggan.');
+        }
+
+        $actor = User::query()->find($actor->getKey());
+
         if (
-            ! $actor->is_active || $actor->tenant_id === null
+            $actor === null || ! $actor->is_active || $actor->tenant_id === null
             || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
             || ! $actor->hasPermissionTo('loyalty.manage')
         ) {
@@ -61,5 +68,7 @@ class AwardCustomerPoints
         }
 
         app(EntitlementService::class)->assertCanWrite($tenant);
+
+        return $actor;
     }
 }
