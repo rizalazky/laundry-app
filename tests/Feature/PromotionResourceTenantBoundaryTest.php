@@ -46,14 +46,6 @@ class PromotionResourceTenantBoundaryTest extends TestCase
             'status' => Raffle::STATUS_DRAFT,
         ]);
 
-        $this->actingAs($owner);
-
-        $this->assertFalse(PromoResource::canEdit($foreignPromo));
-        $this->assertFalse(VoucherResource::canEdit($foreignVoucher));
-        $this->assertFalse(VoucherResource::canDelete($foreignVoucher));
-        $this->assertFalse(RaffleResource::canEdit($foreignRaffle));
-        $this->assertFalse(RaffleResource::canDelete($foreignRaffle));
-
         $foreignPromoWithoutVouchers = Promo::query()->create([
             'tenant_id' => $foreignTenant->id,
             'name' => 'Promo Tanpa Voucher',
@@ -62,8 +54,15 @@ class PromotionResourceTenantBoundaryTest extends TestCase
             'reward_value' => 1000,
         ]);
 
+        $this->actingAs($owner);
+
+        $this->assertFalse(PromoResource::canEdit($foreignPromo));
         $this->assertFalse(PromoResource::canEdit($foreignPromoWithoutVouchers));
         $this->assertFalse(PromoResource::canDelete($foreignPromoWithoutVouchers));
+        $this->assertFalse(VoucherResource::canEdit($foreignVoucher));
+        $this->assertFalse(VoucherResource::canDelete($foreignVoucher));
+        $this->assertFalse(RaffleResource::canEdit($foreignRaffle));
+        $this->assertFalse(RaffleResource::canDelete($foreignRaffle));
 
         $this->get('/app/'.$branch->code.'/promos/'.$foreignPromo->id.'/edit')
             ->assertNotFound();
