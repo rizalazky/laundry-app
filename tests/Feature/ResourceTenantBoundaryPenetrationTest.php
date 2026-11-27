@@ -155,6 +155,8 @@ class ResourceTenantBoundaryPenetrationTest extends TestCase
             [$localInvestor->id],
             InvestorResource::getEloquentQuery()->pluck('id')->all(),
         );
+        $this->assertTrue(InvestorResource::canEdit($localInvestor));
+        $this->assertFalse(InvestorResource::canEdit($foreignInvestor));
         $this->assertSame(
             [$localSharing->id],
             ProfitSharingResource::getEloquentQuery()->pluck('id')->all(),
