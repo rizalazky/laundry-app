@@ -33,8 +33,6 @@ class AffiliateReferralTest extends TestCase
             'payout_date' => now()->toDateString(),
             'status' => AffiliatePayout::STATUS_PENDING,
         ]);
-        $owner = User::factory()->create(['tenant_id' => $tenant->id, 'role' => 'tenant_owner', 'is_active' => true]);
-
         $updated = app(UpdateAffiliatePayoutStatus::class)->handle($owner, $payout->id, AffiliatePayout::STATUS_PAID);
 
         $this->assertSame(AffiliatePayout::STATUS_PAID, $updated->status);
@@ -88,6 +86,49 @@ class AffiliateReferralTest extends TestCase
             $forgedActor,
             $payout->id,
             AffiliatePayout::STATUS_PAID,
+        );
+    }
+
+    public function test_referral_registration_requires_the_authenticated_owner_of_the_referrer_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $otherTenant = Tenant::factory()->create();
+        $otherOwner = User::factory()->for($otherTenant)->withRole('tenant_owner')->create();
+        $this->actingAs($otherOwner);
+
+        $this->expectException(AuthorizationException::class);
+
+        app(RegisterAffiliateReferral::class)->handle(
+            $tenant->id,
+            Tenant::factory()->create()->id,
+            10,
+        );
+    }
+
+    public function test_read_only_tenant_cannot_register_an_affiliate_referral(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $plan = Plan::query()->create([
+            'code' => 'affiliate-read-only',
+            'name' => 'Read Only Plan',
+            'monthly_price' => 99000,
+            'is_active' => true,
+        ]);
+        Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'status' => 'trialing',
+            'trial_ends_at' => now()->subDay(),
+        ]);
+        $this->actingAs($owner);
+
+        $this->expectException(AuthorizationException::class);
+
+        app(RegisterAffiliateReferral::class)->handle(
+            $tenant->id,
+            Tenant::factory()->create()->id,
+            10,
         );
     }
 
