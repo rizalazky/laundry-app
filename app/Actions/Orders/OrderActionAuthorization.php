@@ -8,6 +8,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\EntitlementService;
 use DomainException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 
 class OrderActionAuthorization
@@ -43,7 +44,7 @@ class OrderActionAuthorization
         }
 
         if ($requireActiveBusiness) {
-            app(EntitlementService::class)->assertCanWrite($tenant);
+            $this->assertTenantCanWrite($tenant);
         }
 
         if ($actor->role !== 'tenant_owner' && ! $actor->branches()
@@ -103,7 +104,7 @@ class OrderActionAuthorization
             }
 
             if ($requireActiveBusiness) {
-                app(EntitlementService::class)->assertCanWrite($tenant);
+                $this->assertTenantCanWrite($tenant);
             }
 
             $allowedBranchIds = $lockedOrder->workshop_id !== null
@@ -126,6 +127,16 @@ class OrderActionAuthorization
         $this->authorizeBranch($actor, $branch, $allowedRoles, $requireActiveBusiness);
 
         return $lockedOrder;
+    }
+
+    private function assertTenantCanWrite(Tenant $tenant): void
+    {
+        try {
+            app(EntitlementService::class)->assertCanWrite($tenant);
+        } catch (AuthorizationException $exception) {
+            // Keep the action-layer exception contract while using the canonical entitlement decision.
+            throw new DomainException($exception->getMessage(), 0, $exception);
+        }
     }
 
     private function canonicalActor(User $user): User
