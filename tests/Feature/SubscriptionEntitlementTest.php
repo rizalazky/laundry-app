@@ -107,7 +107,7 @@ class SubscriptionEntitlementTest extends TestCase
         ]);
 
         $this->actingAs($owner);
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
 
         Branch::factory()->for($tenant)->create(['code' => 'BLOCKED']);
     }
@@ -121,9 +121,9 @@ class SubscriptionEntitlementTest extends TestCase
         ]);
 
         $this->actingAs($owner);
-        $this->expectException(\\Illuminate\\Auth\\Access\\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
 
-        app(\\App\\Services\\TenantWriteGuard::class)->assertModelWriteAllowed($tenant);
+        app(TenantWriteGuard::class)->assertModelWriteAllowed($tenant);
     }
 
     public function test_plan_feature_values_are_resolved_from_the_tenant_subscription(): void
@@ -204,8 +204,8 @@ class SubscriptionEntitlementTest extends TestCase
         $model = new class extends \Illuminate\Database\Eloquent\Model {};
         $model->setAttribute('tenant_id', $otherTenant->id);
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
-        app(\App\Services\TenantWriteGuard::class)->assertModelWriteAllowed($model);
+        $this->expectException(AuthorizationException::class);
+        app(TenantWriteGuard::class)->assertModelWriteAllowed($tenant);
     }
 
     public function test_tenant_write_guard_rejects_branch_references_from_another_tenant(): void
@@ -220,8 +220,8 @@ class SubscriptionEntitlementTest extends TestCase
         $model->setAttribute('tenant_id', $tenant->id);
         $model->setAttribute('branch_id', $foreignBranch->id);
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
-        app(\App\Services\TenantWriteGuard::class)->assertModelWriteAllowed($model);
+        $this->expectException(AuthorizationException::class);
+        app(TenantWriteGuard::class)->assertModelWriteAllowed($tenant);
     }
 
     private function subscription(Tenant $tenant, string $status, array $attributes = []): Subscription
