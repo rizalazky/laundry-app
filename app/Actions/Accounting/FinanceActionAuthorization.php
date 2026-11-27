@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\Tenant;
 use App\Services\EntitlementService;
 use DomainException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 
 class FinanceActionAuthorization
@@ -49,7 +50,12 @@ class FinanceActionAuthorization
             throw new DomainException('Anda tidak memiliki izin untuk mencatat transaksi keuangan pada tenant ini.');
         }
 
-        app(EntitlementService::class)->assertCanWrite($tenant);
+        try {
+            app(EntitlementService::class)->assertCanWrite($tenant);
+        } catch (AuthorizationException $exception) {
+            // Preserve the existing finance action exception contract.
+            throw new DomainException($exception->getMessage(), 0, $exception);
+        }
 
         if (
             $actor->role !== 'tenant_owner'
