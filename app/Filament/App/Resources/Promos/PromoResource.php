@@ -44,12 +44,15 @@ class PromoResource extends Resource
 
     public static function canEdit($record): bool
     {
-        return static::canCreate();
+        return static::canCreate()
+            && (int) $record->tenant_id === (int) Auth::user()?->tenant_id;
     }
 
     public static function canDelete($record): bool
     {
-        return static::canCreate() && ! $record->vouchers()->exists();
+        return static::canCreate()
+            && (int) $record->tenant_id === (int) Auth::user()?->tenant_id
+            && ! $record->vouchers()->exists();
     }
 
     public static function getEloquentQuery(): Builder
