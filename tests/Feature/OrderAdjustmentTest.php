@@ -89,6 +89,51 @@ class OrderAdjustmentTest extends TestCase
         $this->assertSame('45000.00', $this->order->fresh()->paid_amount);
     }
 
+    public function test_owner_cannot_approve_an_adjustment_from_another_tenant_even_with_a_forged_order_relation(): void
+    {
+        $otherTenant = Tenant::factory()->create();
+        $otherBranch = Branch::factory()->for($otherTenant)->create();
+        $otherOwner = User::factory()->for($otherTenant)->withRole('tenant_owner')->create();
+        $otherCustomer = Customer::factory()->for($otherTenant)->create();
+        $otherService = Service::factory()->for($otherTenant)->create(['price' => 7000]);
+        $otherOrder = app(CreateOrder::class)->handle(
+            branch: $otherBranch,
+            user: $otherOwner,
+            customerId: $otherCustomer->id,
+            items: [['service_id' => $otherService->id, 'quantity' => 1]],
+        );
+
+        $foreignAdjustment = OrderAdjustment::query()->create([
+            'tenant_id' => $otherTenant->id,
+            'branch_id' => $otherBranch->id,
+            'order_id' => $otherOrder->id,
+            'type' => OrderAdjustment::TYPE_COMPENSATION,
+            'status' => OrderAdjustment::STATUS_PENDING,
+            'requested_amount' => '5000.00',
+            'reason' => 'Foreign tenant adjustment',
+            'requested_by' => $otherOwner->id,
+            'requested_at' => now(),
+        ]);
+
+        // Simulate a stale/forged in-memory relation: authorization must use the
+        // persisted adjustment and its persisted order, not this supplied relation.
+        $foreignAdjustment->setRelation('order', $this->order);
+
+        try {
+            app(ManageOrderAdjustment::class)->approve($foreignAdjustment, '5000.00', $this->owner);
+            $this->fail('An owner must not approve another tenant\'s adjustment.');
+        } catch (DomainException $exception) {
+            $this->assertSame('Pengajuan tidak ditemukan.', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('order_adjustments', [
+            'id' => $foreignAdjustment->id,
+            'tenant_id' => $otherTenant->id,
+            'status' => OrderAdjustment::STATUS_PENDING,
+            'approved_by' => null,
+        ]);
+    }
+
     public function test_only_owner_can_approve_or_pay_and_only_pending_requests_can_be_rejected(): void
     {
         $action = app(ManageOrderAdjustment::class);

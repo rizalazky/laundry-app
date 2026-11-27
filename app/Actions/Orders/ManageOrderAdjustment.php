@@ -33,7 +33,7 @@ class ManageOrderAdjustment
             throw new DomainException('Jenis pengajuan tidak valid.');
         }
 
-        $this->authorization->authorizeOrder(
+        $authorizedOrder = $this->authorization->authorizeOrder(
             $user,
             $order,
             ['tenant_owner', 'branch_manager', 'cashier'],
@@ -45,8 +45,13 @@ class ManageOrderAdjustment
             throw new DomainException('Alasan wajib diisi dan maksimal 2.000 karakter.');
         }
 
-        return DB::transaction(function () use ($order, $type, $amount, $reason, $user, $notes): OrderAdjustment {
-            $locked = Order::query()->withoutGlobalScope('tenant')->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($authorizedOrder, $type, $amount, $reason, $user, $notes): OrderAdjustment {
+            $locked = Order::query()
+                ->withoutGlobalScope('tenant')
+                ->where('tenant_id', $authorizedOrder->tenant_id)
+                ->whereKey($authorizedOrder->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
             if ($locked->status->value === 'cancelled') {
                 throw new DomainException('Order yang dibatalkan tidak dapat diajukan refund atau kompensasi.');
@@ -81,17 +86,14 @@ class ManageOrderAdjustment
 
     public function approve(OrderAdjustment $adjustment, string|int|float $amount, User $user): OrderAdjustment
     {
-        $this->assertOwner($user, $adjustment->order);
         $amount = $this->money($amount);
 
         return DB::transaction(function () use ($adjustment, $amount, $user): OrderAdjustment {
-            $locked = OrderAdjustment::query()->withoutGlobalScope('tenant')->whereKey($adjustment->getKey())->lockForUpdate()->firstOrFail();
+            [$locked, $order] = $this->lockAuthorizedAdjustment($adjustment, $user);
 
             if ($locked->status !== OrderAdjustment::STATUS_PENDING) {
                 throw new DomainException('Hanya pengajuan pending yang dapat disetujui.');
             }
-
-            $order = Order::query()->withoutGlobalScope('tenant')->whereKey($locked->order_id)->lockForUpdate()->firstOrFail();
 
             if ($locked->type === OrderAdjustment::TYPE_REFUND) {
                 $this->assertRefundCapacity($order, $amount, $locked->getKey());
@@ -114,7 +116,6 @@ class ManageOrderAdjustment
 
     public function reject(OrderAdjustment $adjustment, string $reason, User $user): OrderAdjustment
     {
-        $this->assertOwner($user, $adjustment->order);
         $reason = trim($reason);
 
         if ($reason === '' || mb_strlen($reason) > 2000) {
@@ -122,7 +123,7 @@ class ManageOrderAdjustment
         }
 
         $locked = DB::transaction(function () use ($adjustment, $reason, $user): OrderAdjustment {
-            $locked = OrderAdjustment::query()->withoutGlobalScope('tenant')->whereKey($adjustment->getKey())->lockForUpdate()->firstOrFail();
+            [$locked] = $this->lockAuthorizedAdjustment($adjustment, $user);
 
             if ($locked->status !== OrderAdjustment::STATUS_PENDING) {
                 throw new DomainException('Hanya pengajuan pending yang dapat ditolak.');
@@ -154,18 +155,14 @@ class ManageOrderAdjustment
         string $paymentSourceType = 'cash',
         ?int $bankAccountId = null,
     ): OrderAdjustment {
-        $this->assertOwner($user, $adjustment->order);
-
         return DB::transaction(function () use (
             $adjustment, $user, $method, $reference, $expenseAccountId, $paymentSourceType, $bankAccountId,
         ): OrderAdjustment {
-            $locked = OrderAdjustment::query()->withoutGlobalScope('tenant')->whereKey($adjustment->getKey())->lockForUpdate()->firstOrFail();
+            [$locked, $order] = $this->lockAuthorizedAdjustment($adjustment, $user);
 
             if ($locked->status !== OrderAdjustment::STATUS_APPROVED || $locked->approved_amount === null) {
                 throw new DomainException('Hanya pengajuan yang sudah disetujui yang dapat dibayar.');
             }
-
-            $order = Order::query()->withoutGlobalScope('tenant')->whereKey($locked->order_id)->lockForUpdate()->firstOrFail();
 
             if ($locked->type === OrderAdjustment::TYPE_REFUND) {
                 $payment = app(RecordPayment::class)->handle(
@@ -214,13 +211,49 @@ class ManageOrderAdjustment
         });
     }
 
-    private function assertOwner(User $user, ?Order $order): void
+    /**
+     * Re-fetch the adjustment within the actor's persisted tenant before mutating it.
+     *
+     * @return array{OrderAdjustment, Order}
+     */
+    private function lockAuthorizedAdjustment(OrderAdjustment $adjustment, User $user): array
     {
-        if ($user->role !== 'tenant_owner') {
-            throw new DomainException('Hanya owner yang dapat menyetujui, menolak, atau membayar pengajuan.');
+        $actor = User::query()->find($user->getKey());
+
+        if ($actor === null || $actor->tenant_id === null) {
+            throw new DomainException('Anda tidak memiliki izin untuk melakukan tindakan ini.');
         }
 
-        $this->authorization->authorizeOrder($user, $order ?? throw new DomainException('Order tidak ditemukan.'), ['tenant_owner'], requireActiveBusiness: false);
+        $locked = OrderAdjustment::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $actor->tenant_id)
+            ->whereKey($adjustment->getKey())
+            ->lockForUpdate()
+            ->first();
+
+        if ($locked === null) {
+            throw new DomainException('Pengajuan tidak ditemukan.');
+        }
+
+        $order = Order::query()
+            ->withoutGlobalScope('tenant')
+            ->where('tenant_id', $actor->tenant_id)
+            ->whereKey($locked->order_id)
+            ->lockForUpdate()
+            ->first();
+
+        if ($order === null) {
+            throw new DomainException('Order pengajuan tidak ditemukan.');
+        }
+
+        $this->authorization->authorizeOrder(
+            $user,
+            $order,
+            ['tenant_owner'],
+            requireActiveBusiness: false,
+        );
+
+        return [$locked, $order];
     }
 
     private function assertRefundCapacity(Order $order, BigDecimal $amount, ?int $exceptAdjustmentId = null): void
