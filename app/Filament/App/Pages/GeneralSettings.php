@@ -3,6 +3,7 @@
 namespace App\Filament\App\Pages;
 
 use App\Models\User;
+use App\Services\EntitlementService;
 use DateTimeZone;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -84,7 +85,10 @@ class GeneralSettings extends Page
             'allowPartialPayment' => ['required', 'boolean'],
         ]);
 
-        $user->tenant()->firstOrFail()->updateGeneralSettings([
+        $tenant = $user->tenant()->firstOrFail();
+        app(EntitlementService::class)->assertCanWrite($tenant);
+
+        $tenant->updateGeneralSettings([
             'timezone' => $validated['timezone'],
             'date_format' => $validated['dateFormat'],
             'invoice_prefix' => filled($validated['invoicePrefix']) ? strtoupper($validated['invoicePrefix']) : null,
