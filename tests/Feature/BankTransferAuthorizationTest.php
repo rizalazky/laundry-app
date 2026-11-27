@@ -9,7 +9,9 @@ use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Journal;
 use App\Models\Permission;
+use App\Models\Plan;
 use App\Models\RolePermission;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use DomainException;
@@ -262,4 +264,60 @@ class BankTransferAuthorizationTest extends TestCase
             createdBy: $createdBy,
         );
     }
+
+    public function test_tenant_owner_cannot_record_branchless_transfer_after_subscription_expiry(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        [$source, $destination] = $this->bankAccounts($tenant);
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+
+        $this->actingAs($owner);
+
+        try {
+            $this->recordTransfer($tenant, $source, $destination, null, 'BANK-READONLY-001');
+            $this->fail('A read-only tenant must not record a bank transfer.');
+        } catch (DomainException $exception) {
+            $this->assertStringContainsString('read-only', $exception->getPrevious()?->getMessage() ?? $exception->getMessage());
+        }
+
+        $this->assertDatabaseCount('bank_transfers', 0);
+        $this->assertDatabaseCount('journals', 0);
+    }
+
+    public function test_tenant_owner_can_record_branchless_transfer_during_subscription_grace_period(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        [$source, $destination] = $this->bankAccounts($tenant);
+        $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
+
+        $plan = Plan::query()->create([
+            'code' => 'bank-grace-' . fake()->unique()->lexify('??????'),
+            'name' => 'Grace Test Plan',
+            'monthly_price' => 99000,
+            'is_active' => true,
+        ]);
+
+        Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'status' => 'active',
+            'current_period_start' => now()->subDays(31),
+            'current_period_end' => now()->subDay(),
+            'grace_ends_at' => now()->addDay(),
+        ]);
+
+        $this->actingAs($owner);
+
+        $transfer = $this->recordTransfer($tenant, $source, $destination, null, 'BANK-GRACE-001');
+
+        $this->assertDatabaseHas('bank_transfers', [
+            'id' => $transfer->id,
+            'tenant_id' => $tenant->id,
+            'branch_id' => null,
+            'created_by' => $owner->id,
+        ]);
+    }
+
 }

@@ -5,9 +5,12 @@ namespace App\Actions\Raffles;
 use App\Models\Customer;
 use App\Models\Raffle;
 use App\Models\RaffleTicket;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -18,13 +21,27 @@ class IssueRaffleTickets
      */
     public function handle(User $actor, int $raffleId, int $customerId, int $quantity = 1): array
     {
+        if (Auth::hasUser() && (int) Auth::id() !== (int) $actor->getKey()) {
+            throw new AuthorizationException('Anda tidak memiliki izin untuk menerbitkan tiket undian.');
+        }
+
+        $actor = User::query()->find($actor->getKey());
+
         if (
-            ! $actor->is_active || $actor->tenant_id === null
+            $actor === null || ! $actor->is_active || $actor->tenant_id === null
             || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
             || ! $actor->hasPermissionTo('raffles.manage')
         ) {
             throw new AuthorizationException('Anda tidak memiliki izin untuk menerbitkan tiket undian.');
         }
+
+        $tenant = Tenant::query()->find($actor->tenant_id);
+
+        if ($tenant === null) {
+            throw new AuthorizationException('Tenant undian tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         if ($quantity < 1 || $quantity > 100) {
             throw ValidationException::withMessages(['quantity' => 'Jumlah tiket harus antara 1 sampai 100.']);
