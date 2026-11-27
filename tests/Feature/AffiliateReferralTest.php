@@ -94,12 +94,13 @@ class AffiliateReferralTest extends TestCase
     public function test_read_only_tenant_cannot_update_an_existing_affiliate_referral(): void
     {
         $tenant = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
 
         $referral = app(RegisterAffiliateReferral::class)->handle(
             $tenant->id,
-            Tenant::factory()->create()->id,
+            $referred->id,
             10,
         );
 
