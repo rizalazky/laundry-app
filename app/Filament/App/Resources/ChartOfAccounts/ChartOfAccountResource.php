@@ -49,7 +49,9 @@ class ChartOfAccountResource extends Resource
 
     public static function canEdit(Model $record): bool
     {
-        return static::canCreate() && ! $record->is_system;
+        return static::canCreate()
+            && (int) $record->tenant_id === (int) Auth::user()?->tenant_id
+            && ! $record->is_system;
     }
 
     public static function getEloquentQuery(): Builder

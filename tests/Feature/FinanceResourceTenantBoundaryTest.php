@@ -48,6 +48,8 @@ class FinanceResourceTenantBoundaryTest extends TestCase
 
         $this->assertContains($localAccount->id, $accountIds);
         $this->assertNotContains($foreignAccount->id, $accountIds);
+        $this->assertTrue(ChartOfAccountResource::canEdit($localAccount));
+        $this->assertFalse(ChartOfAccountResource::canEdit($foreignAccount));
 
         $this->assertContains($localBank->id, $bankIds);
         $this->assertNotContains($foreignBank->id, $bankIds);

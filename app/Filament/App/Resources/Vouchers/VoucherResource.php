@@ -44,12 +44,16 @@ class VoucherResource extends Resource
 
     public static function canEdit($record): bool
     {
-        return static::canCreate() && (int) $record->used_count === 0;
+        return static::canCreate()
+            && (int) $record->tenant_id === (int) Auth::user()?->tenant_id
+            && (int) $record->used_count === 0;
     }
 
     public static function canDelete($record): bool
     {
-        return static::canCreate() && (int) $record->used_count === 0;
+        return static::canCreate()
+            && (int) $record->tenant_id === (int) Auth::user()?->tenant_id
+            && (int) $record->used_count === 0;
     }
 
     public static function getEloquentQuery(): Builder
