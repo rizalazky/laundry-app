@@ -7,6 +7,7 @@ use App\Actions\Affiliates\UpdateAffiliatePayoutStatus;
 use App\Models\AffiliatePayout;
 use App\Models\AffiliateReferral;
 use App\Models\Tenant;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
@@ -51,14 +52,22 @@ class AffiliateReferralsTable
                 ->color('success')
                 ->visible(fn (AffiliateReferral $record): bool => $record->status === AffiliateReferral::STATUS_PENDING
                     && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
-                ->action(fn (AffiliateReferral $record) => $record->update(['status' => AffiliateReferral::STATUS_APPROVED])),
+                ->action(function (AffiliateReferral $record): void {
+                    $referral = self::authorizedReferral($record);
+                    abort_unless($referral->status === AffiliateReferral::STATUS_PENDING, 409);
+                    $referral->update(['status' => AffiliateReferral::STATUS_APPROVED]);
+                }),
             Action::make('reject')
                 ->label('Tolak')
                 ->color('danger')
                 ->requiresConfirmation()
                 ->visible(fn (AffiliateReferral $record): bool => $record->status === AffiliateReferral::STATUS_PENDING
                     && (Auth::user()?->hasPermissionTo('affiliates.manage') ?? false))
-                ->action(fn (AffiliateReferral $record) => $record->update(['status' => AffiliateReferral::STATUS_REJECTED])),
+                ->action(function (AffiliateReferral $record): void {
+                    $referral = self::authorizedReferral($record);
+                    abort_unless($referral->status === AffiliateReferral::STATUS_PENDING, 409);
+                    $referral->update(['status' => AffiliateReferral::STATUS_REJECTED]);
+                }),
             Action::make('markPayoutPaid')
                 ->label('Tandai Dibayar')
                 ->color('success')
@@ -109,8 +118,11 @@ class AffiliateReferralsTable
                     Textarea::make('notes')->label('Catatan'),
                 ])
                 ->action(function (AffiliateReferral $record, array $data): void {
-                    $record->payouts()->create([
-                        'tenant_id' => $record->referrer_tenant_id,
+                    $referral = self::authorizedReferral($record);
+                    abort_unless($referral->status === AffiliateReferral::STATUS_APPROVED, 409);
+
+                    $referral->payouts()->create([
+                        'tenant_id' => $referral->referrer_tenant_id,
                         'amount' => $data['amount'],
                         'payout_date' => $data['payout_date'],
                         'status' => AffiliatePayout::STATUS_PENDING,
@@ -150,5 +162,21 @@ class AffiliateReferralsTable
                     }
                 }),
         ]);
+    }
+
+    private static function authorizedReferral(AffiliateReferral $record): AffiliateReferral
+    {
+        $user = Auth::user();
+
+        abort_unless(
+            $user instanceof User
+                && $user->role === 'tenant_owner'
+                && $user->hasPermissionTo('affiliates.manage'),
+            403,
+        );
+
+        return AffiliateReferral::query()
+            ->where('referrer_tenant_id', $user->tenant_id)
+            ->findOrFail($record->getKey());
     }
 }
