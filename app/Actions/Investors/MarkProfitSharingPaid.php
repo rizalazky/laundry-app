@@ -6,6 +6,8 @@ use App\Actions\Accounting\CreateJournal;
 use App\Models\ChartOfAccount;
 use App\Models\Investor;
 use App\Models\ProfitSharing;
+use App\Models\Tenant;
+use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +22,14 @@ class MarkProfitSharingPaid
             || (int) $user->tenant_id !== $tenantId || ! $user->hasPermissionTo('investors.manage')) {
             throw new DomainException('Hanya pemilik tenant yang dapat membayar bagi hasil investor.');
         }
+
+        $tenant = Tenant::query()->find($tenantId);
+
+        if ($tenant === null) {
+            throw new DomainException('Tenant tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         return DB::transaction(function () use ($tenantId, $profitSharingId, $paymentAccountCode, $user): ProfitSharing {
             $sharing = ProfitSharing::withoutGlobalScope('tenant')

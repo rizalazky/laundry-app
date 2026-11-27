@@ -6,6 +6,8 @@ use App\Actions\Accounting\GenerateFinancialReports;
 use App\Models\Branch;
 use App\Models\Investor;
 use App\Models\ProfitSharing;
+use App\Models\Tenant;
+use App\Services\EntitlementService;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonImmutable;
@@ -28,6 +30,14 @@ class GenerateProfitSharings
             || (int) $user->tenant_id !== $tenantId || ! $user->hasPermissionTo('investors.manage')) {
             throw new DomainException('Hanya pemilik tenant yang dapat membuat perhitungan bagi hasil.');
         }
+
+        $tenant = Tenant::query()->find($tenantId);
+
+        if ($tenant === null) {
+            throw new DomainException('Tenant tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $periodMonth)) {
             throw new DomainException('Periode harus menggunakan format YYYY-MM.');
