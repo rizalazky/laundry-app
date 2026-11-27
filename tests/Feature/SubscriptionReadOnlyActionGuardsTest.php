@@ -69,6 +69,8 @@ class SubscriptionReadOnlyActionGuardsTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $referred = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $this->actingAs($owner);
         $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, $referred->id, 10);
         $payout = $referral->payouts()->create([
             'tenant_id' => $tenant->id,
@@ -76,7 +78,6 @@ class SubscriptionReadOnlyActionGuardsTest extends TestCase
             'payout_date' => now()->toDateString(),
             'status' => AffiliatePayout::STATUS_PENDING,
         ]);
-        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $tenant->forceFill(['subscription_ends_at' => now()->subDay()])->save();
 
         $this->expectException(AuthorizationException::class);
