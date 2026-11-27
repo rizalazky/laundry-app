@@ -41,6 +41,14 @@ class ManualJournal extends Page
             && $user->hasPermissionTo('finance.manage');
     }
 
+    /**
+     * Re-check page access for every subsequent Livewire request.
+     */
+    public function hydrate(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
     public function mount(): void
     {
         $this->journalDate = now()->format('Y-m-d\TH:i');
