@@ -47,6 +47,14 @@ class GeneralSettings extends Page
             && $user->tenant !== null;
     }
 
+    /**
+     * Re-check page access for every subsequent Livewire request.
+     */
+    public function hydrate(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
     public function mount(): void
     {
         abort_unless(static::canAccess(), 403);
