@@ -205,7 +205,7 @@ class SubscriptionEntitlementTest extends TestCase
         $model->setAttribute('tenant_id', $otherTenant->id);
 
         $this->expectException(AuthorizationException::class);
-        app(TenantWriteGuard::class)->assertModelWriteAllowed($tenant);
+        app(TenantWriteGuard::class)->assertModelWriteAllowed($model);
     }
 
     public function test_tenant_write_guard_rejects_branch_references_from_another_tenant(): void
@@ -221,7 +221,7 @@ class SubscriptionEntitlementTest extends TestCase
         $model->setAttribute('branch_id', $foreignBranch->id);
 
         $this->expectException(AuthorizationException::class);
-        app(TenantWriteGuard::class)->assertModelWriteAllowed($tenant);
+        app(TenantWriteGuard::class)->assertModelWriteAllowed($model);
     }
 
     private function subscription(Tenant $tenant, string $status, array $attributes = []): Subscription
