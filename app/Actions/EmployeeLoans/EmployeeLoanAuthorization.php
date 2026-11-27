@@ -2,7 +2,9 @@
 
 namespace App\Actions\EmployeeLoans;
 
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 
@@ -26,6 +28,14 @@ class EmployeeLoanAuthorization
         ) {
             throw new DomainException('Anda tidak memiliki izin untuk mengelola kasbon karyawan.');
         }
+
+        $tenant = Tenant::query()->find($actor->tenant_id);
+
+        if ($tenant === null) {
+            throw new DomainException('Tenant kasbon tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         return $actor;
     }
