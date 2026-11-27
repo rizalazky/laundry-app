@@ -90,6 +90,25 @@ class BranchWorkshopMappingTest extends TestCase
         ]);
     }
 
+
+    public function test_authenticated_owner_can_update_workshop_mapping_within_own_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $outlet = $this->createBranch($tenant, 'OWN-OUT', false);
+        $workshop = $this->createBranch($tenant, 'OWN-WSH', true);
+
+        $this->actingAs($owner);
+
+        $outlet->syncWorkshops([$workshop->id]);
+
+        $this->assertDatabaseHas('outlet_workshops', [
+            'tenant_id' => $tenant->id,
+            'outlet_id' => $outlet->id,
+            'workshop_id' => $workshop->id,
+        ]);
+    }
+
     public function test_authenticated_owner_cannot_change_workshop_mapping_for_a_foreign_tenant_branch(): void
     {
         $tenant = Tenant::factory()->create();
