@@ -47,7 +47,8 @@ class InvestorResource extends Resource
 
     public static function canEdit($record): bool
     {
-        return static::canCreate();
+        return static::canCreate()
+            && (int) $record->tenant_id === (int) Auth::user()?->tenant_id;
     }
 
     public static function getEloquentQuery(): Builder
