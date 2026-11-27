@@ -4,6 +4,10 @@ namespace App\Actions\Affiliates;
 
 use App\Models\AffiliateReferral;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Services\EntitlementService;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -11,6 +15,24 @@ class RegisterAffiliateReferral
 {
     public function handle(int $referrerTenantId, int $referredTenantId, float $commissionRate): AffiliateReferral
     {
+        $authenticatedUser = Auth::user();
+        $actor = $authenticatedUser instanceof User
+            ? User::query()->find($authenticatedUser->getKey())
+            : null;
+
+        if (
+            $actor === null
+            || ! $actor->is_active
+            || $actor->role !== 'tenant_owner'
+            || (int) $actor->tenant_id !== $referrerTenantId
+            || ! $actor->hasPermissionTo('affiliates.manage')
+        ) {
+            throw new AuthorizationException('Hanya owner tenant yang berhak mendaftarkan referral pada tenant sendiri.');
+        }
+
+        $referrer = Tenant::query()->findOrFail($referrerTenantId);
+        app(EntitlementService::class)->assertCanWrite($referrer);
+
         if ($referrerTenantId === $referredTenantId) {
             throw ValidationException::withMessages([
                 'referred_tenant_id' => 'Tenant tidak dapat menjadi referral untuk dirinya sendiri.',

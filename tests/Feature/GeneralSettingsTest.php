@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Filament\App\Pages\GeneralSettings;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,6 +56,33 @@ class GeneralSettingsTest extends TestCase
         $this->assertSame('LAUNDRY01', $tenant->getInvoicePrefix());
         $this->assertSame(36, $tenant->getDefaultEstimationHours());
         $this->assertFalse($tenant->allowsPartialPayment());
+    }
+
+    public function test_read_only_tenant_owner_cannot_update_general_settings(): void
+    {
+        $tenant = $this->createTenant('settings-read-only');
+        $owner = $this->createUser($tenant, 'tenant_owner');
+        $plan = Plan::query()->create([
+            'code' => 'settings-read-only-plan',
+            'name' => 'Read Only Plan',
+            'monthly_price' => 99000,
+            'is_active' => true,
+        ]);
+
+        Subscription::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'plan_id' => $plan->id,
+            'status' => 'trialing',
+            'trial_ends_at' => now()->subDay(),
+        ]);
+
+        Livewire::actingAs($owner)
+            ->test(GeneralSettings::class)
+            ->set('timezone', 'Asia/Makassar')
+            ->call('save')
+            ->assertForbidden();
+
+        $this->assertSame('Asia/Jakarta', $tenant->fresh()->getTimezone());
     }
 
     public function test_general_settings_are_isolated_between_tenants(): void

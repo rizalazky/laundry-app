@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\AffiliateReferral;
 use App\Models\Branch;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +40,19 @@ class TenantWriteGuard
 
     private function resolveTenantId(Model $model): ?int
     {
+        // Tenant records use their primary key as the tenant identity rather
+        // than a tenant_id column. Without this case, direct Tenant::save()
+        // operations bypass the subscription write guard entirely.
+        if ($model instanceof Tenant) {
+            return $model->exists ? (int) $model->getKey() : 0;
+        }
+
+        // Affiliate referrals belong to the tenant that owns the referral
+        // relationship; the model uses referrer_tenant_id instead of tenant_id.
+        if ($model instanceof AffiliateReferral) {
+            return (int) ($model->getAttribute('referrer_tenant_id') ?? 0);
+        }
+
         $tenantId = $model->getAttribute('tenant_id');
 
         $resolvedTenantId = $tenantId === null ? null : (int) $tenantId;
