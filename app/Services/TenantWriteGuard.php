@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Branch;
+use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
@@ -38,6 +39,13 @@ class TenantWriteGuard
 
     private function resolveTenantId(Model $model): ?int
     {
+        // Tenant records use their primary key as the tenant identity rather
+        // than a tenant_id column. Without this case, direct Tenant::save()
+        // operations bypass the subscription write guard entirely.
+        if ($model instanceof Tenant) {
+            return $model->exists ? (int) $model->getKey() : null;
+        }
+
         $tenantId = $model->getAttribute('tenant_id');
 
         $resolvedTenantId = $tenantId === null ? null : (int) $tenantId;
