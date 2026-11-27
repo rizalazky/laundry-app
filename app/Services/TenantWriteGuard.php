@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AffiliateReferral;
 use App\Models\Branch;
 use App\Models\Tenant;
 use App\Models\User;
@@ -44,6 +45,12 @@ class TenantWriteGuard
         // operations bypass the subscription write guard entirely.
         if ($model instanceof Tenant) {
             return $model->exists ? (int) $model->getKey() : 0;
+        }
+
+        // Affiliate referrals belong to the tenant that owns the referral
+        // relationship; the model uses referrer_tenant_id instead of tenant_id.
+        if ($model instanceof AffiliateReferral) {
+            return (int) ($model->getAttribute('referrer_tenant_id') ?? 0);
         }
 
         $tenantId = $model->getAttribute('tenant_id');
