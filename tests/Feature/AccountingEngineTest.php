@@ -238,7 +238,7 @@ class AccountingEngineTest extends TestCase
         $this->assertDatabaseCount('journal_entries', 0);
     }
 
-    public function test_authenticated_journal_caller_cannot_forge_a_foreign_creator_id(): void
+    public function test_authenticated_journal_caller_cannot_attribute_a_foreign_tenant_creator(): void
     {
         $tenant = Tenant::factory()->create();
         $foreignTenant = Tenant::factory()->create();
@@ -266,7 +266,7 @@ class AccountingEngineTest extends TestCase
             $this->fail('An authenticated caller must not attribute a journal to another user.');
         } catch (DomainException $exception) {
             $this->assertSame(
-                'Pengguna pencatat jurnal harus sesuai dengan akun yang sedang login.',
+                'Pengguna pencatat jurnal tidak ditemukan atau bukan milik tenant ini.',
                 $exception->getMessage(),
             );
         }
