@@ -90,7 +90,6 @@ class BranchWorkshopMappingTest extends TestCase
         ]);
     }
 
-
     public function test_authenticated_owner_can_update_workshop_mapping_within_own_tenant(): void
     {
         $tenant = Tenant::factory()->create();
