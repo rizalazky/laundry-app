@@ -3,6 +3,7 @@
 namespace App\Filament\App\Resources\RaffleTickets\Tables;
 
 use App\Models\RaffleTicket;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
@@ -30,7 +31,18 @@ class RaffleTicketsTable
                 ->requiresConfirmation()
                 ->visible(fn (): bool => auth()->user()?->hasPermissionTo('raffles.manage') ?? false)
                 ->action(function (RaffleTicket $record): void {
-                    $record->update(['is_winner' => ! $record->is_winner]);
+                    $user = auth()->user();
+
+                    abort_unless(
+                        $user instanceof User && $user->hasPermissionTo('raffles.manage'),
+                        403,
+                    );
+
+                    $ticket = RaffleTicket::query()
+                        ->where('tenant_id', $user->tenant_id)
+                        ->findOrFail($record->getKey());
+
+                    $ticket->update(['is_winner' => ! $ticket->is_winner]);
                     Notification::make()->title('Status pemenang tiket diperbarui.')->success()->send();
                 }),
         ]);
