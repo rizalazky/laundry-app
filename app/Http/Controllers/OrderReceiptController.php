@@ -23,9 +23,9 @@ class OrderReceiptController extends Controller
         ]);
 
         abort_unless(
-            $order->tenant?->hasActiveSubscription(),
+            $order->tenant?->is_active,
             403,
-            'Masa aktif langganan bisnis Anda telah berakhir.',
+            'Akun bisnis Anda sedang dinonaktifkan.',
         );
 
         return view('orders.receipt', [
