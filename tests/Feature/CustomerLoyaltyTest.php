@@ -178,4 +178,41 @@ class CustomerLoyaltyTest extends TestCase
 
         $this->assertDatabaseCount('point_logs', 0);
     }
+
+    public function test_loyalty_actions_recheck_persisted_actor_active_state(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $customer = $tenant->customers()->create([
+            'name' => 'Pelanggan',
+            'loyalty_points' => 100,
+        ]);
+        $reward = PointReward::query()->create([
+            'tenant_id' => $tenant->id,
+            'reward_name' => 'Voucher',
+            'points_required' => 50,
+            'stock' => 2,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($owner);
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        try {
+            app(AwardCustomerPoints::class)->handle($owner, $customer->id, 10);
+            $this->fail('A stale actor instance must not award points after deactivation.');
+        } catch (AuthorizationException) {
+            $this->assertSame(100, (int) $customer->fresh()->loyalty_points);
+        }
+
+        try {
+            app(RedeemCustomerReward::class)->handle($owner, $customer->id, $reward->id);
+            $this->fail('A stale actor instance must not redeem rewards after deactivation.');
+        } catch (AuthorizationException) {
+            $this->assertSame(100, (int) $customer->fresh()->loyalty_points);
+            $this->assertSame('2.00', $reward->fresh()->stock);
+        }
+
+        $this->assertDatabaseCount('point_logs', 0);
+    }
 }
