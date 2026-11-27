@@ -41,6 +41,14 @@ class BusinessPerformance extends Page
             && $user->hasPermissionTo('reports.view');
     }
 
+    /**
+     * Re-check page access for every subsequent Livewire request.
+     */
+    public function hydrate(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
     public function mount(): void
     {
         $today = CarbonImmutable::today();
