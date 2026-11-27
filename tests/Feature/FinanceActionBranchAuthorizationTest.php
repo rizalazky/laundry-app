@@ -121,4 +121,78 @@ class FinanceActionBranchAuthorizationTest extends TestCase
             'is_active' => true,
         ]);
     }
+
+    public function test_authenticated_expense_action_cannot_spoof_another_same_tenant_creator(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $otherUser = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $expenseAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '5400')
+            ->firstOrFail();
+
+        $this->actingAs($owner);
+
+        try {
+            app(RecordExpense::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                expenseAccountId: $expenseAccount->id,
+                paymentSourceType: 'cash',
+                bankAccountId: null,
+                amount: '25000',
+                description: 'Forged expense creator',
+                spentAt: now(),
+                createdBy: $otherUser->id,
+            );
+
+            $this->fail('An authenticated expense action must not attribute a transaction to another user.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Pengguna pencatat pengeluaran harus sesuai dengan akun yang sedang login.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('expenses', 0);
+        $this->assertDatabaseCount('journals', 0);
+    }
+
+    public function test_authenticated_settlement_action_cannot_spoof_another_same_tenant_creator(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $otherUser = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $bank = $this->bankAccount($tenant);
+
+        $this->actingAs($owner);
+
+        try {
+            app(RecordFinancialSettlement::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                sourceType: CashSettlement::SOURCE_OUTLET_CASH,
+                targetBankId: $bank->id,
+                grossAmount: '100000',
+                mdrAmount: '0',
+                netAmount: '100000',
+                settledAt: now(),
+                referenceNumber: 'FORGED-SETTLEMENT-CREATOR-001',
+                createdBy: $otherUser->id,
+            );
+
+            $this->fail('An authenticated settlement action must not attribute a transaction to another user.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Pengguna pencatat settlement harus sesuai dengan akun yang sedang login.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('cash_settlements', 0);
+        $this->assertDatabaseCount('journals', 0);
+    }
 }
