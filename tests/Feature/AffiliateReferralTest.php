@@ -48,6 +48,7 @@ class AffiliateReferralTest extends TestCase
         $otherTenant = Tenant::factory()->create();
         $referred = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $otherOwner = User::factory()->create(['tenant_id' => $otherTenant->id, 'role' => 'tenant_owner', 'is_active' => true]);
         $this->actingAs($owner);
         $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, $referred->id, 10);
         $payout = $referral->payouts()->create([
@@ -56,8 +57,6 @@ class AffiliateReferralTest extends TestCase
             'payout_date' => now()->toDateString(),
             'status' => AffiliatePayout::STATUS_PENDING,
         ]);
-        $otherOwner = User::factory()->create(['tenant_id' => $otherTenant->id, 'role' => 'tenant_owner', 'is_active' => true]);
-
         $this->actingAs($otherOwner);
         $this->expectException(ValidationException::class);
         app(UpdateAffiliatePayoutStatus::class)->handle($otherOwner, $payout->id, AffiliatePayout::STATUS_PAID);
