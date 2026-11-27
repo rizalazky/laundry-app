@@ -4,7 +4,9 @@ namespace App\Actions\CourierTasks;
 
 use App\Enums\CourierTaskStatus;
 use App\Models\CourierTask;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +24,14 @@ class UpdateCourierTaskStatus
         if ($actor === null || ! $actor->is_active || (int) $actor->tenant_id !== (int) $task->tenant_id) {
             throw new DomainException('Anda tidak memiliki akses ke tugas kurir ini.');
         }
+
+        $tenant = Tenant::query()->find($actor->tenant_id);
+
+        if ($tenant === null) {
+            throw new DomainException('Tenant tugas kurir tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         return DB::transaction(function () use ($task, $to, $actor): CourierTask {
             $locked = CourierTask::query()->withoutGlobalScope('tenant')

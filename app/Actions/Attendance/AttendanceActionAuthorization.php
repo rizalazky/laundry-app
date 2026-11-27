@@ -3,7 +3,9 @@
 namespace App\Actions\Attendance;
 
 use App\Models\Branch;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,6 +27,14 @@ class AttendanceActionAuthorization
         if ($actor === null || ! $actor->is_active || $actor->tenant_id === null) {
             throw new DomainException('Akun tidak aktif atau tidak memiliki tenant.');
         }
+
+        $tenant = Tenant::query()->find($actor->tenant_id);
+
+        if ($tenant === null) {
+            throw new DomainException('Tenant presensi tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         $authorizedBranch = Branch::query()
             ->withoutGlobalScope('tenant')
