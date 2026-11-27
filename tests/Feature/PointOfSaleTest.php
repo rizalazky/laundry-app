@@ -259,6 +259,48 @@ class PointOfSaleTest extends TestCase
         ]);
     }
 
+    public function test_pos_rechecks_order_create_permission_before_quick_add_customer_mutation(): void
+    {
+        $this->actAsCashier();
+
+        $page = Livewire::test(PointOfSale::class);
+
+        RolePermission::query()
+            ->where('tenant_id', $this->tenant->id)
+            ->where('role', 'cashier')
+            ->whereHas('permission', fn ($query) => $query->where('slug', 'orders.create'))
+            ->delete();
+
+        $page->call('createCustomerOption', [
+            'name' => 'Unauthorized Walk In',
+            'phone' => '081299988877',
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('customers', [
+            'tenant_id' => $this->tenant->id,
+            'name' => 'Unauthorized Walk In',
+        ]);
+    }
+
+    public function test_pos_rechecks_order_create_permission_before_creating_an_order(): void
+    {
+        $this->actAsCashier();
+
+        $page = Livewire::test(PointOfSale::class)
+            ->call('selectCustomer', $this->customer->id)
+            ->call('addToCart', $this->service->id);
+
+        RolePermission::query()
+            ->where('tenant_id', $this->tenant->id)
+            ->where('role', 'cashier')
+            ->whereHas('permission', fn ($query) => $query->where('slug', 'orders.create'))
+            ->delete();
+
+        $page->call('createOrder')->assertForbidden();
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
     public function test_cashier_cannot_add_services_before_selecting_a_customer(): void
     {
         $this->actAsCashier();

@@ -258,6 +258,8 @@ class PointOfSale extends Page implements HasForms
 
     public function createCustomerOption(array $data): int
     {
+        abort_unless(static::canAccess(), 403);
+
         $data = validator($data, [
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:25'],
@@ -541,6 +543,8 @@ class PointOfSale extends Page implements HasForms
 
     public function createOrder(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->validate([
             'customerId' => ['required', 'integer'],
             'cart' => ['required', 'array', 'min:1'],
