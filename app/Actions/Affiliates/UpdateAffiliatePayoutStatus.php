@@ -3,7 +3,10 @@
 namespace App\Actions\Affiliates;
 
 use App\Models\AffiliatePayout;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -26,6 +29,14 @@ class UpdateAffiliatePayoutStatus
                 'payout' => 'Kamu tidak memiliki akses untuk mengelola payout afiliasi.',
             ]);
         }
+
+        $tenant = Tenant::query()->find($actor->tenant_id);
+
+        if ($tenant === null) {
+            throw new AuthorizationException('Tenant payout afiliasi tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         if (! in_array($nextStatus, [AffiliatePayout::STATUS_PAID, AffiliatePayout::STATUS_CANCELLED], true)) {
             throw ValidationException::withMessages([
