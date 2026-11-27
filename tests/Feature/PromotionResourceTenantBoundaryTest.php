@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Filament\App\Resources\Promos\PromoResource;
+use App\Filament\App\Resources\Raffles\RaffleResource;
+use App\Filament\App\Resources\Vouchers\VoucherResource;
 use App\Models\Branch;
 use App\Models\Promo;
 use App\Models\Raffle;
@@ -43,8 +46,25 @@ class PromotionResourceTenantBoundaryTest extends TestCase
             'status' => Raffle::STATUS_DRAFT,
         ]);
 
-        $this->actingAs($owner)
-            ->get('/app/'.$branch->code.'/promos/'.$foreignPromo->id.'/edit')
+        $this->actingAs($owner);
+
+        $this->assertFalse(PromoResource::canEdit($foreignPromo));
+        $this->assertFalse(VoucherResource::canEdit($foreignVoucher));
+        $this->assertFalse(VoucherResource::canDelete($foreignVoucher));
+        $this->assertFalse(RaffleResource::canEdit($foreignRaffle));
+        $this->assertFalse(RaffleResource::canDelete($foreignRaffle));
+
+        $this->assertFalse(PromoResource::canEdit(
+            Promo::query()->create([
+                'tenant_id' => $foreignTenant->id,
+                'name' => 'Promo Tanpa Voucher',
+                'category' => Promo::CATEGORY_GENERAL,
+                'reward_type' => Promo::REWARD_FIXED,
+                'reward_value' => 1000,
+            ])
+        ));
+
+        $this->get('/app/'.$branch->code.'/promos/'.$foreignPromo->id.'/edit')
             ->assertNotFound();
 
         $this->actingAs($owner)
