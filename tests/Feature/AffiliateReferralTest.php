@@ -22,9 +22,9 @@ class AffiliateReferralTest extends TestCase
     public function test_pending_payout_can_be_marked_paid_once(): void
     {
         $tenant = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
-        $referred = Tenant::factory()->create();
         $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, $referred->id, 10);
         $referral->update(['status' => AffiliateReferral::STATUS_APPROVED]);
         $payout = $referral->payouts()->create([
@@ -46,9 +46,10 @@ class AffiliateReferralTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $otherTenant = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
-        $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, Tenant::factory()->create()->id, 10);
+        $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, $referred->id, 10);
         $payout = $referral->payouts()->create([
             'tenant_id' => $tenant->id,
             'amount' => '50000.00',
@@ -65,9 +66,10 @@ class AffiliateReferralTest extends TestCase
     public function test_cashier_cannot_forge_tenant_owner_role_to_update_affiliate_payout(): void
     {
         $tenant = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
-        $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, Tenant::factory()->create()->id, 10);
+        $referral = app(RegisterAffiliateReferral::class)->handle($tenant->id, $referred->id, 10);
         $payout = $referral->payouts()->create([
             'tenant_id' => $tenant->id,
             'amount' => '50000.00',
@@ -122,6 +124,7 @@ class AffiliateReferralTest extends TestCase
     public function test_referral_registration_requires_the_authenticated_owner_of_the_referrer_tenant(): void
     {
         $tenant = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $otherTenant = Tenant::factory()->create();
         $otherOwner = User::factory()->for($otherTenant)->withRole('tenant_owner')->create();
         $this->actingAs($otherOwner);
@@ -130,7 +133,7 @@ class AffiliateReferralTest extends TestCase
 
         app(RegisterAffiliateReferral::class)->handle(
             $tenant->id,
-            Tenant::factory()->create()->id,
+            $referred->id,
             10,
         );
     }
@@ -138,6 +141,7 @@ class AffiliateReferralTest extends TestCase
     public function test_read_only_tenant_cannot_register_an_affiliate_referral(): void
     {
         $tenant = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $plan = Plan::query()->create([
             'code' => 'affiliate-read-only',
@@ -157,7 +161,7 @@ class AffiliateReferralTest extends TestCase
 
         app(RegisterAffiliateReferral::class)->handle(
             $tenant->id,
-            Tenant::factory()->create()->id,
+            $referred->id,
             10,
         );
     }
@@ -165,9 +169,9 @@ class AffiliateReferralTest extends TestCase
     public function test_tenant_can_be_registered_as_an_affiliate_referral(): void
     {
         $referrer = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $owner = User::factory()->for($referrer)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
-        $referred = Tenant::factory()->create();
 
         $referral = app(RegisterAffiliateReferral::class)->handle(
             $referrer->id,
@@ -188,9 +192,9 @@ class AffiliateReferralTest extends TestCase
     public function test_referral_rejects_self_referral_and_invalid_commission_rate(): void
     {
         $tenant = Tenant::factory()->create();
+        $other = Tenant::factory()->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
-        $other = Tenant::factory()->create();
 
         try {
             app(RegisterAffiliateReferral::class)->handle($tenant->id, $tenant->id, 10);
@@ -212,9 +216,9 @@ class AffiliateReferralTest extends TestCase
     public function test_referred_tenant_can_only_be_attributed_once(): void
     {
         $firstReferrer = Tenant::factory()->create();
+        $referred = Tenant::factory()->create();
         $owner = User::factory()->for($firstReferrer)->withRole('tenant_owner')->create();
         $this->actingAs($owner);
-        $referred = Tenant::factory()->create();
         $action = app(RegisterAffiliateReferral::class);
 
         $action->handle($firstReferrer->id, $referred->id, 10);
