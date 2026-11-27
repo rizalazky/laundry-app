@@ -54,15 +54,16 @@ class PromotionResourceTenantBoundaryTest extends TestCase
         $this->assertFalse(RaffleResource::canEdit($foreignRaffle));
         $this->assertFalse(RaffleResource::canDelete($foreignRaffle));
 
-        $this->assertFalse(PromoResource::canEdit(
-            Promo::query()->create([
-                'tenant_id' => $foreignTenant->id,
-                'name' => 'Promo Tanpa Voucher',
-                'category' => Promo::CATEGORY_GENERAL,
-                'reward_type' => Promo::REWARD_FIXED,
-                'reward_value' => 1000,
-            ])
-        ));
+        $foreignPromoWithoutVouchers = Promo::query()->create([
+            'tenant_id' => $foreignTenant->id,
+            'name' => 'Promo Tanpa Voucher',
+            'category' => Promo::CATEGORY_GENERAL,
+            'reward_type' => Promo::REWARD_FIXED,
+            'reward_value' => 1000,
+        ]);
+
+        $this->assertFalse(PromoResource::canEdit($foreignPromoWithoutVouchers));
+        $this->assertFalse(PromoResource::canDelete($foreignPromoWithoutVouchers));
 
         $this->get('/app/'.$branch->code.'/promos/'.$foreignPromo->id.'/edit')
             ->assertNotFound();
