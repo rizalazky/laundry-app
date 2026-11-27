@@ -3,7 +3,9 @@
 namespace App\Actions\Payroll;
 
 use App\Models\Payroll;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
 
@@ -27,6 +29,14 @@ class PayrollAuthorization
         ) {
             throw new DomainException('Anda tidak memiliki izin untuk mengelola payroll.');
         }
+
+        $tenant = Tenant::query()->find($actor->tenant_id);
+
+        if ($tenant === null) {
+            throw new DomainException('Tenant payroll tidak ditemukan.');
+        }
+
+        app(EntitlementService::class)->assertCanWrite($tenant);
 
         return $actor;
     }
