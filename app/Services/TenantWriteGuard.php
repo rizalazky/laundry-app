@@ -43,7 +43,7 @@ class TenantWriteGuard
         // than a tenant_id column. Without this case, direct Tenant::save()
         // operations bypass the subscription write guard entirely.
         if ($model instanceof Tenant) {
-            return $model->exists ? (int) $model->getKey() : null;
+            return $model->exists ? (int) $model->getKey() : 0;
         }
 
         $tenantId = $model->getAttribute('tenant_id');
