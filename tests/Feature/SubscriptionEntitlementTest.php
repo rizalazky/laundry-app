@@ -11,6 +11,8 @@ use App\Models\User;
 use App\Policies\BranchPolicy;
 use App\Policies\UserPolicy;
 use App\Services\EntitlementService;
+use App\Services\TenantWriteGuard;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
