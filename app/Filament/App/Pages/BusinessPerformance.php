@@ -4,6 +4,7 @@ namespace App\Filament\App\Pages;
 
 use App\Actions\Analytics\GetBusinessPerformanceAnalytics;
 use App\Models\Branch;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Filament\Facades\Filament;
@@ -34,9 +35,10 @@ class BusinessPerformance extends Page
 
     public static function canAccess(): bool
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
         return $user !== null
+            && $user->is_active
             && $user->tenant_id !== null
             && $user->hasPermissionTo('reports.view');
     }
@@ -67,8 +69,12 @@ class BusinessPerformance extends Page
     {
         abort_unless(static::canAccess(), 403);
 
+        $user = static::authenticatedActor();
+
+        abort_unless($user !== null, 403);
+
         return Branch::query()
-            ->where('tenant_id', Auth::user()?->tenant_id)
+            ->where('tenant_id', $user->tenant_id)
             ->where('is_active', true)
             ->where('is_workshop', false)
             ->orderBy('name')
@@ -98,7 +104,9 @@ class BusinessPerformance extends Page
                 return ['error' => 'Tanggal awal tidak boleh melewati tanggal akhir.'];
             }
 
-            $user = Auth::user();
+            $user = static::authenticatedActor();
+
+            abort_unless($user !== null, 403);
             $branchId = $user?->role === 'tenant_owner'
                 ? ($this->branchId === 'all' ? null : (int) $this->branchId)
                 : (int) (Filament::getTenant()?->getKey() ?? 0);
@@ -114,6 +122,15 @@ class BusinessPerformance extends Page
         } catch (\InvalidArgumentException) {
             return ['error' => 'Pilih tanggal laporan yang valid.'];
         }
+    }
+
+    private static function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
     }
 
     public function formatMoney(string|int|float|null $amount): string

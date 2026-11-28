@@ -51,6 +51,20 @@ class DashboardPermissionTest extends TestCase
         $this->assertTrue(Dashboard::canAccess());
     }
 
+
+    public function test_dashboard_access_is_denied_after_authenticated_user_is_deactivated(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $this->assertFalse(Dashboard::canAccess());
+    }
+
     private function grantPermission(Tenant $tenant, string $role, string $slug): void
     {
         $permission = Permission::query()->firstOrCreate(

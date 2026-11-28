@@ -244,6 +244,26 @@ class BusinessPerformanceAnalyticsTest extends TestCase
         ], $analytics['employees'][0]);
     }
 
+
+    public function test_analytics_rejects_a_stale_deactivated_authenticated_actor(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $this->expectException(DomainException::class);
+
+        app(GetBusinessPerformanceAnalytics::class)->handle(
+            $tenant->id,
+            CarbonImmutable::parse('2026-11-01'),
+            CarbonImmutable::parse('2026-11-30 23:59:59'),
+        );
+    }
+
     public function test_branch_manager_is_limited_to_assigned_branch_analytics(): void
     {
         $tenant = Tenant::factory()->create();
