@@ -148,7 +148,7 @@ class FinanceManagementTest extends TestCase
             );
 
             $this->fail('A deactivated owner must not create a journal using a stale Auth model.');
-        } catch (\\DomainException $exception) {
+        } catch (\DomainException $exception) {
             $this->assertSame(
                 'Akun pengguna tidak aktif atau tenant jurnal tidak sesuai dengan akun yang sedang login.',
                 $exception->getMessage(),
