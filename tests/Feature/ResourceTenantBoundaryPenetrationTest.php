@@ -192,6 +192,7 @@ class ResourceTenantBoundaryPenetrationTest extends TestCase
 
         $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
         $manager->branches()->attach($managedBranch);
+        $foreignManager = User::factory()->for($foreignTenant)->withRole('tenant_owner')->create();
 
         $localAccount = $this->createAccount($tenant, 'EXP-9200', 'expense');
         $foreignAccount = $this->createAccount($foreignTenant, 'EXP-9200', 'expense');
@@ -200,11 +201,11 @@ class ResourceTenantBoundaryPenetrationTest extends TestCase
 
         $managedExpense = $this->createExpense($tenant, $managedBranch, $localAccount, $manager);
         $this->createExpense($tenant, $unmanagedBranch, $localAccount, $manager);
-        $this->createExpense($foreignTenant, $foreignBranch, $foreignAccount, $manager);
+        $this->createExpense($foreignTenant, $foreignBranch, $foreignAccount, $foreignManager);
 
         $managedSettlement = $this->createSettlement($tenant, $managedBranch, $localBank, $manager);
         $this->createSettlement($tenant, $unmanagedBranch, $localBank, $manager);
-        $this->createSettlement($foreignTenant, $foreignBranch, $foreignBank, $manager);
+        $this->createSettlement($foreignTenant, $foreignBranch, $foreignBank, $foreignManager);
 
         $this->grantPermission($tenant, 'branch_manager', 'finance.view');
         $this->actingAs($manager);
