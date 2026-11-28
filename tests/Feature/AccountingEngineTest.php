@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Journal;
 use App\Models\Tenant;
+use App\Models\User;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -200,5 +201,111 @@ class AccountingEngineTest extends TestCase
                 ['account_code' => '1100', 'debit' => '0', 'credit' => '0'],
             ],
         );
+    }
+
+    public function test_journal_rejects_a_branch_from_another_tenant_when_called_directly(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $foreignBranch = Branch::factory()->for($foreignTenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        try {
+            app(CreateJournal::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $foreignBranch->id,
+                journalDate: now(),
+                referenceType: null,
+                referenceId: null,
+                description: 'Cross-tenant branch journal',
+                entries: [
+                    ['account_code' => '1000', 'debit' => '10000', 'credit' => '0'],
+                    ['account_code' => '3000', 'debit' => '0', 'credit' => '10000'],
+                ],
+            );
+
+            $this->fail('A journal must not reference a branch owned by another tenant.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Cabang jurnal tidak ditemukan atau bukan milik tenant ini.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('journals', 0);
+        $this->assertDatabaseCount('journal_entries', 0);
+    }
+
+    public function test_authenticated_journal_caller_cannot_attribute_a_foreign_tenant_creator(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $foreignUser = User::factory()->for($foreignTenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        try {
+            app(CreateJournal::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                journalDate: now(),
+                referenceType: null,
+                referenceId: null,
+                description: 'Forged journal creator',
+                entries: [
+                    ['account_code' => '1000', 'debit' => '10000', 'credit' => '0'],
+                    ['account_code' => '3000', 'debit' => '0', 'credit' => '10000'],
+                ],
+                createdBy: $foreignUser->id,
+            );
+
+            $this->fail('An authenticated caller must not attribute a journal to another user.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Pengguna pencatat jurnal tidak ditemukan atau bukan milik tenant ini.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('journals', 0);
+        $this->assertDatabaseCount('journal_entries', 0);
+    }
+
+    public function test_unauthenticated_internal_journal_can_only_reference_a_creator_from_its_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $foreignUser = User::factory()->for($foreignTenant)->withRole('tenant_owner')->create();
+
+        try {
+            app(CreateJournal::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                journalDate: now(),
+                referenceType: null,
+                referenceId: null,
+                description: 'Foreign internal creator',
+                entries: [
+                    ['account_code' => '1000', 'debit' => '10000', 'credit' => '0'],
+                    ['account_code' => '3000', 'debit' => '0', 'credit' => '10000'],
+                ],
+                createdBy: $foreignUser->id,
+            );
+
+            $this->fail('An internal journal must not reference a creator from another tenant.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Pengguna pencatat jurnal tidak ditemukan atau bukan milik tenant ini.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('journals', 0);
+        $this->assertDatabaseCount('journal_entries', 0);
     }
 }

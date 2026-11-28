@@ -2,9 +2,11 @@
 
 namespace App\Actions\Accounting;
 
+use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Journal;
 use App\Models\JournalEntry;
+use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\Exception\NumberFormatException;
 use Brick\Math\Exception\RoundingNecessaryException;
@@ -62,10 +64,16 @@ class CreateJournal
             throw new DomainException('Jurnal berpasangan minimal memiliki dua baris.');
         }
 
-        $authenticatedTenantId = Auth::user()?->tenant_id;
+        $authenticatedUser = Auth::user();
 
-        if ($authenticatedTenantId !== null && (int) $authenticatedTenantId !== $tenantId) {
-            throw new DomainException('Tenant jurnal tidak sesuai dengan tenant pengguna.');
+        if ($authenticatedUser !== null) {
+            if ((int) $authenticatedUser->tenant_id !== $tenantId) {
+                throw new DomainException('Tenant jurnal tidak sesuai dengan tenant pengguna.');
+            }
+
+            // Default authenticated writes to the current actor while preserving
+            // same-tenant source actors for automated posting retries.
+            $createdBy ??= (int) $authenticatedUser->getKey();
         }
 
         $normalizedEntries = [];
@@ -122,6 +130,20 @@ class CreateJournal
                 $normalizedEntries,
                 $createdBy,
             ): Journal {
+                if ($branchId !== null && ! Branch::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->whereKey($branchId)
+                    ->exists()) {
+                    throw new DomainException('Cabang jurnal tidak ditemukan atau bukan milik tenant ini.');
+                }
+
+                if ($createdBy !== null && ! User::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenantId)
+                    ->whereKey($createdBy)
+                    ->exists()) {
+                    throw new DomainException('Pengguna pencatat jurnal tidak ditemukan atau bukan milik tenant ini.');
+                }
+
                 $accounts = ChartOfAccount::withoutGlobalScope('tenant')
                     ->where('tenant_id', $tenantId)
                     ->where('is_active', true)
