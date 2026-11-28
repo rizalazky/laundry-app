@@ -376,7 +376,7 @@ class StockMovementTest extends TestCase
             'item_category' => 'raw_material',
         ]);
 
-        $this->expectException(\DomainException::class);
+        $this->expectException(\\DomainException::class);
 
         app(RecordStockMovement::class)->handle(
             $otherBranch,
@@ -386,7 +386,6 @@ class StockMovementTest extends TestCase
             '1',
         );
     }
-
 
     public function test_stock_ledger_reconciles_sequential_movements_and_keeps_branch_balances_independent(): void
     {
@@ -454,6 +453,7 @@ class StockMovementTest extends TestCase
         );
 
         $otherTenant = Tenant::factory()->create();
+        $otherOwner = User::factory()->for($otherTenant)->withRole('tenant_owner')->create();
         $otherBranch = Branch::factory()->for($otherTenant)->create();
         $otherUnit = InventoryUnit::query()->create([
             'tenant_id' => $otherTenant->id,
