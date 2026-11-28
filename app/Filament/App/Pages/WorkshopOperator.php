@@ -48,7 +48,10 @@ class WorkshopOperator extends Page
 
     public static function canAccess(): bool
     {
-        $user = Auth::user();
+        $authenticatedUserId = Auth::id();
+        $user = $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
 
         return $user instanceof User
             && $user->is_active
