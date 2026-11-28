@@ -84,7 +84,7 @@ class ViewOrder extends ViewRecord
                     ->label('Kurir')
                     ->options(fn (Order $record): array => User::query()
                         ->where('tenant_id', $record->tenant_id)
-                        ->whereIn('role', ['cashier', 'operator'])
+                        ->where('role', 'courier')
                         ->where('is_active', true)
                         ->whereHas('branches', fn ($query) => $query
                             ->whereKey($record->branch_id)

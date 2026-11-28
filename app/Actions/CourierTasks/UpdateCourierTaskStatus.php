@@ -44,10 +44,11 @@ class UpdateCourierTaskStatus
                 throw new DomainException('Anda tidak memiliki akses ke tugas kurir ini.');
             }
 
-            $isAssignedCourier = (int) $locked->courier_id === (int) $actor->getKey();
+            $isAssignedCourier = $actor->role === 'courier'
+                && (int) $locked->courier_id === (int) $actor->getKey();
             $isManager = in_array($actor->role, ['tenant_owner', 'branch_manager'], true);
 
-            if ($isAssignedCourier && $actor->role === 'courier') {
+            if ($isAssignedCourier) {
                 $hasCurrentBranchAccess = $locked->order()
                     ->whereIn('branch_id', $actor->branches()
                         ->where('branches.tenant_id', $actor->tenant_id)
