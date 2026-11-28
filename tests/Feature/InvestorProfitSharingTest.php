@@ -272,7 +272,7 @@ class InvestorProfitSharingTest extends TestCase
         try {
             app(GenerateProfitSharings::class)->handle($tenant->id, $branch->id, '2026-11');
             $this->fail('A deactivated owner must not generate profit sharings from a stale Auth model.');
-        } catch (\\DomainException $exception) {
+        } catch (\DomainException $exception) {
             $this->assertSame(
                 'Hanya pemilik tenant yang dapat membuat perhitungan bagi hasil.',
                 $exception->getMessage(),
@@ -282,7 +282,7 @@ class InvestorProfitSharingTest extends TestCase
         try {
             app(MarkProfitSharingPaid::class)->handle($tenant->id, $sharing->id, '1000');
             $this->fail('A deactivated owner must not pay profit sharings from a stale Auth model.');
-        } catch (\\DomainException $exception) {
+        } catch (\DomainException $exception) {
             $this->assertSame(
                 'Hanya pemilik tenant yang dapat membayar bagi hasil investor.',
                 $exception->getMessage(),
