@@ -1,16 +1,16 @@
 <?php
 
-namespace Tests\\Feature;
+namespace Tests\Feature;
 
-use App\\Models\\Branch;
-use App\\Models\\Customer;
-use App\\Models\\Order;
-use App\\Models\\Tenant;
-use App\\Models\\User;
-use Illuminate\\Database\\QueryException;
-use Illuminate\\Foundation\\Testing\\RefreshDatabase;
-use Illuminate\\Support\\Facades\\DB;
-use Tests\\TestCase;
+use App\Models\Branch;
+use App\Models\Customer;
+use App\Models\Order;
+use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
 
 class OperationalTenantIntegrityTest extends TestCase
 {
@@ -34,6 +34,18 @@ class OperationalTenantIntegrityTest extends TestCase
         $foreignOrder = Order::factory()->for($foreignBranch)->create(['customer_id' => $foreignCustomer->id]);
 
         $now = now();
+
+        $foreignScheduleId = DB::table('mass_invoice_schedules')->insertGetId([
+            'tenant_id' => $foreignTenant->id,
+            'name' => 'Jadwal foreign',
+            'frequency' => 'monthly',
+            'run_day' => 1,
+            'next_run_at' => $now->copy()->addMonth(),
+            'is_active' => true,
+            'created_by' => $foreignOwner->id,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
 
         $attendanceId = DB::table('attendances')->insertGetId([
             'tenant_id' => $tenant->id,
@@ -102,6 +114,22 @@ class OperationalTenantIntegrityTest extends TestCase
             'updated_at' => $now,
         ]);
 
+        $foreignMassInvoiceId = DB::table('mass_invoices')->insertGetId([
+            'tenant_id' => $foreignTenant->id,
+            'mass_invoice_schedule_id' => $foreignScheduleId,
+            'customer_id' => $foreignCustomer->id,
+            'invoice_no' => 'BULK-FOREIGN-'.$foreignTenant->id,
+            'billing_period_start' => $now->toDateString(),
+            'billing_period_end' => $now->copy()->addMonth()->toDateString(),
+            'total_amount' => 10000,
+            'status' => 'issued',
+            'trigger_type' => 'manual',
+            'generated_at' => $now,
+            'triggered_by' => $foreignOwner->id,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
         $massInvoiceItemId = DB::table('mass_invoice_items')->insertGetId([
             'tenant_id' => $tenant->id,
             'mass_invoice_id' => $massInvoiceId,
@@ -144,7 +172,7 @@ class OperationalTenantIntegrityTest extends TestCase
             'Mass invoice schedule accepted a customer from another tenant.',
         );
         $this->assertForeignKeyRejects(
-            fn () => DB::table('mass_invoice_schedule_customer')->where('id', $pivotId)->update(['mass_invoice_schedule_id' => 999999]),
+            fn () => DB::table('mass_invoice_schedule_customer')->where('id', $pivotId)->update(['mass_invoice_schedule_id' => $foreignScheduleId]),
             'Mass invoice schedule pivot accepted an unrelated schedule.',
         );
         $this->assertForeignKeyRejects(
@@ -160,7 +188,7 @@ class OperationalTenantIntegrityTest extends TestCase
             'Mass invoice accepted an actor from another tenant.',
         );
         $this->assertForeignKeyRejects(
-            fn () => DB::table('mass_invoice_items')->where('id', $massInvoiceItemId)->update(['mass_invoice_id' => 999999]),
+            fn () => DB::table('mass_invoice_items')->where('id', $massInvoiceItemId)->update(['mass_invoice_id' => $foreignMassInvoiceId]),
             'Mass invoice item accepted an unrelated invoice.',
         );
         $this->assertForeignKeyRejects(
