@@ -213,6 +213,24 @@ class AccountingReportsTest extends TestCase
     }
 
 
+    public function test_accounting_report_page_is_denied_after_authenticated_owner_is_deactivated(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(AccountingReports::class);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $component->call('getReportData')->assertForbidden();
+    }
+
     public function test_accounting_report_data_is_denied_after_reports_permission_is_revoked(): void
     {
         $tenant = Tenant::factory()->create();

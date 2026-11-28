@@ -211,6 +211,26 @@ class FinancialReportsTest extends TestCase
         );
     }
 
+
+    public function test_report_service_rejects_a_stale_deactivated_authenticated_actor(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $this->expectException(DomainException::class);
+
+        app(GenerateFinancialReports::class)->incomeStatement(
+            $tenant->id,
+            CarbonImmutable::parse('2026-01-01'),
+            CarbonImmutable::parse('2026-01-31'),
+        );
+    }
+
     /**
      * @param  list<array{account_code: string, debit: string, credit: string}>  $entries
      */
