@@ -20,10 +20,10 @@ class FinancialActorTenantIntegrityTest extends TestCase
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
         $foreignOwner = User::factory()->for($foreignTenant)->withRole('tenant_owner')->create();
 
-        $expenseAccountId = $this->createAccount($tenant->id, '5400');
-        $cashAccountId = $this->createAccount($tenant->id, '1000');
+        $expenseAccountId = $this->createAccount($tenant->id, '9540');
+        $cashAccountId = $this->createAccount($tenant->id, '9100');
         $sourceBankId = $this->createBankAccount($tenant->id, $cashAccountId, 'SRC-'.$tenant->id);
-        $destinationBankId = $this->createBankAccount($tenant->id, $this->createAccount($tenant->id, '1010'), 'DST-'.$tenant->id);
+        $destinationBankId = $this->createBankAccount($tenant->id, $this->createAccount($tenant->id, '9110'), 'DST-'.$tenant->id);
 
         $now = now();
         $records = [
