@@ -93,6 +93,56 @@ class RolePermissionManagementTest extends TestCase
         $this->assertFalse(RolePermissions::canAccess());
     }
 
+
+    public function test_role_permission_service_rejects_a_stale_deactivated_owner_before_raw_matrix_writes(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $existingPermission = Permission::query()->create([
+            'name' => 'Lihat Pesanan',
+            'slug' => 'orders.view',
+            'group' => 'Pesanan',
+        ]);
+        $newPermission = Permission::query()->create([
+            'name' => 'Kelola Pesanan',
+            'slug' => 'orders.manage',
+            'group' => 'Pesanan',
+        ]);
+
+        $existing = RolePermission::query()->create([
+            'tenant_id' => $tenant->id,
+            'role' => 'cashier',
+            'permission_id' => $existingPermission->id,
+        ]);
+
+        $this->actingAs($owner);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        try {
+            app(\\App\\Services\\RolePermissionService::class)->sync(
+                $tenant,
+                'cashier',
+                [$newPermission->id],
+            );
+
+            $this->fail('A deactivated owner must not replace the permission matrix through the service directly.');
+        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+            $this->assertDatabaseHas('role_permissions', [
+                'id' => $existing->id,
+                'tenant_id' => $tenant->id,
+                'role' => 'cashier',
+                'permission_id' => $existingPermission->id,
+            ]);
+            $this->assertDatabaseMissing('role_permissions', [
+                'tenant_id' => $tenant->id,
+                'role' => 'cashier',
+                'permission_id' => $newPermission->id,
+            ]);
+        }
+    }
+
     public function test_role_change_loads_the_selected_roles_existing_permissions(): void
     {
         $tenant = Tenant::factory()->create();
