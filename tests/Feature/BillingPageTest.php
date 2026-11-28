@@ -198,4 +198,15 @@ class BillingPageTest extends TestCase
 
         return [$tenant, $owner, $plan];
     }
+
+    public function test_billing_page_rechecks_owner_access_on_every_livewire_request(): void
+    {
+        [, $owner] = $this->makeTenantWithSubscription();
+
+        $component = Livewire::actingAs($owner)->test(Billing::class);
+
+        $owner->update(['is_active' => false]);
+
+        $component->set('billingInterval', 'yearly')->assertForbidden();
+    }
 }

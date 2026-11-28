@@ -163,4 +163,18 @@ class GeneralSettingsTest extends TestCase
             'is_active' => true,
         ]);
     }
+
+    public function test_general_settings_rechecks_owner_access_on_every_livewire_request(): void
+    {
+        $tenant = $this->createTenant('settings-livewire-access');
+        $owner = $this->createUser($tenant, 'tenant_owner');
+
+        $component = Livewire::actingAs($owner)->test(GeneralSettings::class);
+
+        $owner->update(['is_active' => false]);
+
+        $component->set('timezone', 'Asia/Makassar')->assertForbidden();
+
+        $this->assertSame('Asia/Jakarta', $tenant->fresh()->getTimezone());
+    }
 }

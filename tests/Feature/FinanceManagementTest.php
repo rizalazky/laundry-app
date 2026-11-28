@@ -301,4 +301,21 @@ class FinanceManagementTest extends TestCase
 
         $this->assertSame(0, Journal::query()->where('tenant_id', $tenant->id)->count());
     }
+
+    public function test_manual_journal_rechecks_page_access_on_every_livewire_request(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(ManualJournal::class);
+
+        $owner->update(['is_active' => false]);
+
+        $component->call('getAccountOptions')->assertForbidden();
+    }
 }
