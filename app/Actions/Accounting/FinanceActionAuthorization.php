@@ -4,6 +4,7 @@ namespace App\Actions\Accounting;
 
 use App\Models\Branch;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -32,16 +33,21 @@ class FinanceActionAuthorization
             throw new DomainException('Cabang tidak ditemukan, nonaktif, atau bukan milik tenant ini.');
         }
 
-        $actor = Auth::user();
+        $authenticatedUserId = Auth::id();
 
-        if ($actor === null) {
+        if ($authenticatedUserId === null) {
             return $branch;
         }
+
+        // Resolve authorization from persisted state, not a potentially stale
+        // user model already cached by the current request.
+        $actor = User::query()->find($authenticatedUserId);
 
         $tenant = Tenant::query()->find($tenantId);
 
         if (
-            ! $actor->is_active
+            $actor === null
+            || ! $actor->is_active
             || $actor->tenant_id === null
             || (int) $actor->tenant_id !== $tenantId
             || ! $actor->hasPermissionTo('finance.manage')
