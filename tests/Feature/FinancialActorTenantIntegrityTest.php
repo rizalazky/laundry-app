@@ -120,7 +120,7 @@ class FinancialActorTenantIntegrityTest extends TestCase
             'tenant_id' => $tenantId,
             'code' => $code,
             'name' => 'Account '.$code,
-            'account_type' => $code === '5400' ? 'expense' : 'asset',
+            'account_type' => $code === '9540' ? 'expense' : 'asset',
             'is_system' => false,
             'is_active' => true,
             'created_at' => now(),
