@@ -4,6 +4,7 @@ namespace App\Filament\App\Widgets;
 
 use App\Enums\OrderStatus;
 use App\Models\OrderStatusLog;
+use App\Models\User;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -20,7 +21,7 @@ class RecentOrderActivity extends BaseWidget
 
     public static function canView(): bool
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
         return $user !== null
             && $user->is_active
@@ -28,9 +29,31 @@ class RecentOrderActivity extends BaseWidget
             && $user->hasPermissionTo('dashboard.view');
     }
 
+    public function hydrate(): void
+    {
+        abort_unless(static::canView(), 403);
+    }
+
+    private static function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
+    }
+
     public function table(Table $table): Table
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
+
+        abort_unless(
+            $user !== null
+                && $user->is_active
+                && $user->tenant_id !== null
+                && $user->hasPermissionTo('dashboard.view'),
+            403,
+        );
 
         $query = OrderStatusLog::query()
             ->with(['order.customer', 'user'])
