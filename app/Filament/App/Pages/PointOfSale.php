@@ -108,6 +108,15 @@ class PointOfSale extends Page implements HasForms
         $this->form->fill(['customerId' => null]);
     }
 
+    /**
+     * Re-check POS access on every subsequent Livewire request so an open
+     * register cannot keep exposing tenant data after access is revoked.
+     */
+    public function hydrate(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
     public function form(Schema $schema): Schema
     {
         return $schema
