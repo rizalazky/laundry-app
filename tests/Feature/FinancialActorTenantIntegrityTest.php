@@ -52,7 +52,7 @@ class FinancialActorTenantIntegrityTest extends TestCase
             ]],
             ['capital_movements', 'created_by', [
                 'tenant_id' => $tenant->id,
-                'coa_id' => cashAccountId: $cashAccountId,
+                'coa_id' => $cashAccountId,
                 'type' => 'modal_in',
                 'amount' => 10000,
                 'notes' => 'Test capital movement',
