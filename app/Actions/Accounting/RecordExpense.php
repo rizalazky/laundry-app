@@ -31,10 +31,18 @@ class RecordExpense
         CarbonInterface $spentAt,
         ?int $createdBy = null,
     ): Expense {
-        $authenticatedTenantId = Auth::user()?->tenant_id;
+        $authenticatedUser = Auth::user();
 
-        if ($authenticatedTenantId !== null && (int) $authenticatedTenantId !== $tenantId) {
-            throw new DomainException('Tenant pengeluaran tidak sesuai dengan tenant pengguna.');
+        if ($authenticatedUser !== null) {
+            if ((int) $authenticatedUser->tenant_id !== $tenantId) {
+                throw new DomainException('Tenant pengeluaran tidak sesuai dengan tenant pengguna.');
+            }
+
+            if ($createdBy !== null && (int) $createdBy !== (int) $authenticatedUser->getKey()) {
+                throw new DomainException('Pengguna pencatat pengeluaran harus sesuai dengan akun yang sedang login.');
+            }
+
+            $createdBy = (int) $authenticatedUser->getKey();
         }
 
         if (! in_array($paymentSourceType, [Expense::SOURCE_CASH, Expense::SOURCE_BANK], true)) {

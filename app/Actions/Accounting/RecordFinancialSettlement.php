@@ -40,10 +40,18 @@ class RecordFinancialSettlement
         ?int $createdBy = null,
         ?string $idempotencyKey = null,
     ): CashSettlement {
-        $authenticatedTenantId = Auth::user()?->tenant_id;
+        $authenticatedUser = Auth::user();
 
-        if ($authenticatedTenantId !== null && (int) $authenticatedTenantId !== $tenantId) {
-            throw new DomainException('Tenant settlement tidak sesuai dengan tenant pengguna.');
+        if ($authenticatedUser !== null) {
+            if ((int) $authenticatedUser->tenant_id !== $tenantId) {
+                throw new DomainException('Tenant settlement tidak sesuai dengan tenant pengguna.');
+            }
+
+            if ($createdBy !== null && (int) $createdBy !== (int) $authenticatedUser->getKey()) {
+                throw new DomainException('Pengguna pencatat settlement harus sesuai dengan akun yang sedang login.');
+            }
+
+            $createdBy = (int) $authenticatedUser->getKey();
         }
 
         if (! in_array($sourceType, [
