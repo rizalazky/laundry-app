@@ -209,6 +209,7 @@ class BillingPageTest extends TestCase
 
         $component->set('billingInterval', 'yearly')->assertForbidden();
     }
+
     public function test_billing_rejects_a_stale_owner_deactivated_in_the_database(): void
     {
         [, $owner] = $this->makeTenantWithSubscription();
