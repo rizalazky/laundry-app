@@ -177,4 +177,18 @@ class GeneralSettingsTest extends TestCase
 
         $this->assertSame('Asia/Jakarta', $tenant->fresh()->getTimezone());
     }
+    public function test_general_settings_rejects_a_stale_owner_deactivated_in_the_database(): void
+    {
+        $tenant = $this->createTenant('settings-stale-owner');
+        $owner = $this->createUser($tenant, 'tenant_owner');
+
+        $component = Livewire::actingAs($owner)->test(GeneralSettings::class);
+
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $component->set('timezone', 'Asia/Makassar')->assertForbidden();
+
+        $this->assertSame('Asia/Jakarta', $tenant->fresh()->getTimezone());
+    }
+
 }
