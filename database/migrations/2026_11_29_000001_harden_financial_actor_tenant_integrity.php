@@ -56,7 +56,7 @@ return new class extends Migration
             ['capital_movements', 'created_by', true],
             ['journals', 'created_by', true],
             ['bank_transfers', 'created_by', true],
-            ['tenant_reset_logs', 'executed_by', false],
+            ['tenant_reset_logs', 'executed_by', true],
         ];
 
         foreach ($actorReferences as [$table, $column, $nullable]) {
