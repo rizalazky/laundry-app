@@ -5,6 +5,7 @@ namespace App\Filament\App\Pages;
 use App\Actions\Accounting\GenerateFinancialReports;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Filament\Facades\Filament;
@@ -43,9 +44,13 @@ class AccountingReports extends Page
 
     public static function canAccess(): bool
     {
-        $user = Auth::user();
+        $authenticatedUserId = Auth::id();
+        $user = $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
 
         return $user !== null
+            && $user->is_active
             && $user->tenant_id !== null
             && $user->hasPermissionTo('reports.view');
     }
