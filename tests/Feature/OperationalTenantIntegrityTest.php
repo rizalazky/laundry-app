@@ -180,7 +180,7 @@ class OperationalTenantIntegrityTest extends TestCase
             'Mass invoice accepted a customer from another tenant.',
         );
         $this->assertForeignKeyRejects(
-            fn () => DB::table('mass_invoices')->where('id', $massInvoiceId)->update(['mass_invoice_schedule_id' => 999999]),
+            fn () => DB::table('mass_invoices')->where('id', $massInvoiceId)->update(['mass_invoice_schedule_id' => $foreignScheduleId]),
             'Mass invoice accepted an unrelated schedule.',
         );
         $this->assertForeignKeyRejects(
