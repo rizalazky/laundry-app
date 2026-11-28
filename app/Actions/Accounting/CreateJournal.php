@@ -64,11 +64,18 @@ class CreateJournal
             throw new DomainException('Jurnal berpasangan minimal memiliki dua baris.');
         }
 
-        $authenticatedUser = Auth::user();
+        $authenticatedUserId = Auth::id();
 
-        if ($authenticatedUser !== null) {
-            if ((int) $authenticatedUser->tenant_id !== $tenantId) {
-                throw new DomainException('Tenant jurnal tidak sesuai dengan tenant pengguna.');
+        if ($authenticatedUserId !== null) {
+            $authenticatedUser = User::query()->find($authenticatedUserId);
+
+            if (
+                $authenticatedUser === null
+                || ! $authenticatedUser->is_active
+                || $authenticatedUser->tenant_id === null
+                || (int) $authenticatedUser->tenant_id !== $tenantId
+            ) {
+                throw new DomainException('Akun pengguna tidak aktif atau tenant jurnal tidak sesuai dengan akun yang sedang login.');
             }
 
             // Default authenticated writes to the current actor while preserving
