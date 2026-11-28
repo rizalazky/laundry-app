@@ -96,6 +96,25 @@ class WorkshopOperatorTest extends TestCase
         $component->call('queueOrders')->assertForbidden();
     }
 
+
+    public function test_workshop_queue_is_denied_after_authenticated_owner_is_deactivated(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => true]);
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(WorkshopOperator::class);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $component->call('queueOrders')->assertForbidden();
+    }
+
     public function test_barcode_scan_selects_an_order_and_starts_a_production_stage_with_a_workshop_worker(): void
     {
         $tenant = Tenant::factory()->create();
