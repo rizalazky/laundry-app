@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\\Database\\Migrations\\Migration;
-use Illuminate\\Database\\Schema\\Blueprint;
-use Illuminate\\Support\\Facades\\DB;
-use Illuminate\\Support\\Facades\\Schema;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -74,7 +74,7 @@ return new class extends Migration
             $table->foreign(['order_id', 'tenant_id'], 'production_logs_order_tenant_foreign')
                 ->references(['id', 'tenant_id'])->on('orders')->cascadeOnDelete();
             $table->foreign(['worker_id', 'tenant_id'], 'production_logs_worker_tenant_foreign')
-                ->references(['id', 'tenant_id'])->on('users')->nullOnDelete();
+                ->references(['id', 'tenant_id'])->on('users')->restrictOnDelete();
         });
 
         Schema::table('commission_logs', function (Blueprint $table): void {
@@ -97,7 +97,7 @@ return new class extends Migration
             $table->foreign(['user_id', 'tenant_id'], 'commission_logs_user_tenant_foreign')
                 ->references(['id', 'tenant_id'])->on('users')->restrictOnDelete();
             $table->foreign(['service_id', 'tenant_id'], 'commission_logs_service_tenant_foreign')
-                ->references(['id', 'tenant_id'])->on('services')->nullOnDelete();
+                ->references(['id', 'tenant_id'])->on('services')->restrictOnDelete();
         });
     }
 
