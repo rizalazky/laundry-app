@@ -32,13 +32,22 @@ class Billing extends Page
 
     public static function canAccess(): bool
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
-        return $user instanceof User
+        return $user !== null
             && $user->is_active
             && $user->role === 'tenant_owner'
             && $user->tenant_id !== null
             && $user->tenant !== null;
+    }
+
+    private static function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
     }
 
     /**
@@ -53,7 +62,10 @@ class Billing extends Page
     {
         abort_unless(static::canAccess(), 403);
 
-        $user = Auth::user();
+        $user = static::authenticatedActor();
+
+        abort_unless($user !== null, 403);
+
         $subscription = Subscription::query()
             ->where('tenant_id', $user->tenant_id)
             ->first();
@@ -67,8 +79,8 @@ class Billing extends Page
             'billingInterval' => ['required', 'in:monthly,yearly'],
         ]);
 
-        $user = Auth::user();
-        abort_unless($user instanceof User && static::canAccess(), 403);
+        $user = static::authenticatedActor();
+        abort_unless($user !== null && static::canAccess(), 403);
 
         $subscription = Subscription::query()
             ->with('plan')
@@ -118,8 +130,8 @@ class Billing extends Page
             'planId' => ['required', 'integer', 'exists:plans,id'],
         ])->validate();
 
-        $user = Auth::user();
-        abort_unless($user instanceof User && static::canAccess(), 403);
+        $user = static::authenticatedActor();
+        abort_unless($user !== null && static::canAccess(), 403);
 
         $plan = Plan::query()
             ->where('is_active', true)
@@ -154,8 +166,8 @@ class Billing extends Page
 
     public function payInvoice(int $invoiceId)
     {
-        $user = Auth::user();
-        abort_unless($user instanceof User && static::canAccess(), 403);
+        $user = static::authenticatedActor();
+        abort_unless($user !== null && static::canAccess(), 403);
 
         $invoice = SubscriptionInvoice::query()
             ->where('tenant_id', $user->tenant_id)
@@ -177,7 +189,9 @@ class Billing extends Page
 
     protected function getViewData(): array
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
+
+        abort_unless($user !== null, 403);
 
         $subscription = Subscription::query()
             ->with('plan.features')
