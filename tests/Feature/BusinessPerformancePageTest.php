@@ -61,6 +61,25 @@ class BusinessPerformancePageTest extends TestCase
         $this->assertFalse(BusinessPerformance::canAccess());
     }
 
+
+    public function test_business_performance_page_is_denied_after_authenticated_owner_is_deactivated(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+        Filament::setCurrentPanel('app');
+        Filament::setTenant($branch);
+
+        $component = Livewire::test(BusinessPerformance::class);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $component->call('getAnalytics')->assertForbidden();
+    }
+
     public function test_business_analytics_are_denied_after_reports_permission_is_revoked(): void
     {
         $tenant = Tenant::factory()->create();
