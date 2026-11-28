@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Investor;
 use App\Models\ProfitSharing;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\EntitlementService;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
@@ -24,8 +25,13 @@ class GenerateProfitSharings
      */
     public function handle(int $tenantId, int $branchId, string $periodMonth): array
     {
-        $user = Auth::user();
+        $authenticatedUserId = Auth::id();
+        $user = $authenticatedUserId !== null
+            ? User::query()->find($authenticatedUserId)
+            : null;
 
+        // Re-check persisted state rather than trusting a user model cached by
+        // the current request before creating or paying financial snapshots.
         if ($user === null || ! $user->is_active || $user->role !== 'tenant_owner'
             || (int) $user->tenant_id !== $tenantId || ! $user->hasPermissionTo('investors.manage')) {
             throw new DomainException('Hanya pemilik tenant yang dapat membuat perhitungan bagi hasil.');

@@ -7,6 +7,7 @@ use App\Models\ChartOfAccount;
 use App\Models\Investor;
 use App\Models\ProfitSharing;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\EntitlementService;
 use DomainException;
 use Illuminate\Support\Facades\Auth;
@@ -16,8 +17,13 @@ class MarkProfitSharingPaid
 {
     public function handle(int $tenantId, int $profitSharingId, string $paymentAccountCode): ProfitSharing
     {
-        $user = Auth::user();
+        $authenticatedUserId = Auth::id();
+        $user = $authenticatedUserId !== null
+            ? User::query()->find($authenticatedUserId)
+            : null;
 
+        // Re-check persisted state rather than trusting a user model cached by
+        // the current request before creating or paying financial snapshots.
         if ($user === null || ! $user->is_active || $user->role !== 'tenant_owner'
             || (int) $user->tenant_id !== $tenantId || ! $user->hasPermissionTo('investors.manage')) {
             throw new DomainException('Hanya pemilik tenant yang dapat membayar bagi hasil investor.');
