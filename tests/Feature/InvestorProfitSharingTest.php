@@ -243,6 +243,61 @@ class InvestorProfitSharingTest extends TestCase
         }
     }
 
+
+    public function test_investor_actions_reject_a_stale_owner_after_persisted_deactivation(): void
+    {
+        [$tenant, $branch, $owner] = $this->setupOwner();
+        $investor = $this->createInvestor($tenant->id, $branch->id, 'Investor A', '20.00');
+
+        $this->postJournal($tenant->id, $branch->id, '2026-10-10 09:00:00', 'Pendapatan laundry', [
+            ['account_code' => '1000', 'debit' => '100000.00', 'credit' => '0.00'],
+            ['account_code' => '4000', 'debit' => '0.00', 'credit' => '100000.00'],
+        ]);
+
+        $sharing = ProfitSharing::withoutGlobalScope('tenant')->create([
+            'tenant_id' => $tenant->id,
+            'investor_id' => $investor->id,
+            'period_month' => '2026-10',
+            'net_profit_base' => '100000.00',
+            'share_percent_snapshot' => '20.00',
+            'payout_amount' => '20000.00',
+            'status' => ProfitSharing::STATUS_DRAFT,
+        ]);
+
+        $this->actingAs($owner);
+
+        // Keep Auth's in-memory user stale while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        try {
+            app(GenerateProfitSharings::class)->handle($tenant->id, $branch->id, '2026-11');
+            $this->fail('A deactivated owner must not generate profit sharings from a stale Auth model.');
+        } catch (\\DomainException $exception) {
+            $this->assertSame(
+                'Hanya pemilik tenant yang dapat membuat perhitungan bagi hasil.',
+                $exception->getMessage(),
+            );
+        }
+
+        try {
+            app(MarkProfitSharingPaid::class)->handle($tenant->id, $sharing->id, '1000');
+            $this->fail('A deactivated owner must not pay profit sharings from a stale Auth model.');
+        } catch (\\DomainException $exception) {
+            $this->assertSame(
+                'Hanya pemilik tenant yang dapat membayar bagi hasil investor.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('profit_sharings', 1);
+        $this->assertSame(ProfitSharing::STATUS_DRAFT, $sharing->fresh()->status);
+        $this->assertNull($sharing->fresh()->journal_id);
+        $this->assertDatabaseMissing('journals', [
+            'reference_type' => 'investor_profit_sharing',
+            'reference_id' => $sharing->id,
+        ]);
+    }
+
     private function setupOwner(): array
     {
         [$tenant, $branch] = $this->setupTenant();
