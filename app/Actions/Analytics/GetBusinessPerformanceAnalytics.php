@@ -3,6 +3,7 @@
 namespace App\Actions\Analytics;
 
 use App\Models\Branch;
+use App\Models\User;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Carbon\CarbonInterface;
@@ -257,7 +258,10 @@ class GetBusinessPerformanceAnalytics
 
     private function assertAccess(int $tenantId, ?int $branchId): void
     {
-        $user = Auth::user();
+        $authenticatedUserId = Auth::id();
+        $user = $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
 
         if ($user === null || ! $user->is_active || ! $user->hasPermissionTo('reports.view')) {
             throw new DomainException('Anda tidak memiliki izin untuk melihat analitik performa usaha.');
