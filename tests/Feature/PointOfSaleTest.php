@@ -301,6 +301,33 @@ class PointOfSaleTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
+
+    public function test_pos_rechecks_page_access_after_order_create_permission_is_revoked(): void
+    {
+        $this->actAsCashier();
+
+        $page = Livewire::test(PointOfSale::class);
+
+        RolePermission::query()
+            ->where('tenant_id', $this->tenant->id)
+            ->where('role', 'cashier')
+            ->whereHas('permission', fn ($query) => $query->where('slug', 'orders.create'))
+            ->delete();
+
+        $page->call('selectCustomer', $this->customer->id)->assertForbidden();
+    }
+
+    public function test_pos_rechecks_page_access_after_cashier_is_deactivated(): void
+    {
+        $cashier = $this->actAsCashier();
+
+        $page = Livewire::test(PointOfSale::class);
+
+        $cashier->update(['is_active' => false]);
+
+        $page->call('selectCustomer', $this->customer->id)->assertForbidden();
+    }
+
     public function test_cashier_cannot_add_services_before_selecting_a_customer(): void
     {
         $this->actAsCashier();
