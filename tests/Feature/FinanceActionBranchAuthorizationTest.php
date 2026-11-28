@@ -91,6 +91,72 @@ class FinanceActionBranchAuthorizationTest extends TestCase
         $this->assertDatabaseCount('journals', 0);
     }
 
+
+    public function test_finance_actions_reject_a_stale_authenticated_actor_after_deactivation(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create(['is_workshop' => false]);
+        $manager = User::factory()->for($tenant)->withRole('branch_manager')->create();
+        $manager->branches()->attach($branch);
+        $this->grantFinanceManage($tenant, $manager);
+
+        $expenseAccount = ChartOfAccount::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenant->id)
+            ->where('code', '5400')
+            ->firstOrFail();
+        $bank = $this->bankAccount($tenant);
+
+        $this->actingAs($manager);
+
+        // Bypass Eloquent model refresh so Auth still holds the stale active instance.
+        User::query()->whereKey($manager->getKey())->update(['is_active' => false]);
+
+        try {
+            app(RecordExpense::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                expenseAccountId: $expenseAccount->id,
+                paymentSourceType: 'cash',
+                bankAccountId: null,
+                amount: '25000',
+                description: 'Stale actor expense',
+                spentAt: now(),
+            );
+
+            $this->fail('A deactivated actor must not record an expense through a stale authenticated model.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Anda tidak memiliki izin untuk mencatat transaksi keuangan pada tenant ini.',
+                $exception->getMessage(),
+            );
+        }
+
+        try {
+            app(RecordFinancialSettlement::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                sourceType: CashSettlement::SOURCE_OUTLET_CASH,
+                targetBankId: $bank->id,
+                grossAmount: '100000',
+                mdrAmount: '0',
+                netAmount: '100000',
+                settledAt: now(),
+                referenceNumber: 'STALE-FINANCE-ACTOR-001',
+            );
+
+            $this->fail('A deactivated actor must not record a settlement through a stale authenticated model.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Anda tidak memiliki izin untuk mencatat transaksi keuangan pada tenant ini.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('expenses', 0);
+        $this->assertDatabaseCount('cash_settlements', 0);
+        $this->assertDatabaseCount('journals', 0);
+    }
+
     private function grantFinanceManage(Tenant $tenant, User $user): void
     {
         $permission = Permission::query()->firstOrCreate(
