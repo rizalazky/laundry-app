@@ -768,4 +768,23 @@ class OrderActionsTest extends TestCase
         $this->expectException(DomainException::class);
         app(ChangeOrderStatus::class)->handle($order, OrderStatus::Cancelled, $manager);
     }
+
+    public function test_inactive_operator_cannot_change_order_status_through_mapped_workshop_access(): void
+    {
+        $order = $this->createOrder();
+        $operator = User::factory()->for($this->tenant)->withRole('operator')->create([
+            'is_active' => false,
+        ]);
+        $operator->branches()->attach($this->branch);
+
+        try {
+            app(ChangeOrderStatus::class)->handle($order, OrderStatus::Washing, $operator);
+            $this->fail('Inactive operators must not change order status through workshop access.');
+        } catch (DomainException) {
+            $this->assertSame(OrderStatus::Received, $order->fresh()->status);
+            $this->assertSame(1, $order->statusLogs()->count());
+            $this->assertDatabaseCount('production_logs', 0);
+        }
+    }
+
 }

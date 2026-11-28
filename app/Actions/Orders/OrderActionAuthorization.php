@@ -89,7 +89,7 @@ class OrderActionAuthorization
         }
 
         if ($allowMappedWorkshopAccess && $actor->role === 'operator') {
-            if (! in_array($actor->role, $allowedRoles, true) || (int) $actor->tenant_id !== (int) $lockedOrder->tenant_id) {
+            if (! $actor->is_active || ! in_array($actor->role, $allowedRoles, true) || (int) $actor->tenant_id !== (int) $lockedOrder->tenant_id) {
                 throw new DomainException('Anda tidak memiliki izin untuk melakukan tindakan ini.');
             }
 
