@@ -376,7 +376,7 @@ class StockMovementTest extends TestCase
             'item_category' => 'raw_material',
         ]);
 
-        $this->expectException(\\DomainException::class);
+        $this->expectException(\DomainException::class);
 
         app(RecordStockMovement::class)->handle(
             $otherBranch,
