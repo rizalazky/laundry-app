@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -30,13 +31,18 @@ class RolePermissionService
      */
     public function sync(Tenant $tenant, string $role, array $permissionIds): void
     {
-        $actor = Auth::user();
+        $authenticatedUserId = Auth::id();
+        $actor = $authenticatedUserId !== null
+            ? User::query()->find($authenticatedUserId)
+            : null;
+        $tenant = Tenant::query()->find($tenant->getKey());
 
         if (
             $actor === null
             || ! $actor->is_active
             || $actor->role !== 'tenant_owner'
             || $actor->tenant_id === null
+            || $tenant === null
             || (int) $actor->tenant_id !== (int) $tenant->getKey()
         ) {
             throw new AuthorizationException('Hanya owner aktif yang dapat mengubah matriks hak akses tenant sendiri.');
