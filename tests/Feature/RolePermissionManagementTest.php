@@ -121,14 +121,14 @@ class RolePermissionManagementTest extends TestCase
         User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
 
         try {
-            app(\\App\\Services\\RolePermissionService::class)->sync(
+            app(\App\Services\RolePermissionService::class)->sync(
                 $tenant,
                 'cashier',
                 [$newPermission->id],
             );
 
             $this->fail('A deactivated owner must not replace the permission matrix through the service directly.');
-        } catch (\\Illuminate\\Auth\\Access\\AuthorizationException) {
+        } catch (\Illuminate\Auth\Access\AuthorizationException) {
             $this->assertDatabaseHas('role_permissions', [
                 'id' => $existing->id,
                 'tenant_id' => $tenant->id,
