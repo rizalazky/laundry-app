@@ -69,9 +69,6 @@ return new class extends Migration
             );
         }
 
-        Schema::table('branches', function (Blueprint $table): void {
-            $table->unique(['id', 'tenant_id'], 'branches_id_tenant_unique');
-        });
         Schema::table('orders', function (Blueprint $table): void {
             $table->unique(['id', 'tenant_id'], 'orders_id_tenant_unique');
             $table->unique(['id', 'branch_id', 'tenant_id'], 'orders_id_branch_tenant_unique');
@@ -135,6 +132,5 @@ return new class extends Migration
             $table->dropUnique('orders_id_branch_tenant_unique');
             $table->dropUnique('orders_id_tenant_unique');
         });
-        Schema::table('branches', fn (Blueprint $table) => $table->dropUnique('branches_id_tenant_unique'));
     }
 };
