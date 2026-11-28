@@ -120,6 +120,45 @@ class FinanceManagementTest extends TestCase
         $this->assertSame('500000.00', $journal->entries->firstWhere('credit', '500000.00')->credit);
     }
 
+
+    public function test_create_journal_rejects_a_stale_deactivated_authenticated_actor(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $branch = Branch::factory()->for($tenant)->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        // Keep Auth's in-memory owner active while persisting deactivation.
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        try {
+            app(CreateJournal::class)->handle(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                journalDate: CarbonImmutable::parse('2026-11-28 09:00:00'),
+                referenceType: null,
+                referenceId: null,
+                description: 'Stale owner journal attempt',
+                entries: [
+                    ['account_code' => '1000', 'debit' => '50000.00', 'credit' => '0.00'],
+                    ['account_code' => '3000', 'debit' => '0.00', 'credit' => '50000.00'],
+                ],
+                createdBy: $owner->getKey(),
+            );
+
+            $this->fail('A deactivated owner must not create a journal using a stale Auth model.');
+        } catch (\\DomainException $exception) {
+            $this->assertSame(
+                'Akun pengguna tidak aktif atau tenant jurnal tidak sesuai dengan akun yang sedang login.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('journals', 0);
+        $this->assertDatabaseCount('journal_entries', 0);
+    }
+
     public function test_manual_journal_rejects_unbalanced_entries_without_writing_a_journal(): void
     {
         $tenant = Tenant::factory()->create();
