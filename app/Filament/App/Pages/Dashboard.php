@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Auth;
 
 class Dashboard extends BaseDashboard
 {
+    public function hydrate(): void
+    {
+        abort_unless(static::canAccess(), 403);
+    }
+
     public static function canAccess(): bool
     {
         $authenticatedUserId = Auth::id();
