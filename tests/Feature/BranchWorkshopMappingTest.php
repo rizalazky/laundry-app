@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Tenant;
+use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -86,5 +88,67 @@ class BranchWorkshopMappingTest extends TestCase
             'is_workshop' => $isWorkshop,
             'is_active' => $isActive,
         ]);
+    }
+
+    public function test_authenticated_owner_can_update_workshop_mapping_within_own_tenant(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $outlet = $this->createBranch($tenant, 'OWN-OUT', false);
+        $workshop = $this->createBranch($tenant, 'OWN-WSH', true);
+
+        $this->actingAs($owner);
+
+        $outlet->syncWorkshops([$workshop->id]);
+
+        $this->assertDatabaseHas('outlet_workshops', [
+            'tenant_id' => $tenant->id,
+            'outlet_id' => $outlet->id,
+            'workshop_id' => $workshop->id,
+        ]);
+    }
+
+    public function test_authenticated_owner_cannot_change_workshop_mapping_for_a_foreign_tenant_branch(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $foreignTenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+        $foreignOutlet = $this->createBranch($foreignTenant, 'FOREIGN-OUT', false);
+        $foreignWorkshop = $this->createBranch($foreignTenant, 'FOREIGN-WSH', true);
+
+        // Seed a valid mapping through the trusted internal path before authenticating.
+        $foreignOutlet->syncWorkshops([$foreignWorkshop->id]);
+
+        $this->actingAs($owner);
+
+        try {
+            $foreignOutlet->syncWorkshops([]);
+            $this->fail('An owner must not mutate workshop mappings for another tenant.');
+        } catch (AuthorizationException $exception) {
+            $this->assertSame(
+                'Anda tidak memiliki akses untuk mengubah mapping workshop cabang ini.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseHas('outlet_workshops', [
+            'tenant_id' => $foreignTenant->id,
+            'outlet_id' => $foreignOutlet->id,
+            'workshop_id' => $foreignWorkshop->id,
+        ]);
+    }
+
+    public function test_inactive_tenant_owner_cannot_change_workshop_mappings_directly(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create(['is_active' => false]);
+        $outlet = $this->createBranch($tenant, 'OUT-INACTIVE-OWNER', false);
+        $workshop = $this->createBranch($tenant, 'WSH-INACTIVE-OWNER', true);
+        $outlet->syncWorkshops([$workshop->id]);
+
+        $this->actingAs($owner);
+
+        $this->expectException(AuthorizationException::class);
+        $outlet->syncWorkshops([]);
     }
 }

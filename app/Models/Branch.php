@@ -5,12 +5,14 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToTenant;
 use Filament\Models\Contracts\HasCurrentTenantLabel;
 use Filament\Models\Contracts\HasName;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Branch extends Model implements HasCurrentTenantLabel, HasName
 {
@@ -77,6 +79,31 @@ class Branch extends Model implements HasCurrentTenantLabel, HasName
      */
     public function syncWorkshops(array $workshopIds): void
     {
+        $authenticatedUser = Auth::user();
+
+        if ($authenticatedUser !== null) {
+            $actor = User::withoutGlobalScope('tenant')->find($authenticatedUser->getKey());
+
+            if (
+                $actor === null
+                || ! $actor->is_active
+                || $actor->role !== 'tenant_owner'
+                || $actor->tenant_id === null
+                || (int) $actor->tenant_id !== (int) $this->tenant_id
+            ) {
+                throw new AuthorizationException('Anda tidak memiliki akses untuk mengubah mapping workshop cabang ini.');
+            }
+
+            $branchBelongsToActor = self::withoutGlobalScope('tenant')
+                ->whereKey($this->getKey())
+                ->where('tenant_id', $actor->tenant_id)
+                ->exists();
+
+            if (! $branchBelongsToActor) {
+                throw new AuthorizationException('Anda tidak memiliki akses untuk mengubah mapping workshop cabang ini.');
+            }
+        }
+
         $workshopIds = array_values(array_unique(array_map('intval', $workshopIds)));
 
         if ($this->is_workshop && $workshopIds !== []) {
