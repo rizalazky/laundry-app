@@ -357,6 +357,7 @@ class StockMovementTest extends TestCase
     {
         [, , $owner] = $this->makeInventoryContext();
         $otherTenant = Tenant::factory()->create();
+        $otherOwner = User::factory()->for($otherTenant)->withRole('tenant_owner')->create();
         $otherBranch = Branch::factory()->for($otherTenant)->create();
         $otherUnit = InventoryUnit::query()->create([
             'tenant_id' => $otherTenant->id,
@@ -480,7 +481,7 @@ class StockMovementTest extends TestCase
             'stock_before' => '0.0000',
             'stock_after' => '99.0000',
             'unit_cost' => '0.00',
-            'created_by' => $owner->id,
+            'created_by' => $otherOwner->id,
             'created_at' => now(),
         ]);
 
