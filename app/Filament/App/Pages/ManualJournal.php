@@ -5,6 +5,7 @@ namespace App\Filament\App\Pages;
 use App\Actions\Accounting\CreateJournal;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
+use App\Models\User;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use DomainException;
@@ -35,10 +36,21 @@ class ManualJournal extends Page
 
     public static function canAccess(): bool
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
-        return $user !== null && $user->is_active && $user->tenant_id !== null
+        return $user !== null
+            && $user->is_active
+            && $user->tenant_id !== null
             && $user->hasPermissionTo('finance.manage');
+    }
+
+    private static function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
     }
 
     /**
@@ -51,6 +63,8 @@ class ManualJournal extends Page
 
     public function mount(): void
     {
+        abort_unless(static::canAccess(), 403);
+
         $this->journalDate = now()->format('Y-m-d\TH:i');
         $this->branchId = (string) (Filament::getTenant()?->getKey() ?? '');
         $this->entries = [
@@ -61,6 +75,8 @@ class ManualJournal extends Page
 
     public function getAccountOptions(): array
     {
+        abort_unless(static::canAccess(), 403);
+
         return ChartOfAccount::query()
             ->where('is_active', true)
             ->orderBy('code')
@@ -73,18 +89,24 @@ class ManualJournal extends Page
 
     public function getBranchOptions(): array
     {
+        abort_unless(static::canAccess(), 403);
+
+        $user = static::authenticatedActor();
+
+        abort_unless($user !== null, 403);
+
         $query = Branch::query()
-            ->where('tenant_id', Auth::user()?->tenant_id)
+            ->where('tenant_id', $user->tenant_id)
             ->where('is_active', true)
             ->orderBy('name');
 
-        if (Auth::user()?->role !== 'tenant_owner') {
+        if ($user->role !== 'tenant_owner') {
             $query->whereKey(Filament::getTenant()?->getKey());
         }
 
         $branches = $query->pluck('name', 'id')->all();
 
-        return Auth::user()?->role === 'tenant_owner'
+        return $user->role === 'tenant_owner'
             ? ['' => 'Perusahaan (tanpa cabang)'] + $branches
             : $branches;
     }
@@ -141,7 +163,16 @@ class ManualJournal extends Page
             'entries.*.credit' => ['required', 'numeric', 'min:0', 'decimal:0,2'],
         ]);
 
-        $user = Auth::user();
+        $user = static::authenticatedActor();
+
+        abort_unless(
+            $user !== null
+                && $user->is_active
+                && $user->tenant_id !== null
+                && $user->hasPermissionTo('finance.manage'),
+            403,
+        );
+
         $branchId = $data['branchId'] === '' ? null : (int) $data['branchId'];
 
         if ($branchId !== null) {

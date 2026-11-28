@@ -38,13 +38,22 @@ class GeneralSettings extends Page
 
     public static function canAccess(): bool
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
-        return $user instanceof User
+        return $user !== null
             && $user->is_active
             && $user->role === 'tenant_owner'
             && $user->tenant_id !== null
             && $user->tenant !== null;
+    }
+
+    private static function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
     }
 
     /**
@@ -59,7 +68,11 @@ class GeneralSettings extends Page
     {
         abort_unless(static::canAccess(), 403);
 
-        $tenant = Auth::user()->tenant;
+        $user = static::authenticatedActor();
+
+        abort_unless($user !== null, 403);
+
+        $tenant = $user->tenant;
         $settings = $tenant->generalSettings();
 
         $this->timezone = $settings['timezone'];
@@ -75,10 +88,10 @@ class GeneralSettings extends Page
 
     public function save(): void
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
         abort_unless(
-            $user instanceof User
+            $user !== null
                 && $user->is_active
                 && $user->role === 'tenant_owner'
                 && $user->tenant_id !== null,

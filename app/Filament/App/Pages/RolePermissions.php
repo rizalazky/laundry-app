@@ -3,6 +3,7 @@
 namespace App\Filament\App\Pages;
 
 use App\Models\Permission;
+use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\RolePermissionService;
 use Filament\Notifications\Notification;
@@ -31,9 +32,21 @@ class RolePermissions extends Page
 
     public static function canAccess(): bool
     {
-        return Auth::user()?->role === 'tenant_owner'
-            && Auth::user()?->is_active
-            && Auth::user()?->tenant_id !== null;
+        $user = static::authenticatedActor();
+
+        return $user !== null
+            && $user->is_active
+            && $user->role === 'tenant_owner'
+            && $user->tenant_id !== null;
+    }
+
+    private static function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
     }
 
     /**
@@ -77,7 +90,7 @@ class RolePermissions extends Page
 
     public function save(RolePermissionService $permissionService, ActivityLogger $activityLogger): void
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
         abort_unless(
             $user !== null
@@ -110,7 +123,7 @@ class RolePermissions extends Page
     {
         abort_unless(static::canAccess(), 403);
 
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
         abort_unless($user?->tenant_id !== null, 403);
 
