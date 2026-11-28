@@ -12,7 +12,9 @@ class GetTodayAttendanceSummary
      */
     public function handle(User $user): array
     {
-        if (! $user->is_active || $user->tenant_id === null) {
+        $user = User::query()->find($user->getKey());
+
+        if ($user === null || ! $user->is_active || $user->tenant_id === null) {
             return [
                 'present' => 0,
                 'on_duty' => 0,

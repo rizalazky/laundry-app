@@ -134,4 +134,21 @@ class DashboardFinancialSummaryTest extends TestCase
         $this->assertSame('0.00', $action->handle($inactive)['monthly_turnover']);
         $this->assertSame('0.00', $action->handle($unassigned)['monthly_turnover']);
     }
+
+    public function test_financial_summary_reloads_actor_and_returns_empty_after_deactivation(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $summary = app(GetDashboardFinancialSummary::class)->handle($owner);
+
+        $this->assertSame([
+            'monthly_turnover' => '0.00',
+            'monthly_net_payments' => '0.00',
+            'outstanding_balance' => '0.00',
+        ], $summary);
+    }
+
 }

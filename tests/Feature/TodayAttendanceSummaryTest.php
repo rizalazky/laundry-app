@@ -114,4 +114,21 @@ class TodayAttendanceSummaryTest extends TestCase
             'clocked_out' => 0,
         ], $summary);
     }
+
+    public function test_attendance_summary_reloads_actor_and_returns_empty_after_deactivation(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $summary = app(GetTodayAttendanceSummary::class)->handle($owner);
+
+        $this->assertSame([
+            'present' => 0,
+            'on_duty' => 0,
+            'clocked_out' => 0,
+        ], $summary);
+    }
+
 }

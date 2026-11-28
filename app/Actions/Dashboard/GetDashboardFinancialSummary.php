@@ -15,13 +15,15 @@ class GetDashboardFinancialSummary
      */
     public function handle(User $user): array
     {
+        $user = User::query()->find($user->getKey());
+
         $empty = [
             'monthly_turnover' => '0.00',
             'monthly_net_payments' => '0.00',
             'outstanding_balance' => '0.00',
         ];
 
-        if (! $user->is_active || $user->tenant_id === null) {
+        if ($user === null || ! $user->is_active || $user->tenant_id === null) {
             return $empty;
         }
 

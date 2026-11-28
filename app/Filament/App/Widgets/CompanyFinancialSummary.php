@@ -3,6 +3,7 @@
 namespace App\Filament\App\Widgets;
 
 use App\Actions\Dashboard\GetDashboardFinancialSummary;
+use App\Models\User;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,7 @@ class CompanyFinancialSummary extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
         return $user !== null
             && $user->is_active
@@ -32,11 +33,25 @@ class CompanyFinancialSummary extends StatsOverviewWidget
             && $user->hasPermissionTo('dashboard.view');
     }
 
+    public function hydrate(): void
+    {
+        abort_unless(static::canView(), 403);
+    }
+
+    private static function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
+    }
+
     protected function getStats(): array
     {
-        $user = Auth::user();
+        $user = static::authenticatedActor();
 
-        if ($user === null) {
+        if ($user === null || ! $user->hasPermissionTo('dashboard.view')) {
             return [];
         }
 

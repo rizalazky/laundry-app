@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Filament\App\Pages\Dashboard;
+use App\Filament\App\Widgets\CompanyFinancialSummary;
+use App\Filament\App\Widgets\RecentOrderActivity;
+use App\Filament\App\Widgets\TodayAttendanceSummary;
 use App\Models\Permission;
 use App\Models\RolePermission;
 use App\Models\Tenant;
@@ -64,6 +67,22 @@ class DashboardPermissionTest extends TestCase
 
         $this->assertFalse(Dashboard::canAccess());
     }
+
+
+    public function test_dashboard_widgets_reject_a_stale_actor_after_deactivation(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
+
+        $this->actingAs($owner);
+
+        User::query()->whereKey($owner->getKey())->update(['is_active' => false]);
+
+        $this->assertFalse(CompanyFinancialSummary::canView());
+        $this->assertFalse(RecentOrderActivity::canView());
+        $this->assertFalse(TodayAttendanceSummary::canView());
+    }
+
 
     private function grantPermission(Tenant $tenant, string $role, string $slug): void
     {
