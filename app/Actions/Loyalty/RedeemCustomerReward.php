@@ -9,6 +9,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\EntitlementService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -16,8 +17,14 @@ class RedeemCustomerReward
 {
     public function handle(User $actor, int $customerId, int $rewardId): PointLog
     {
+        if (Auth::hasUser() && (int) Auth::id() !== (int) $actor->getKey()) {
+            throw new AuthorizationException('Anda tidak memiliki izin untuk menukarkan poin pelanggan.');
+        }
+
+        $actor = User::query()->find($actor->getKey());
+
         if (
-            ! $actor->is_active || $actor->tenant_id === null
+            $actor === null || ! $actor->is_active || $actor->tenant_id === null
             || ! in_array($actor->role, ['tenant_owner', 'branch_manager'], true)
             || ! $actor->hasPermissionTo('loyalty.manage')
         ) {
