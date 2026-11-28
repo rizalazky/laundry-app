@@ -313,6 +313,53 @@ class CourierTaskTest extends TestCase
         app(UpdateCourierTaskStatus::class)->handle($task, CourierTaskStatus::Cancelled, $owner);
     }
 
+
+    public function test_user_cannot_update_an_assigned_task_after_their_role_changes_from_courier(): void
+    {
+        [, , , $order, $owner, $courier] = $this->business();
+        $task = CourierTask::query()->create([
+            'tenant_id' => $order->tenant_id,
+            'order_id' => $order->id,
+            'courier_id' => $courier->id,
+            'created_by' => $owner->id,
+            'task_type' => CourierTaskType::Pickup,
+            'address' => 'Jl. Mawar No. 10',
+            'status' => CourierTaskStatus::Assigned,
+        ]);
+
+        $permission = Permission::query()->create([
+            'name' => 'Perbarui Status Tugas Kurir',
+            'slug' => 'courier_tasks.update',
+            'group' => 'Operasional',
+        ]);
+        RolePermission::query()->create([
+            'tenant_id' => $order->tenant_id,
+            'role' => 'cashier',
+            'permission_id' => $permission->id,
+        ]);
+
+        // The user retains the task assignment and even has a permission
+        // grant, but no longer has the courier role.
+        $courier->forceFill(['role' => 'cashier'])->save();
+
+        try {
+            app(UpdateCourierTaskStatus::class)->handle(
+                $task,
+                CourierTaskStatus::InProgress,
+                $courier->fresh(),
+            );
+            $this->fail('A user who is no longer a courier must not update the assigned courier task.');
+        } catch (DomainException $exception) {
+            $this->assertSame(
+                'Hanya kurir yang ditugaskan atau pengelola cabang yang dapat memperbarui tugas ini.',
+                $exception->getMessage(),
+            );
+        }
+
+        $this->assertSame(CourierTaskStatus::Assigned, $task->fresh()->status);
+        $this->assertNull($task->fresh()->started_at);
+    }
+
     private function business(): array
     {
         $tenant = Tenant::factory()->create();
