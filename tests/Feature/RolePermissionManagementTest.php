@@ -186,10 +186,11 @@ class RolePermissionManagementTest extends TestCase
             ->call('getPermissionGroups')
             ->assertForbidden();
     }
+
     public function test_permission_matrix_rejects_a_stale_owner_who_was_demoted_in_the_database(): void
     {
         $tenant = Tenant::factory()->create();
-        $branch = \\App\\Models\\Branch::factory()->for($tenant)->create();
+        $branch = \App\Models\Branch::factory()->for($tenant)->create();
         $owner = User::factory()->for($tenant)->withRole('tenant_owner')->create();
 
         $this->actingAs($owner);
