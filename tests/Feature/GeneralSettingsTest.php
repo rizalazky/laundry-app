@@ -177,6 +177,7 @@ class GeneralSettingsTest extends TestCase
 
         $this->assertSame('Asia/Jakarta', $tenant->fresh()->getTimezone());
     }
+
     public function test_general_settings_rejects_a_stale_owner_deactivated_in_the_database(): void
     {
         $tenant = $this->createTenant('settings-stale-owner');
