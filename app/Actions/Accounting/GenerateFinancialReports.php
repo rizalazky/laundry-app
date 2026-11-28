@@ -13,6 +13,7 @@ use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class GenerateFinancialReports
 {
@@ -471,7 +472,7 @@ class GenerateFinancialReports
 
     private function assertTenantAccess(int $tenantId): void
     {
-        $user = Auth::user();
+        $user = $this->authenticatedActor();
 
         if ($user === null || ! $user->is_active || ! $user->hasPermissionTo('reports.view')) {
             throw new DomainException('Anda tidak memiliki izin untuk melihat laporan keuangan.');
@@ -487,10 +488,14 @@ class GenerateFinancialReports
 
     private function assertBranchAccess(int $tenantId, ?int $branchId): void
     {
-        $user = Auth::user();
+        $user = $this->authenticatedActor();
+
+        if ($user === null) {
+            throw new DomainException('Anda tidak memiliki izin untuk melihat laporan keuangan.');
+        }
 
         if ($branchId === null) {
-            if ($user !== null && ! in_array($user->role, ['tenant_owner', 'super_admin'], true)) {
+            if (! in_array($user->role, ['tenant_owner', 'super_admin'], true)) {
                 throw new DomainException('Pengguna cabang hanya dapat melihat laporan untuk cabang yang ditugaskan.');
             }
 
@@ -508,8 +513,7 @@ class GenerateFinancialReports
         }
 
         if (
-            $user !== null
-            && ! in_array($user->role, ['tenant_owner', 'super_admin'], true)
+            ! in_array($user->role, ['tenant_owner', 'super_admin'], true)
             && ! $user->branches()
                 ->whereKey($branchId)
                 ->where('branches.tenant_id', $tenantId)
@@ -518,6 +522,15 @@ class GenerateFinancialReports
         ) {
             throw new DomainException('Pengguna tidak memiliki akses ke cabang laporan ini.');
         }
+    }
+
+    private function authenticatedActor(): ?User
+    {
+        $authenticatedUserId = Auth::id();
+
+        return $authenticatedUserId === null
+            ? null
+            : User::query()->find($authenticatedUserId);
     }
 
     private function assertDateRange(CarbonInterface $from, CarbonInterface $to): void
